@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "astronavigator"
+version = "0.1.0"
+description = "Open-source planetarium and telescope control software."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "astropy>=8.0.1",
+    "numpy>=2.5.1",
+    "pyside6>=6.11.1",
+    "skyfield>=1.54",
+]
+
+
+[project.scripts]
+astronavigator = "astronavigator.__main__:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.0",
+    "pytest>=9.1.1",
+    "ruff>=0.15.21",
+]
