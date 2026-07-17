@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 
+from astronavigator.event.event_type import EventType
 from astronavigator.scene.scene import Scene
 from astronavigator.event.event_bus import EventBus
 from astronavigator.sky.sky_object import SkyObject
@@ -17,7 +18,8 @@ class SceneController:
         return self._scene
 
     def set_time(self, time: Time) -> None:
-        pass
+        self._scene.time = time
+        self._event_bus.publish(EventType.TIME_CHANGED, time)
 
     def set_observer(self, observer: SkyObject) -> None:
         pass

@@ -5,8 +5,14 @@ from enum import Enum, auto
 class EventType(Enum):
     TIME_CHANGED = auto()
     OBSERVER_CHANGED = auto()
-    SCENE_UPDATED = auto()
-    LAYER_CHANGED = auto()
+
+    OBJECT_ADDED = auto()
+    OBJECT_REMOVED = auto()
+
     SELECTION_CHANGED = auto()
+    FOCUS_CHANGED = auto()
+
+    LAYER_CHANGED = auto()
+    
     CAMERA_CHANGED = auto()
     MOUNT_CHANGED = auto()
