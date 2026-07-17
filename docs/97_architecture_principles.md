@@ -3,6 +3,8 @@
 ## 1. Scene First
 
 ソフトウェアの状態は必ずSceneに集約する。
+Scene の状態変更は必ず SceneController を経由する。
+Scene はデータ保持のみを担当する。
 
 ---
 
