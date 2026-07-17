@@ -20,10 +20,10 @@
 
 ## 3. モジュール
 
-Core
-Astronomy
-Catalog
-Satellite
+aplication
+astronomy
+scene
+sky
 Mount
 Tracking
 Camera
@@ -36,9 +36,11 @@ GUI
 ## 4. 依存関係
 
 GUI
+
 ↓
 
 Core
+
 ↓
 
 各機能モジュール
