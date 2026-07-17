@@ -1,34 +1,41 @@
 from __future__ import annotations
 
+
 from astronavigator.scene.scene import Scene
 from astronavigator.event.event_bus import EventBus
+from astronavigator.sky.sky_object import SkyObject
+from astronavigator.scene.time import Time
 
 
 class SceneController:
     def __init__(self, scene: Scene, event_bus: EventBus):
-        self.scene = scene
-        self.event_bus = event_bus
+        self._scene = scene
+        self._event_bus = event_bus
 
-    def set_time(self):
+    @property
+    def scene(self) -> Scene:
+        return self._scene
+
+    def set_time(self, time: Time) -> None:
         pass
 
-    def set_observer(self):
+    def set_observer(self, observer: SkyObject) -> None:
         pass
 
-    def add_object(self, obj):
+    def add_object(self, sky_object: SkyObject) -> None:
         pass
 
-    def remove_object(self, obj):
+    def remove_object(self, sky_object: SkyObject) -> None:
         pass
 
-    def select_object(self, obj):
+    def select_object(self, sky_object: SkyObject) -> None:
         pass
 
-    def clear_selection(self):
+    def clear_selection(self) -> None:
         pass
 
-    def set_focus(self, obj):
+    def set_focus(self, sky_object: SkyObject) -> None:
         pass
 
-    def clear_focus(self):
+    def clear_focus(self) -> None:
         pass
