@@ -39,7 +39,7 @@ GUI
 
 ↓
 
-Core
+Senceモジュール
 
 ↓
 
@@ -50,11 +50,11 @@ Core
 外部ライブラリ
 (Skyfield、ASCOM、OpenCV等)
 
-## Core
+## Senceモジュール
 
-Core はアプリケーション全体の状態を管理する中核モジュールである。
+Senceモジュール はアプリケーション全体の状態を管理する中核モジュールである。
 
-Core は以下のコンポーネントで構成される。
+Senceモジュール は以下のコンポーネントで構成される。
 
 - Scene
 - SceneController
