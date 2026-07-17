@@ -24,12 +24,14 @@ aplication
 astronomy
 scene
 sky
-Mount
-Tracking
-Camera
-Plate Solve
-Rendering
-GUI
+event
+layer
+mount
+tracking
+camera
+plate solve
+rendering
+gui
 
 ---
 
