@@ -48,6 +48,44 @@ Core
 外部ライブラリ
 (Skyfield、ASCOM、OpenCV等)
 
+## Core
+
+Core はアプリケーション全体の状態を管理する中核モジュールである。
+
+Core は以下のコンポーネントで構成される。
+
+- Scene
+- SceneController
+- EventBus
+
+### Scene
+
+Scene はアプリケーション全体の状態を保持する。
+
+Scene 自身は状態を保持するのみであり、状態変更のロジックは持たない。
+
+### SceneController
+
+SceneController は Scene を変更する唯一の公開インターフェースとする。
+
+GUI や各モジュールは Scene を直接変更せず、必ず SceneController を経由する。
+
+SceneController は
+
+- Scene の更新
+- Event の発行
+
+のみを担当する。
+
+天文学計算、描画、機器制御などの責務を持ってはならない。
+
+### EventBus
+
+Scene の変更通知は EventBus を利用して各モジュールへ通知する。
+
+EventBus はイベント配送のみを担当し、
+状態は保持しない。
+
 ---
 
 ## 5. ドライバ設計
