@@ -44,6 +44,10 @@ AIは本プロジェクトの設計思想を尊重し、
 
 □ Scene Firstを守るか
 
+□ Sceneを直接変更していないか
+
+□ SceneController以外でSceneを書き換えていないか
+
 □ Layerへ追加するだけで実現できないか
 
 □ SkyObjectで表現できないか

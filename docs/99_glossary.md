@@ -34,6 +34,16 @@ Renderer、GUI、TrackingなどはSceneを参照して処理を行う。
 
 ---
 
+## SceneController
+
+Scene を変更する唯一の公開インターフェース。
+
+Scene の更新後に EventBus を通じてイベントを通知する。
+
+天文学計算・描画・機器制御は担当しない。
+
+---
+
 ## Observer
 
 観測地点を表す。
