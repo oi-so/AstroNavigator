@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import QWidget
-from PySide6.QtGui import QPainter, Qt
+from PySide6.QtGui import QPainter
 
-from astronavigator.application.application import Application
+from astronavigator.rendering.renderer import Renderer
+from astronavigator.scene.scene import Scene
 
 
 class SkyView(QWidget):
-    def __init__(self, application: Application, parent: QWidget | None = None) -> None:
+    def __init__(self, scene: Scene, renderer: Renderer, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._application = application
+        self._scene = scene
+        self._renderer = renderer
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
-        painter.fillRect(self.rect(), Qt.GlobalColor.black)
+        self._renderer.render(painter, self._scene, self.rect())

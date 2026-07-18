@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.event.event_bus import EventBus
@@ -9,11 +10,16 @@ class Application:
         self._scene = Scene()
         self._event_bus = EventBus()
         self._scene_controller = SceneController(self._scene, self._event_bus)
+        self._renderer = Renderer()
 
     
     @property
     def scene(self) -> Scene:
         return self._scene
+    
+    @property
+    def renderer(self) -> Renderer:
+        return self._renderer
     
     @property
     def event_bus(self) -> EventBus:
