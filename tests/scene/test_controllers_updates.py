@@ -8,7 +8,8 @@ from astronavigator.scene.scene_controller import SceneController
 from astronavigator.scene.time import Time
 from astronavigator.sky.object_tree import ObjectType
 from astronavigator.sky.sky_object import Star
-
+from astronavigator.sky.position import Position
+from astronavigator.sky.magnitude import Magnitude
 
 
 def test_set_time():
@@ -40,7 +41,7 @@ def test_select_object():
 
     controller = SceneController(scene, EventBus())
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR)
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.select_object(new_sky_object)
 
@@ -52,7 +53,7 @@ def test_clear_selection():
 
     controller = SceneController(scene, EventBus())
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR)
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.select_object(new_sky_object)
 

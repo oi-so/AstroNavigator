@@ -9,7 +9,8 @@ from astronavigator.scene.time import Time
 from astronavigator.event.event_type import EventType
 from astronavigator.sky.object_tree import ObjectType
 from astronavigator.sky.sky_object import Star
-
+from astronavigator.sky.position import Position
+from astronavigator.sky.magnitude import Magnitude
 
 
 def test_set_time():
@@ -72,7 +73,7 @@ def test_set_selection():
 
     event_bus.subscribe(EventType.SELECTION_CHANGED, callback)
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR)
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.select_object(new_sky_object)
 
@@ -94,7 +95,7 @@ def test_clear_selection():
 
     event_bus.subscribe(EventType.SELECTION_CHANGED, callback)
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR)
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.select_object(new_sky_object)
 
@@ -123,7 +124,7 @@ def test_set_focused_object():
 
     event_bus.subscribe(EventType.FOCUS_CHANGED, callback)
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR)
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.set_focus(new_sky_object)
 
@@ -145,7 +146,7 @@ def test_clear_focus():
 
     event_bus.subscribe(EventType.FOCUS_CHANGED, callback)
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR)
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.set_focus(new_sky_object)
 

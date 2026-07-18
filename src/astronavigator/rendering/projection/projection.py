@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, QSize
 
-from astronavigator.camera.sky_camera import SkyCamera
 from astronavigator.sky.position import Position
+
+if TYPE_CHECKING:
+    from astronavigator.camera.sky_camera import SkyCamera
 
 
 class Projection(ABC):

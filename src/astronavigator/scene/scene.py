@@ -7,7 +7,7 @@ from astronavigator.scene.observer import Observer
 from astronavigator.scene.selection import Selection
 from astronavigator.sky.sky_object import SkyObject
 from astronavigator.scene.time import Time
-from astronavigator.scene.sky_camera import SkyCamera
+from astronavigator.camera.sky_camera import SkyCamera
 
 
 @dataclass(slots=True)
@@ -21,4 +21,4 @@ class Scene:
     focus: Focus = field(default_factory=Focus)
 
     layer_manager: LayerManager = field(default_factory=LayerManager)
-    sky_camera: SkyCamera = field(default_factory=SkyCamera)
+    sky_camera: SkyCamera = field(default_factory=SkyCamera.default)

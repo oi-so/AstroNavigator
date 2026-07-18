@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from PySide6.QtCore import QPointF, QSize
 
-from astronavigator.camera.sky_camera import SkyCamera
 from astronavigator.rendering.projection.projection import Projection
 from astronavigator.sky.position import Position
+
+if TYPE_CHECKING:
+    from astronavigator.camera.sky_camera import SkyCamera
 
 
 class OrthographicProjection(Projection):
