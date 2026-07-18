@@ -6,6 +6,8 @@ from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.scene.time import Time
+from astronavigator.sky.object_tree import ObjectType
+from astronavigator.sky.sky_object import SkyObject, Star
 
 
 
@@ -31,3 +33,31 @@ def test_set_observer():
     controller.set_observer(new_observer)
 
     assert controller.scene.observer == new_observer
+
+
+def test_select_object():
+    scene = Scene()
+
+    controller = SceneController(scene, EventBus())
+
+    new_sky_object = Star("test", "testObject", ObjectType.STAR)
+
+    controller.select_object(new_sky_object)
+
+    assert controller.scene.selection.selected == new_sky_object
+
+
+def test_clear_selection():
+    scene = Scene()
+
+    controller = SceneController(scene, EventBus())
+
+    new_sky_object = Star("test", "testObject", ObjectType.STAR)
+
+    controller.select_object(new_sky_object)
+
+    assert controller.scene.selection.selected == new_sky_object
+
+    controller.clear_selection()
+
+    assert controller.scene.selection.selected is None

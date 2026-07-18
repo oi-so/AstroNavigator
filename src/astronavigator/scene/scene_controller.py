@@ -33,13 +33,17 @@ class SceneController:
         pass
 
     def select_object(self, sky_object: SkyObject) -> None:
-        pass
+        self._scene.selection.selected = sky_object
+        self._event_bus.publish(EventType.SELECTION_CHANGED, sky_object)
 
     def clear_selection(self) -> None:
-        pass
+        self._scene.selection.selected = None
+        self._event_bus.publish(EventType.SELECTION_CHANGED, None)
 
     def set_focus(self, sky_object: SkyObject) -> None:
-        pass
+        self._scene.focus.target = sky_object
+        self._event_bus.publish(EventType.FOCUS_CHANGED, sky_object)
 
     def clear_focus(self) -> None:
-        pass
+        self._scene.focus.target = None
+        self._event_bus.publish(EventType.FOCUS_CHANGED, None)

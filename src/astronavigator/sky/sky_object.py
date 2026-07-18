@@ -17,7 +17,8 @@ class SkyObject(ABC):
 
 
 class Star(SkyObject):
-    pass
+    def get_position(self) -> Position:
+        return Position(0.0, 0.0)
 
 
 class Moon(SkyObject):
