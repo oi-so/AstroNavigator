@@ -1,26 +1,23 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
+
 from dataclasses import dataclass
+
 from astronavigator.sky.object_tree import ObjectType
 from astronavigator.sky.position import Position
+from astronavigator.sky.magnitude import Magnitude
 
 
 @dataclass(slots=True)
-class SkyObject(ABC):
+class SkyObject:
     id: str
     name: str
     object_type: ObjectType
-    
-    @property
-    @abstractmethod
-    def position(self) -> Position:
-        pass
+    position: Position
+    magnitude: Magnitude
 
 
 class Star(SkyObject):
-    @property
-    def position(self) -> Position:
-        return Position(0.0, 0.0)
+    pass
 
 
 class Moon(SkyObject):
