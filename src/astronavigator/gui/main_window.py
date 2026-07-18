@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QMainWindow
 
 
 from astronavigator.application.application import Application
+from astronavigator.gui.sky_view import SkyView
 
 
 class MainWindow(QMainWindow):
@@ -11,4 +12,6 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._application = application
         self.setWindowTitle("AstroNavigator")
+
+        self.setCentralWidget(SkyView(application))
         self.resize(1280, 720)
