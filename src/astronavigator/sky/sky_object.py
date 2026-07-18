@@ -11,13 +11,15 @@ class SkyObject(ABC):
     name: str
     object_type: ObjectType
     
+    @property
     @abstractmethod
-    def get_position(self) -> Position:
+    def position(self) -> Position:
         pass
 
 
 class Star(SkyObject):
-    def get_position(self) -> Position:
+    @property
+    def position(self) -> Position:
         return Position(0.0, 0.0)
 
 

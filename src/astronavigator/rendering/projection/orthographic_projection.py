@@ -14,7 +14,10 @@ class OrthographicProjection(Projection):
         camera: SkyCamera, 
         viewport_size: QSize
     ) -> QPointF | None:
-        raise NotImplementedError("Orthographic projection is not implemented yet.")
+        if position == camera.center:
+            return QPointF(viewport_size.width() / 2, viewport_size.height() / 2)
+        else:
+            raise NotImplementedError("Orthographic projection is not implemented yet.")
     
     def unproject(
         self, 
