@@ -22,5 +22,10 @@ class Renderer:
                 viewport.size()
             )
 
-            if point is not None:
-                painter.drawEllipse(point, 2, 2)
+            if point is None: 
+                continue
+
+            print("Rendering object:", obj.name, "at screen position:", point)
+            painter.setPen(Qt.GlobalColor.white)
+            painter.setBrush(Qt.GlobalColor.white)
+            painter.drawEllipse(point, 10, 10)

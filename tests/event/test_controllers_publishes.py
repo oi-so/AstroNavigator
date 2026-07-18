@@ -159,3 +159,34 @@ def test_clear_focus():
     assert received_event is not None
     assert received_event.event_type == EventType.FOCUS_CHANGED
     assert received_event.payload is None
+
+def test_add_and_remove_object():
+    scene = Scene()
+
+    event_bus = EventBus()
+    controller = SceneController(scene, event_bus)
+
+    received_event = None
+
+    def callback(event):
+        nonlocal received_event
+        received_event = event
+
+    event_bus.subscribe(EventType.OBJECT_ADDED, callback)
+    event_bus.subscribe(EventType.OBJECT_REMOVED, callback)
+
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
+
+    controller.add_object(new_sky_object)
+
+    assert received_event is not None
+    assert received_event.event_type == EventType.OBJECT_ADDED
+    assert received_event.payload == new_sky_object
+
+    received_event = None  # Reset for the next event
+
+    controller.remove_object(new_sky_object)
+
+    assert received_event is not None
+    assert received_event.event_type == EventType.OBJECT_REMOVED
+    assert received_event.payload == new_sky_object
