@@ -62,3 +62,18 @@ def test_clear_selection():
     controller.clear_selection()
 
     assert controller.scene.selection.selected is None
+
+def test_add_and_remove_object():
+    scene = Scene()
+
+    controller = SceneController(scene, EventBus())
+
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
+
+    controller.add_object(new_sky_object)
+
+    assert new_sky_object in controller.scene.objects
+
+    controller.remove_object(new_sky_object)
+
+    assert new_sky_object not in controller.scene.objects

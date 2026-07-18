@@ -27,10 +27,12 @@ class SceneController:
         self._event_bus.publish(EventType.OBSERVER_CHANGED, observer)
 
     def add_object(self, sky_object: SkyObject) -> None:
-        pass
+        self._scene.objects.append(sky_object)
+        self._event_bus.publish(EventType.OBJECT_ADDED, sky_object)
 
     def remove_object(self, sky_object: SkyObject) -> None:
-        pass
+        self._scene.objects.remove(sky_object)
+        self._event_bus.publish(EventType.OBJECT_REMOVED, sky_object)
 
     def select_object(self, sky_object: SkyObject) -> None:
         self._scene.selection.selected = sky_object
