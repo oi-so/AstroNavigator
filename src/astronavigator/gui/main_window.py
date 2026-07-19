@@ -13,5 +13,5 @@ class MainWindow(QMainWindow):
         self._application = application
         self.setWindowTitle("AstroNavigator")
 
-        self.setCentralWidget(SkyView(self._application.scene, self._application.renderer, self))
+        self.setCentralWidget(SkyView(self._application.scene, self._application.renderer, self._application.input_controller, self))
         self.resize(1280, 720)
