@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import QWidget
-from PySide6.QtGui import QKeyEvent, QPainter, Qt
+from PySide6.QtGui import QKeyEvent, QPainter, QWheelEvent, Qt, QNativeGestureEvent
+from PySide6.QtCore import QEvent
 
+from astronavigator.input.input_action import InputAction
 from astronavigator.input.input_controller import InputController
 from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
@@ -30,3 +32,20 @@ class SkyView(QWidget):
         
         self._input_controller.handle_action(action)
         self.update()
+
+
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        delta = event.angleDelta().y()
+        self._input_controller.handle_wheel(delta)
+        self.update()
+
+    def event(self, event: QEvent) -> bool:
+        if event.type() == QEvent.Type.NativeGesture:
+            assert isinstance(event, QNativeGestureEvent)
+
+            if event.gestureType() == Qt.NativeGestureType.ZoomNativeGesture:
+                self._input_controller.handle_pinch(event.value())
+                self.update()
+
+            return True
+        return super().event(event)

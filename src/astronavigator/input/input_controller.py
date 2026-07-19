@@ -1,3 +1,5 @@
+import math
+
 from astronavigator.input.input_action import InputAction
 from astronavigator.scene.scene_controller import SceneController
 
@@ -5,6 +7,7 @@ from astronavigator.scene.scene_controller import SceneController
 
 MOVE_STEP_DEG = 1.0  # degrees
 ZOOM_FACTOR = 0.9  # Zoom in/out factor
+PINCH_SENSITIVITY = 2
 
 
 class InputController:
@@ -29,3 +32,14 @@ class InputController:
                 raise NotImplementedError("Reset camera action is not implemented yet.")
             case _:
                 raise ValueError(f"Unhandled action: {action}")
+
+
+    def handle_wheel(self, delta: float) -> None:
+        if delta > 0:
+            self._scene_controller.zoom_camera(ZOOM_FACTOR)
+        else:
+            self._scene_controller.zoom_camera(1 / ZOOM_FACTOR)
+
+
+    def handle_pinch(self, scale_delta: float) -> None:
+        self._scene_controller.zoom_camera(math.exp(-scale_delta * PINCH_SENSITIVITY))
