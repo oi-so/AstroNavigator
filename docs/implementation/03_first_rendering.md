@@ -141,6 +141,8 @@ CAMERA_CHANGED
 MOUNT_CHANGED
 ```
 
+- RendererはSkyObjectの具体的な描画処理を各 ``_draw_xxx()`` メソッドへ委譲する。``render()``・``_draw_objects()``・``_draw_object()`` の構造は今後も原則変更せず、新しいSkyObject型を追加する場合は対応する ``_draw_xxx()`` を追加することで拡張する。
+
 
 
 ## 6. 動作確認
