@@ -1,14 +1,12 @@
 from __future__ import annotations
 
+from astronavigator.input.input_controller import InputController
 from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.event.event_bus import EventBus
 
-from astronavigator.sky.magnitude import Magnitude
 from astronavigator.sky.position import Position
-from astronavigator.sky.sky_object import Star
-from astronavigator.sky.object_tree import ObjectType
 
 from astronavigator.debug.stars import crate_test_stars
 
@@ -19,7 +17,7 @@ class Application:
         self._event_bus = EventBus()
         self._scene_controller = SceneController(self._scene, self._event_bus)
         self._renderer = Renderer()
-
+        self._input_controller = InputController(self._scene_controller)
 
         self._test()  # テスト用の星を追加
 
@@ -28,7 +26,7 @@ class Application:
         for star in stars:
             self._scene_controller.add_object(star)
 
-        self.scene.sky_camera.center = Position(ra_deg=0, dec_deg=0)
+        self._scene.sky_camera.center = Position(ra_deg=0, dec_deg=0)
 
 
     @property
@@ -46,3 +44,7 @@ class Application:
     @property
     def scene_controller(self) -> SceneController:
         return self._scene_controller
+    
+    @property
+    def input_controller(self) -> InputController:
+        return self._input_controller
