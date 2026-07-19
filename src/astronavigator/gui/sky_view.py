@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import QWidget
-from PySide6.QtGui import QKeyEvent, QPainter, QWheelEvent, Qt, QNativeGestureEvent
-from PySide6.QtCore import QEvent
+from PySide6.QtGui import QKeyEvent, QMouseEvent, QPainter, QWheelEvent, Qt, QNativeGestureEvent
+from PySide6.QtCore import QEvent, QPoint
 
-from astronavigator.input.input_action import InputAction
 from astronavigator.input.input_controller import InputController
 from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
@@ -17,6 +16,7 @@ class SkyView(QWidget):
         self._scene = scene
         self._renderer = renderer
         self._input_controller = input_controller
+        self._last_mouse_position: QPoint | None = None
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def paintEvent(self, event) -> None:
@@ -49,3 +49,30 @@ class SkyView(QWidget):
 
             return True
         return super().event(event)
+    
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._last_mouse_position = event.pos()
+
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if self._last_mouse_position is None:
+            return
+
+        delta = event.pos() - self._last_mouse_position
+        self._last_mouse_position = event.pos()
+
+        self._input_controller.handle_drag(
+            delta.x(),
+            delta.y(),
+            self.rect().size(),
+        )
+
+        self.update()
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._last_mouse_position = None
+
+        super().mouseReleaseEvent(event)
