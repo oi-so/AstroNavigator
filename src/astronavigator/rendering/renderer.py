@@ -15,6 +15,9 @@ class Renderer:
         painter.fillRect(viewport, Qt.GlobalColor.black)
 
     def _draw_objects(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+        painter.setPen(Qt.GlobalColor.white)
+        painter.setBrush(Qt.GlobalColor.white)
+        
         for obj in scene.objects:
             point = scene.sky_camera.projection.project(
                 obj.position, 
@@ -25,7 +28,5 @@ class Renderer:
             if point is None: 
                 continue
 
-            print("Rendering object:", obj.name, "at screen position:", point)
-            painter.setPen(Qt.GlobalColor.white)
-            painter.setBrush(Qt.GlobalColor.white)
+            
             painter.drawEllipse(point, 10, 10)
