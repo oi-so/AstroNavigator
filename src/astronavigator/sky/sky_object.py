@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from astronavigator.sky.object_tree import ObjectType
@@ -7,30 +8,80 @@ from astronavigator.sky.position import Position
 from astronavigator.sky.magnitude import Magnitude
 
 
+
+class SkyObject(ABC):
+    @abstractmethod
+    def get_position(self) -> Position:
+        ...
+
+    @abstractmethod
+    def get_magnitude(self) -> Magnitude:
+        ...
+
+
 @dataclass(slots=True)
-class SkyObject:
+class Star(SkyObject):
     id: str
     name: str
     object_type: ObjectType
-    position: Position
-    magnitude: Magnitude
 
+    _position: Position
+    _magnitude: Magnitude
+    def get_position(self) -> Position:
+        return self._position
+    
+    def get_magnitude(self) -> Magnitude:
+        return self._magnitude
 
-class Star(SkyObject):
-    pass
-
-
+@dataclass(slots=True)
 class Moon(SkyObject):
-    pass
+    id: str
+    name: str
+    object_type: ObjectType
 
+    def get_position(self) -> Position:
+        raise NotImplementedError("Moon position calculation is not implemented yet.")
+
+    def get_magnitude(self) -> Magnitude:
+        raise NotImplementedError("Moon magnitude calculation is not implemented yet.")
+
+
+@dataclass(slots=True)
 
 class Satellite(SkyObject):
-    pass
+    id: str
+    name: str
+    object_type: ObjectType
+
+    def get_position(self) -> Position:
+        raise NotImplementedError("Satellite position calculation is not implemented yet.")
+
+    def get_magnitude(self) -> Magnitude:
+        raise NotImplementedError("Satellite magnitude calculation is not implemented yet.")
 
 
+@dataclass(slots=True)
 class Comet(SkyObject):
-    pass
+    id: str
+    name: str
+    object_type: ObjectType
+    def get_position(self) -> Position:
+        raise NotImplementedError("Comet position calculation is not implemented yet.")
+    
+    def get_magnitude(self) -> Magnitude:
+        raise NotImplementedError("Comet magnitude calculation is not implemented yet.")
 
 
+@dataclass(slots=True)
 class DeepSkyObject(SkyObject):
-    pass
+    id: str
+    name: str
+    object_type: ObjectType
+
+    _position: Position
+    _magnitude: Magnitude
+    def get_position(self) -> Position:
+        return self._position
+    
+    def get_magnitude(self) -> Magnitude:
+        return self._magnitude

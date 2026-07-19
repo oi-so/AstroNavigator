@@ -3,7 +3,9 @@ from __future__ import annotations
 from PySide6.QtCore import QRect
 from PySide6.QtGui import QPainter, Qt
 
+from astronavigator.camera.sky_camera import SkyCamera
 from astronavigator.scene.scene import Scene
+from astronavigator.sky.sky_object import SkyObject
 
 
 class Renderer:
@@ -19,14 +21,15 @@ class Renderer:
         painter.setBrush(Qt.GlobalColor.white)
         
         for obj in scene.objects:
-            point = scene.sky_camera.projection.project(
-                obj.position, 
-                scene.sky_camera, 
+            self._draw_object(obj, painter, scene.sky_camera, viewport)
+
+    def _draw_object(self, obj: SkyObject, painter: QPainter, camera: SkyCamera, viewport: QRect) -> None:
+        point = camera.project(
+                obj.get_position(), 
                 viewport.size()
             )
 
-            if point is None: 
-                continue
+        if point is None: 
+            return
 
-            
-            painter.drawEllipse(point, 10, 10)
+        painter.drawEllipse(point, 10, 10)

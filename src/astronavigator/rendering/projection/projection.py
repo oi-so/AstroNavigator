@@ -19,25 +19,7 @@ class Projection(ABC):
         camera: SkyCamera, 
         viewport_size: QSize
     ) -> QPointF | None:
-        """"
-        天球上の座標をスクリーン座標へ変換する。
-        Convert celestial coordinates to screen coordinates.
-
-        Parameters
-        ----------
-        position : Position
-            天球上の座標。Celestial coordinates.
-        camera : SkyCamera
-            スカイカメラ。
-        viewport_size : QSize
-            ビューポートのサイズ。
-
-        Returns
-        -------
-        QPointF | None
-            QPointF: スクリーン座標。Screen coordinates.
-            None: 表示範囲外。Out of display range.
-        """
+        ...
 
     @abstractmethod
     def unproject(

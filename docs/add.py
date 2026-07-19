@@ -6,6 +6,7 @@ def combine_markdown_files(file_matrix, names, output_dir="combined_docs"):
 
     :param file_matrix: Markdownファイルの相対パスを含む二次元リスト (例: [['./a.md', './b.md'],
     ['./c.md']])
+    :param names: 結合後のファイル名として使用される名前のリスト
     :param output_dir: 結合後のファイルを保存するディレクトリ
     """
     # 出力ディレクトリが存在しない場合は作成

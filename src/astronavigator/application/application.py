@@ -17,7 +17,7 @@ class Application:
         self._scene_controller = SceneController(self._scene, self._event_bus)
         self._renderer = Renderer()
 
-        test_star = Star(id="test", name="Test Star", object_type=ObjectType.STAR, position=Position(0, 0), magnitude=Magnitude(1.0))
+        test_star = Star("test", "Test Star", ObjectType.STAR, Position(0, 0), Magnitude(1.0))
         self._scene_controller.add_object(test_star)
         self.scene.sky_camera.center = Position(0, 0)
 
