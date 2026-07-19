@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from PySide6.QtCore import QPointF, QSize
 
-from astronavigator.rendering.projection.orthographic_projection import OrthographicProjection
+from astronavigator.rendering.projection.linear_projection import LinearProjection
 from astronavigator.sky.position import Position
 
 if TYPE_CHECKING:
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 @dataclass(slots=True)
 class SkyCamera:
     center: Position
-    fov: float
+    fov_deg: float
     rotation: float
     projection: Projection 
 
@@ -24,9 +24,9 @@ class SkyCamera:
     def default(cls) -> "SkyCamera":
         return SkyCamera(
             center=Position(0, 0),
-            fov=90,
+            fov_deg=90,
             rotation=0,
-            projection=OrthographicProjection()
+            projection=LinearProjection()
         )
     
 
