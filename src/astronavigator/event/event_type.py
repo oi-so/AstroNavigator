@@ -16,3 +16,7 @@ class EventType(Enum):
     
     CAMERA_CHANGED = auto()
     MOUNT_CHANGED = auto()
+
+    CAMERA_MOVED = auto()
+    CAMERA_ZOOMED = auto()
+    CAMERA_ROTATED = auto()

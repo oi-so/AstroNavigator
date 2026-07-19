@@ -49,3 +49,12 @@ class SceneController:
     def clear_focus(self) -> None:
         self._scene.focus.target = None
         self._event_bus.publish(EventType.FOCUS_CHANGED, None)
+
+
+    def move_camera(self, delta_ra: float, delta_dec: float) -> None:
+        self._scene.sky_camera.move(delta_ra, delta_dec)
+        self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
+
+    def zoom_camera(self, factor: float) -> None:
+        self._scene.sky_camera.zoom(factor)
+        self._event_bus.publish(EventType.CAMERA_ZOOMED, self._scene.sky_camera)

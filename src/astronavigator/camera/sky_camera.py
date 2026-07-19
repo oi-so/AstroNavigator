@@ -29,6 +29,13 @@ class SkyCamera:
             projection=LinearProjection()
         )
     
+    def move(self, delta_ra: float, delta_dec: float):
+        self.center = self.center.moved(delta_ra, delta_dec)
+
+    def zoom(self, factor: float):
+        self.fov_deg *= factor
+        self.fov_deg = max(5.0, min(180.0, self.fov_deg))  # Clamp FOV between 5 and 180 degrees
+
 
     def project(self, position: Position, viewport_size: QSize) -> QPointF | None:
         """"
