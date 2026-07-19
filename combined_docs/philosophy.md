@@ -1,82 +1,28 @@
-## 結合ファイル一覧
-- 1. ai_development.md (1.1 KB)
-- 2. 97_architecture_principles.md (1008 B)
-- 3. 98_naming_convention.md (3.1 KB)
-- 4. 99_glossary.md (4.5 KB)
+# 結合ファイル構成案内
 
+このファイルは以下の順序で結合されています：
 
-## 1. ai_development.md
-
-```md
-# AI Development Guide
-
-## Goal
-
-AIは本プロジェクトの設計思想を尊重し、
-既存設計を壊さずにコードを作成する。
+1. `docs/97_architecture_principles.md`
+2. `docs/98_naming_convention.md`
+3. `docs/99_glossary.md`
+4. `docs/ai_development.md`
+5. `docs/development_environment.md`
 
 ---
 
-## 必ず守ること
-
-・97_architecture_principles.md を守る
-
-・98_naming_convention.md を守る
-
-・99_glossary.md の用語を使う
-
-・既存の設計を優先する
-
-・新しい概念を勝手に追加しない
-
-・責務を増やさない
-
-・抽象クラスを優先する
-
-・Platform Independent を維持する
-
-・Scene First を維持する
-
-・Event Driven を維持する
-
-・Rendererは天文学計算をしてはいけない
-
-・GUIからSkyfieldを直接呼んではいけない
-
-・GUIからASCOMを直接呼んではいけない
 
 
-## AI Checklist
+--- 
+## ファイル名: `docs/97_architecture_principles.md`
+---
 
-この変更で
-
-□ 新しい責務が増えないか
-
-□ Scene Firstを守るか
-
-□ Layerへ追加するだけで実現できないか
-
-□ SkyObjectで表現できないか
-
-□ Event化できないか
-
-□ Interfaceを追加すべきか
-
-□ 名前は98に従っているか
-
-□ 用語は99にあるか
-
-□ 用語などがない場合にはmdに追記しているか
-```
-
-## 2. 97_architecture_principles.md
-
-```md
 # Architecture Principles
 
 ## 1. Scene First
 
 ソフトウェアの状態は必ずSceneに集約する。
+Scene の状態変更は必ず SceneController を経由する。
+Scene はデータ保持のみを担当する。
 
 ---
 
@@ -136,11 +82,12 @@ OS依存コードはDevice層に限定する。
 
 性能最適化は必要な箇所に限定し、
 可読性を犠牲にしない。
-```
 
-## 3. 98_naming_convention.md
 
-```md
+--- 
+## ファイル名: `docs/98_naming_convention.md`
+---
+
 # 98. Naming Convention
 
 本ドキュメントは、本プロジェクトにおける命名規則を定義する。
@@ -664,11 +611,12 @@ iを1増やす
 ○
 
 ASCOMドライバの仕様上ここで同期が必要
-```
 
-## 4. 99_glossary.md
 
-```md
+--- 
+## ファイル名: `docs/99_glossary.md`
+---
+
 # 99. Glossary（用語集）
 
 この文書は、本プロジェクトで使用する用語の定義をまとめたものである。
@@ -702,6 +650,16 @@ Renderer、GUI、TrackingなどはSceneを参照して処理を行う。
 - 描画
 - 座標計算
 - 更新処理
+
+---
+
+## SceneController
+
+Scene を変更する唯一の公開インターフェース。
+
+Scene の更新後に EventBus を通じてイベントを通知する。
+
+天文学計算・描画・機器制御は担当しない。
 
 ---
 
@@ -1128,4 +1086,174 @@ OS依存コードは可能な限り限定する。
 
 本プロジェクトにおけるクラス名・変数名・関数名などの命名規則は
 「98_naming_convention.md」に従うものとする。
+
+
+--- 
+## ファイル名: `docs/ai_development.md`
+---
+
+# AI Development Guide
+
+## Goal
+
+AIは本プロジェクトの設計思想を尊重し、
+既存設計を壊さずにコードを作成する。
+
+---
+
+## 必ず守ること
+
+・97_architecture_principles.md を守る
+
+・98_naming_convention.md を守る
+
+・99_glossary.md の用語を使う
+
+・既存の設計を優先する
+
+・新しい概念を勝手に追加しない
+
+・責務を増やさない
+
+・抽象クラスを優先する
+
+・Platform Independent を維持する
+
+・Scene First を維持する
+
+・Event Driven を維持する
+
+・Rendererは天文学計算をしてはいけない
+
+・GUIからSkyfieldを直接呼んではいけない
+
+・GUIからASCOMを直接呼んではいけない
+
+
+## AI Checklist
+
+この変更で
+
+□ 新しい責務が増えないか
+
+□ Scene Firstを守るか
+
+□ Sceneを直接変更していないか
+
+□ SceneController以外でSceneを書き換えていないか
+
+□ Layerへ追加するだけで実現できないか
+
+□ SkyObjectで表現できないか
+
+□ Event化できないか
+
+□ Interfaceを追加すべきか
+
+□ 名前は98に従っているか
+
+□ 用語は99にあるか
+
+□ 用語などがない場合にはmdに追記しているか
+
+
+--- 
+## ファイル名: `docs/development_environment.md`
+---
+
+# Development Environment
+
+## Python
+
+- Python 3.12
+
+---
+
+## Package Manager
+
+- uv
+
+### Create virtual environment
+
+```bash
+uv venv
 ```
+
+### Activate
+
+macOS / Linux
+
+```bash
+source .venv/bin/activate
+```
+
+Windows
+
+```powershell
+.venv\Scripts\activate
+```
+
+---
+
+## Install dependencies
+
+```bash
+uv sync
+```
+
+---
+
+## Add dependency
+
+```bash
+uv add <package>
+```
+
+Development dependency
+
+```bash
+uv add --dev <package>
+```
+
+---
+
+## Run
+
+```bash
+uv run python -m astronavigator
+```
+
+---
+
+## Test
+
+```bash
+uv run pytest
+```
+
+---
+
+## Formatter / Linter
+
+Ruff
+
+```bash
+uv run ruff check .
+uv run ruff format .
+```
+
+---
+
+## IDE
+
+Recommended
+
+- Visual Studio Code
+
+---
+
+## Project Structure
+
+- src layout
+- pyproject.toml
+- uv.lock

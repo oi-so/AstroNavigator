@@ -27,10 +27,12 @@ class SceneController:
         self._event_bus.publish(EventType.OBSERVER_CHANGED, observer)
 
     def add_object(self, sky_object: SkyObject) -> None:
-        pass
+        self._scene.objects.append(sky_object)
+        self._event_bus.publish(EventType.OBJECT_ADDED, sky_object)
 
     def remove_object(self, sky_object: SkyObject) -> None:
-        pass
+        self._scene.objects.remove(sky_object)
+        self._event_bus.publish(EventType.OBJECT_REMOVED, sky_object)
 
     def select_object(self, sky_object: SkyObject) -> None:
         self._scene.selection.selected = sky_object
@@ -47,3 +49,12 @@ class SceneController:
     def clear_focus(self) -> None:
         self._scene.focus.target = None
         self._event_bus.publish(EventType.FOCUS_CHANGED, None)
+
+
+    def move_camera(self, delta_ra: float, delta_dec: float) -> None:
+        self._scene.sky_camera.move(delta_ra, delta_dec)
+        self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
+
+    def zoom_camera(self, factor: float) -> None:
+        self._scene.sky_camera.zoom(factor)
+        self._event_bus.publish(EventType.CAMERA_ZOOMED, self._scene.sky_camera)
