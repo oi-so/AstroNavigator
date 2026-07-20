@@ -18,6 +18,7 @@ class SkyCamera:
     fov_deg: float
     rotation: float
     projection: Projection 
+    limit_magnitude: float = 6.0  # Default limit magnitude for visibility
 
 
     @classmethod

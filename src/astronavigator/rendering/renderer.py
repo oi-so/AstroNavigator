@@ -22,6 +22,9 @@ class Renderer:
             self._draw_object(obj, painter, scene.sky_camera, viewport)
 
     def _draw_object(self, obj: SkyObject, painter: QPainter, camera: SkyCamera, viewport: QRect) -> None:
+        if not self._is_visible(obj, camera):
+            return
+        
         point = camera.project(
                 obj.get_position(), 
                 viewport.size()
@@ -79,3 +82,7 @@ class Renderer:
     def _get_star_radius(self, magnitude: Magnitude) -> float:
         radius = max(1.0, 6.0 - magnitude.value * 0.5)
         return radius
+    
+
+    def _is_visible(self, obj: SkyObject, camera: SkyCamera) -> bool:
+        return obj.get_magnitude().is_visible(camera.limit_magnitude)
