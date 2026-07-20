@@ -20,3 +20,5 @@ class EventType(Enum):
     CAMERA_MOVED = auto()
     CAMERA_ZOOMED = auto()
     CAMERA_ROTATED = auto()
+
+    SCENE_UPDATED = auto()

@@ -9,4 +9,4 @@ class DebugCatalogProvider(CatalogProvider):
     def load(self) -> Catalog:
         stars = create_test_stars()
 
-        return Catalog(stars)
+        return Catalog("Debug_Catalog", stars)

@@ -35,8 +35,12 @@ class SceneController:
         self._event_bus.publish(EventType.OBJECT_ADDED, sky_object)
 
     def load_catalog(self, catalog: Catalog) -> None:
-        self._scene.objects.clear()
         self._scene.objects.extend(catalog.objects)
+        self._event_bus.publish(EventType.SCENE_UPDATED, catalog)
+
+    def clear_objects(self) -> None:
+        self._scene.objects.clear()
+        self._event_bus.publish(EventType.SCENE_UPDATED, None)
 
     def remove_object(self, sky_object: SkyObject) -> None:
         self._scene.objects.remove(sky_object)
