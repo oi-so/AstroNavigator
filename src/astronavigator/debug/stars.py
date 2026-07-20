@@ -5,11 +5,11 @@ import random
 
 from astronavigator.sky.magnitude import Magnitude
 from astronavigator.sky.position import Position
-from astronavigator.sky.sky_object import Star
+from astronavigator.sky.sky_object import SkyObject, Star
 from astronavigator.sky.object_tree import ObjectType
 
 
-def crate_test_stars() -> list[Star]:
+def create_test_stars() -> list[SkyObject]:
         stars = []
 
         index = 0

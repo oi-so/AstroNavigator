@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from astronavigator.catalog.debug_catalog_provider import DebugCatalogProvider
 from astronavigator.input.input_controller import InputController
 from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
@@ -8,7 +9,7 @@ from astronavigator.event.event_bus import EventBus
 
 from astronavigator.sky.position import Position
 
-from astronavigator.debug.stars import crate_test_stars
+from astronavigator.debug.stars import create_test_stars
 
 
 class Application:
@@ -22,9 +23,9 @@ class Application:
         self._test()  # テスト用の星を追加
 
     def _test(self):
-        stars = crate_test_stars()
-        for star in stars:
-            self._scene_controller.add_object(star)
+        provider = DebugCatalogProvider()
+        catalog = provider.load()
+        self._scene_controller.load_catalog(catalog)
 
         self._scene.sky_camera.center = Position(ra_deg=0, dec_deg=0)
 
