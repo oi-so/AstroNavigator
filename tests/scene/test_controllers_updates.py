@@ -6,7 +6,7 @@ from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.scene.time import Time
-from astronavigator.sky.object_tree import ObjectType
+from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.sky_object import Star
 from astronavigator.sky.position import Position
 from astronavigator.sky.magnitude import Magnitude

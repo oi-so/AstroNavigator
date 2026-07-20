@@ -6,7 +6,7 @@ from typing import TextIO
 from astronavigator.catalog.catalog import Catalog
 from astronavigator.catalog.parser.catalog_parser import CatalogParser
 from astronavigator.sky.sky_object import Star
-from astronavigator.sky.object_tree import ObjectType
+from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.position import Position
 from astronavigator.sky.magnitude import Magnitude
 
