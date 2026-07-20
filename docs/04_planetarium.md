@@ -346,5 +346,6 @@ Scene は以下の要素から構成される。
 - Projection（投影法）
 - LayerManager（表示レイヤー）
 - SkyObjects（表示対象）
+- ObjectIndex
 
 Renderer は Scene を入力として描画を行う。

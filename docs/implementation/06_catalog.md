@@ -107,5 +107,5 @@ G --> H[Scene.objects]
 - `Scene` に大量の `SkyObject` を読み込める基盤が完成した。
 
 ## 10. 次に実装するもの
+ObjectIndex
 HYG Catalog
-ObjectTree
