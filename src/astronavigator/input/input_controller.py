@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QPointF, QSize
 
 from astronavigator.input.input_action import InputAction
 from astronavigator.scene.scene_controller import SceneController
@@ -57,3 +57,7 @@ class InputController:
         delta_dec = dy * deg_per_pixel
 
         self._scene_controller.move_camera(delta_ra, delta_dec)
+
+    
+    def handle_click(self, position: QPointF, viewport_size: QSize) -> None:
+        self._scene_controller.select_object_at(position, viewport_size)

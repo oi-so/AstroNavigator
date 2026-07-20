@@ -10,6 +10,8 @@ from astronavigator.scene.scene import Scene
 from astronavigator.input.key_bindings import KEY_BINDINGS
 
 
+DRAG_THRESHOLD_PX = 2
+
 class SkyView(QWidget):
     def __init__(self, scene: Scene, renderer: Renderer, input_controller: InputController, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -17,6 +19,7 @@ class SkyView(QWidget):
         self._renderer = renderer
         self._input_controller = input_controller
         self._last_mouse_position: QPoint | None = None
+        self._dragging = False
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def paintEvent(self, event) -> None:
@@ -53,6 +56,7 @@ class SkyView(QWidget):
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self._last_mouse_position = event.pos()
+            self._dragging = False
 
         super().mousePressEvent(event)
 
@@ -61,6 +65,9 @@ class SkyView(QWidget):
             return
 
         delta = event.pos() - self._last_mouse_position
+        if delta.manhattanLength() > DRAG_THRESHOLD_PX:
+            self._dragging = True
+
         self._last_mouse_position = event.pos()
 
         self._input_controller.handle_drag(
@@ -73,6 +80,11 @@ class SkyView(QWidget):
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            self._last_mouse_position = None
+            if not self._dragging:
+                self._input_controller.handle_click(event.position(), self.rect().size())
 
+            self._last_mouse_position = None
+            self._dragging = False
+
+        self.update()
         super().mouseReleaseEvent(event)
