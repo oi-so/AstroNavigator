@@ -18,8 +18,8 @@ class HygParser(CatalogParser):
         catalog = Catalog(name="HYG")
 
         for row in reader:
-            if self._parse_star(row).get_magnitude().value >= 3.0:
-                continue  # Skip stars with magnitude greater than 6.0
+            if self._parse_star(row).get_magnitude().value >= 4.0:
+                continue  # Skip stars with magnitude greater than 3.0
             catalog.objects.append(self._parse_star(row))
     
         return catalog

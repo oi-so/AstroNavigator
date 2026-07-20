@@ -1,5 +1,4 @@
 from __future__ import annotations
-from pathlib import Path
 
 from astronavigator.catalog.catalog_manager import CatalogManager
 from astronavigator.catalog.parser.hyg_parser import HygParser
@@ -13,8 +12,6 @@ from astronavigator.event.event_bus import EventBus
 from astronavigator.sky.position import Position
 from astronavigator.catalog.catalog_info import HYG
 
-from astronavigator.debug.stars import create_test_stars
-
 
 class Application:
     def __init__(self):
@@ -25,19 +22,20 @@ class Application:
         self._input_controller = InputController(self._scene_controller)
         self._catalog_manager = CatalogManager()
 
-        self._test()  # テスト用の星を追加
+        self._load_hyg()  # テスト用の星を追加
 
     def _test(self):
-        # self._catalog_manager.download_catalog(HYG)
+        provider = DebugCatalogProvider()
+        catalog = provider.load()
+        self._scene_controller.load_catalog(catalog)
+        self._scene.sky_camera.center = Position(ra_deg=0, dec_deg=0)
 
+    def _load_hyg(self):
+        self._catalog_manager.download_catalog(HYG)
         parser = HygParser()
         provider = LocalFileProvider(path=HYG.save_path, parser=parser)
         catalog = provider.load()
-
-        # provider = DebugCatalogProvider()
-        # catalog = provider.load()
         self._scene_controller.load_catalog(catalog)
-        self._scene.sky_camera.center = Position(ra_deg=0, dec_deg=0)
 
 
     @property
