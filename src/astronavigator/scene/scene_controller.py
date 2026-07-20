@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from PySide6.QtCore import QPointF, QSize
 
 from astronavigator.event.event_type import EventType
 from astronavigator.scene.observer import Observer
@@ -8,6 +9,8 @@ from astronavigator.event.event_bus import EventBus
 from astronavigator.sky.sky_object import SkyObject
 from astronavigator.scene.time import Time
 
+
+SELECTION_THRESHOLD = 20
 
 class SceneController:
     def __init__(self, scene: Scene, event_bus: EventBus):
@@ -34,9 +37,13 @@ class SceneController:
         self._scene.objects.remove(sky_object)
         self._event_bus.publish(EventType.OBJECT_REMOVED, sky_object)
 
-    def select_object(self, sky_object: SkyObject) -> None:
+    def select_object(self, sky_object: SkyObject | None) -> None:
         self._scene.selection.selected = sky_object
         self._event_bus.publish(EventType.SELECTION_CHANGED, sky_object)
+
+    def select_object_at(self, position: QPointF, viewport_size: QSize) -> None:
+        obj = self._find_nearest_object(position, viewport_size)
+        self.select_object(obj)
 
     def clear_selection(self) -> None:
         self._scene.selection.selected = None
@@ -58,3 +65,29 @@ class SceneController:
     def zoom_camera(self, factor: float) -> None:
         self._scene.sky_camera.zoom(factor)
         self._event_bus.publish(EventType.CAMERA_ZOOMED, self._scene.sky_camera)
+
+
+    def _find_nearest_object(self, position: QPointF, viewport_size: QSize) -> SkyObject | None:
+        best_object = None
+        best_distance2 = float("inf")
+        camera = self._scene.sky_camera
+
+        for obj in self._scene.objects:
+            if not obj.get_magnitude().is_visible(camera.limit_magnitude):
+                continue
+
+            point = camera.project(obj.get_position(), viewport_size)
+            if point is None:
+                continue
+
+            dx = point.x() - position.x()
+            dy = point.y() - position.y()
+            distance2 = dx * dx + dy * dy
+
+            if distance2 < best_distance2:
+                best_distance2 = distance2
+                best_object = obj
+
+        if best_distance2 > SELECTION_THRESHOLD ** 2:
+            return None
+        return best_object

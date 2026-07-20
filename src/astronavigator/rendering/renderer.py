@@ -9,10 +9,14 @@ from astronavigator.sky.sky_object import SkyObject, Star, Moon, Satellite, Come
 from astronavigator.sky.magnitude import Magnitude
 
 
+SELECTION_RADIUS = 15
+
+
 class Renderer:
     def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         self._draw_background(painter, scene, viewport)
         self._draw_objects(painter, scene, viewport)
+        self._draw_selection(painter, scene, viewport)
 
     def _draw_background(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         painter.fillRect(viewport, Qt.GlobalColor.black)
@@ -22,6 +26,9 @@ class Renderer:
             self._draw_object(obj, painter, scene.sky_camera, viewport)
 
     def _draw_object(self, obj: SkyObject, painter: QPainter, camera: SkyCamera, viewport: QRect) -> None:
+        if not self._is_visible(obj, camera):
+            return
+        
         point = camera.project(
                 obj.get_position(), 
                 viewport.size()
@@ -79,3 +86,24 @@ class Renderer:
     def _get_star_radius(self, magnitude: Magnitude) -> float:
         radius = max(1.0, 6.0 - magnitude.value * 0.5)
         return radius
+    
+
+    def _is_visible(self, obj: SkyObject, camera: SkyCamera) -> bool:
+        return obj.get_magnitude().is_visible(camera.limit_magnitude)
+    
+    def _draw_selection(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+        selected_obj = scene.selection.selected
+        if selected_obj is None:
+            return
+        
+        point = scene.sky_camera.project(
+            selected_obj.get_position(),
+            viewport.size()
+        )
+
+        if point is None:
+            return
+        
+        painter.setPen(Qt.GlobalColor.red)
+        painter.setBrush(Qt.GlobalColor.transparent)
+        painter.drawEllipse(point, SELECTION_RADIUS, SELECTION_RADIUS)
