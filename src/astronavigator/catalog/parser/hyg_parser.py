@@ -18,6 +18,7 @@ class HygParser(CatalogParser):
         catalog = Catalog(name="HYG")
 
         for row in reader:
+            # TODO: 閾値は別の場所で管理するようにする
             if self._parse_star(row).get_magnitude().value >= 4.0:
                 continue  # Skip stars with magnitude greater than 3.0
             catalog.objects.append(self._parse_star(row))
