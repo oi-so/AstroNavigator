@@ -8,8 +8,12 @@ from astronavigator.sky.position import Position
 from astronavigator.sky.magnitude import Magnitude
 
 
-
+@dataclass(slots=True)
 class SkyObject(ABC):
+    id: str
+    name: str
+    object_type: ObjectType
+
     @abstractmethod
     def get_position(self) -> Position:
         ...
@@ -21,10 +25,6 @@ class SkyObject(ABC):
 
 @dataclass(slots=True)
 class Star(SkyObject):
-    id: str
-    name: str
-    object_type: ObjectType
-
     _position: Position
     _magnitude: Magnitude
     def get_position(self) -> Position:
@@ -35,10 +35,6 @@ class Star(SkyObject):
 
 @dataclass(slots=True)
 class Moon(SkyObject):
-    id: str
-    name: str
-    object_type: ObjectType
-
     def get_position(self) -> Position:
         raise NotImplementedError("Moon position calculation is not implemented yet.")
 
@@ -49,10 +45,6 @@ class Moon(SkyObject):
 @dataclass(slots=True)
 
 class Satellite(SkyObject):
-    id: str
-    name: str
-    object_type: ObjectType
-
     def get_position(self) -> Position:
         raise NotImplementedError("Satellite position calculation is not implemented yet.")
 
@@ -62,9 +54,6 @@ class Satellite(SkyObject):
 
 @dataclass(slots=True)
 class Comet(SkyObject):
-    id: str
-    name: str
-    object_type: ObjectType
     def get_position(self) -> Position:
         raise NotImplementedError("Comet position calculation is not implemented yet.")
     
@@ -74,10 +63,6 @@ class Comet(SkyObject):
 
 @dataclass(slots=True)
 class DeepSkyObject(SkyObject):
-    id: str
-    name: str
-    object_type: ObjectType
-
     _position: Position
     _magnitude: Magnitude
     def get_position(self) -> Position:
