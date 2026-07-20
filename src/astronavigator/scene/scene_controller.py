@@ -10,6 +10,8 @@ from astronavigator.sky.sky_object import SkyObject
 from astronavigator.scene.time import Time
 
 
+SELECTION_THRESHOLD = 20
+
 class SceneController:
     def __init__(self, scene: Scene, event_bus: EventBus):
         self._scene = scene
@@ -86,4 +88,6 @@ class SceneController:
                 best_distance2 = distance2
                 best_object = obj
 
+        if best_distance2 > SELECTION_THRESHOLD ** 2:
+            return None
         return best_object
