@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from astronavigator.sky.object_tree import ObjectType
+from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.position import Position
 from astronavigator.sky.magnitude import Magnitude
 

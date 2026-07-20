@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QPointF, QSize
 
+from astronavigator.catalog.catalog import Catalog
 from astronavigator.event.event_type import EventType
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
@@ -33,6 +34,14 @@ class SceneController:
         self._scene.objects.append(sky_object)
         self._event_bus.publish(EventType.OBJECT_ADDED, sky_object)
 
+    def load_catalog(self, catalog: Catalog) -> None:
+        self._scene.objects.extend(catalog.objects)
+        self._event_bus.publish(EventType.SCENE_UPDATED, catalog)
+
+    def clear_objects(self) -> None:
+        self._scene.objects.clear()
+        self._event_bus.publish(EventType.SCENE_UPDATED, None)
+
     def remove_object(self, sky_object: SkyObject) -> None:
         self._scene.objects.remove(sky_object)
         self._event_bus.publish(EventType.OBJECT_REMOVED, sky_object)
@@ -56,7 +65,6 @@ class SceneController:
     def clear_focus(self) -> None:
         self._scene.focus.target = None
         self._event_bus.publish(EventType.FOCUS_CHANGED, None)
-
 
     def move_camera(self, delta_ra: float, delta_dec: float) -> None:
         self._scene.sky_camera.move(delta_ra, delta_dec)

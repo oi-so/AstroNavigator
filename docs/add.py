@@ -64,7 +64,7 @@ if __name__ == "__main__":
     files = [
         ["./docs/00_overview.md", "./docs/01_requirements.md", "./docs/02_architecture.md", "./docs/03_gui.md", "./docs/04_planetarium.md"],
         ["./docs/97_architecture_principles.md", "./docs/98_naming_convention.md", "./docs/99_glossary.md", "./docs/ai_development.md", "./docs/development_environment.md"],
-        ["./docs/implementation/03_first_rendering.md"]
+        ["./docs/implementation/03_first_rendering.md", "./docs/implementation/04_camera_control.md", "./docs/implementation/05_selection.md", "./docs/implementation/06_catalog.md"]
     ]
 
     names = ["specification", "philosophy", "implementation"]
