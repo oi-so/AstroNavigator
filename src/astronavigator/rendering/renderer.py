@@ -86,7 +86,7 @@ class Renderer:
 
     
     def _get_star_radius(self, magnitude: Magnitude) -> float:
-        radius = max(1.0, 6.0 - magnitude.value * 0.5)
+        radius = max(1.0, 3.0 - magnitude.value * 0.5)
         return radius
     
 

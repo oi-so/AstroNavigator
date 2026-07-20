@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from typing import Sequence
 
 
 from astronavigator.sky.magnitude import Magnitude
@@ -9,7 +10,7 @@ from astronavigator.sky.sky_object import SkyObject, Star
 from astronavigator.sky.object_tree import ObjectType
 
 
-def create_test_stars() -> list[SkyObject]:
+def create_test_stars() -> Sequence[SkyObject]:
         stars = []
 
         index = 0
