@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 
 from astronavigator.scene.focus import Focus
 from astronavigator.layer.layer_manager import LayerManager
+from astronavigator.scene.object_index import ObjectIndex
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.selection import Selection
 from astronavigator.sky.sky_object import SkyObject
@@ -16,6 +17,7 @@ class Scene:
     time: Time = field(default_factory=Time.now)
 
     objects: list[SkyObject] = field(default_factory=list)
+    object_index: ObjectIndex = field(default_factory=ObjectIndex)
 
     selection: Selection = field(default_factory=Selection)
     focus: Focus = field(default_factory=Focus)

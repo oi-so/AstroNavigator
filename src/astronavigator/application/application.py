@@ -27,7 +27,7 @@ class Application:
     def _test(self):
         provider = DebugCatalogProvider()
         catalog = provider.load()
-        self._scene_controller.load_catalog(catalog)
+        self._scene_controller.add_catalog(catalog)
         self._scene.sky_camera.center = Position(ra_deg=0, dec_deg=0)
 
     def _load_hyg(self):
@@ -35,7 +35,7 @@ class Application:
         parser = HygParser()
         provider = LocalFileProvider(path=HYG.save_path, parser=parser)
         catalog = provider.load()
-        self._scene_controller.load_catalog(catalog)
+        self._scene_controller.add_catalog(catalog)
 
 
     @property

@@ -3,11 +3,16 @@ from enum import Enum, auto
 
 class ObjectType(Enum):
     STAR = auto()
+
     PLANET = auto()
     MOON = auto()
-    SATELLITE = auto()
+
+    DSO = auto()  # Deep Sky Object
+
     COMET = auto()
     ASTEROID = auto()
-    DSO = auto()  # Deep Sky Object
+
+    SATELLITE = auto()
+    
     MOUNT = auto()
     CAMERA_FOV = auto()

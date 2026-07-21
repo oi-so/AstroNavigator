@@ -83,6 +83,33 @@ Selectionとは独立する。
 
 ---
 
+## ObjectIndex
+
+Scene に存在する SkyObject へ高速にアクセスするためのインデックス。
+
+ObjectIndex は SkyObject 自体を保持するものではなく、
+Scene に登録された SkyObject を検索・列挙するための補助構造である。
+
+### 責務
+
+- IDによる検索
+- 名前による検索
+- 最近傍オブジェクトの検索
+- 表示範囲内オブジェクトの取得
+- ObjectTypeごとの列挙
+
+### 責務ではないもの
+
+- SkyObjectの生成
+- SkyObjectの削除
+- Catalogの管理
+- GUI一覧表示
+- 描画
+
+ObjectIndex は Scene と同期し、Renderer や検索機能から利用される。
+
+---
+
 # 2. Sky
 
 ## SkyObject
