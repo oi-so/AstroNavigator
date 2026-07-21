@@ -9,6 +9,8 @@ SkyObject の生成・削除や描画などの責務は持たない。
 
 Renderer、検索機能、Object Browser などは ObjectIndex を利用して SkyObject を取得する。
 
+Scene が保持する補助データ（ObjectIndexなど）は、必ず SceneController が同期を保証するようにする。
+
 ---
 
 ## 2. 前提
