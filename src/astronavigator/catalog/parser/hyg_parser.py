@@ -9,6 +9,7 @@ from astronavigator.sky.sky_object import Star
 from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.position import Position
 from astronavigator.sky.magnitude import Magnitude
+from astronavigator.sky.spectral_type import parse_spectral_type
 
 
 class HygParser(CatalogParser):
@@ -35,5 +36,6 @@ class HygParser(CatalogParser):
                 ra_deg=float(row["ra"]) * 15.0, # Convert hours to degrees
                 dec_deg=float(row["dec"]),
             ),
-            _magnitude=Magnitude(float(row["mag"]))
+            _magnitude=Magnitude(float(row["mag"])),
+            spectral_type=parse_spectral_type(row["spect"]),
         )

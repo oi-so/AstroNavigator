@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.position import Position
 from astronavigator.sky.magnitude import Magnitude
+from astronavigator.sky.spectral_type import SpectralType
 
 
 @dataclass(slots=True)
@@ -27,6 +28,7 @@ class SkyObject(ABC):
 class Star(SkyObject):
     _position: Position
     _magnitude: Magnitude
+    spectral_type: SpectralType
     def get_position(self) -> Position:
         return self._position
     

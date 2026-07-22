@@ -7,6 +7,7 @@ from astronavigator.rendering.rendering_settings import RenderingSettings
 from astronavigator.scene.scene import Scene
 from astronavigator.sky.sky_object import SkyObject, Star, Moon, Satellite, Comet, DeepSkyObject
 from astronavigator.sky.magnitude import Magnitude
+from astronavigator.rendering.star_color import STAR_COLORS
 
 
 SELECTION_RADIUS = 15
@@ -59,8 +60,8 @@ class Renderer:
                 raise TypeError(f"Unknown SkyObject type: {type(obj).__name__}")
 
     def _draw_star(self, painter: QPainter, star: Star, scene: Scene, point: QPointF) -> None:
-        painter.setPen(Qt.GlobalColor.white)
-        painter.setBrush(Qt.GlobalColor.white)
+        painter.setPen(STAR_COLORS[star.spectral_type])
+        painter.setBrush(STAR_COLORS[star.spectral_type])
         radius = self._get_star_radius(star.get_magnitude(), scene.rendering_settings)
         painter.drawEllipse(point, radius, radius)
 
