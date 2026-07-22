@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import QPointF, QRect
 from PySide6.QtGui import QPainter, Qt
 
-from astronavigator.camera.sky_camera import SkyCamera
+from astronavigator.rendering.rendering_settings import RenderingSettings
 from astronavigator.scene.scene import Scene
 from astronavigator.sky.sky_object import SkyObject, Star, Moon, Satellite, Comet, DeepSkyObject
 from astronavigator.sky.magnitude import Magnitude
@@ -25,13 +25,13 @@ class Renderer:
 
     def _draw_objects(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         for obj in scene.objects:
-            self._draw_object(obj, painter, scene.sky_camera, viewport)
+            self._draw_object(obj, painter, scene, viewport)
 
-    def _draw_object(self, obj: SkyObject, painter: QPainter, camera: SkyCamera, viewport: QRect) -> None:
-        if not self._is_visible(obj, camera):
+    def _draw_object(self, obj: SkyObject, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+        if not self._is_visible(obj, scene.rendering_settings):
             return
         
-        point = camera.project(
+        point = scene.sky_camera.project(
                 obj.get_position(), 
                 viewport.size()
             )
@@ -90,8 +90,8 @@ class Renderer:
         return radius
     
 
-    def _is_visible(self, obj: SkyObject, camera: SkyCamera) -> bool:
-        return obj.get_magnitude().is_visible(camera.limit_magnitude)
+    def _is_visible(self, obj: SkyObject, rendering_settings: RenderingSettings) -> bool:
+        return obj.get_magnitude().is_visible(rendering_settings.limiting_magnitude)
     
     def _draw_selection(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         selected_obj = scene.selection.selected
@@ -114,7 +114,7 @@ class Renderer:
 
     def _draw_labels(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         for obj in scene.objects:
-            if not self._is_visible(obj, scene.sky_camera):
+            if not self._is_visible(obj, scene.rendering_settings):
                 continue
             
             point = scene.sky_camera.project(
