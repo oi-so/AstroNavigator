@@ -41,52 +41,56 @@ class Renderer:
         
         match obj:
             case Star():
-                self._draw_star(painter, obj, point)
+                self._draw_star(painter, obj, scene, point)
 
             case Moon():
-                self._draw_moon(painter, obj, point)
+                self._draw_moon(painter, obj, scene, point)
 
             case Satellite():
-                self._draw_satellite(painter, obj, point)
+                self._draw_satellite(painter, obj, scene, point)
             
             case Comet():
-                self._draw_comet(painter, obj, point)
+                self._draw_comet(painter, obj, scene, point)
             
             case DeepSkyObject():
-                self._draw_deep_sky_object(painter, obj, point)
+                self._draw_deep_sky_object(painter, obj, scene, point)
 
             case _:
                 raise TypeError(f"Unknown SkyObject type: {type(obj).__name__}")
 
-    def _draw_star(self, painter: QPainter, star: Star, point: QPointF) -> None:
+    def _draw_star(self, painter: QPainter, star: Star, scene: Scene, point: QPointF) -> None:
         painter.setPen(Qt.GlobalColor.white)
         painter.setBrush(Qt.GlobalColor.white)
-        radius = self._get_star_radius(star.get_magnitude())
+        radius = self._get_star_radius(star.get_magnitude(), scene.rendering_settings)
         painter.drawEllipse(point, radius, radius)
 
-    def _draw_moon(self, painter: QPainter, moon: Moon, point: QPointF) -> None:
+    def _draw_moon(self, painter: QPainter, moon: Moon, scene: Scene, point: QPointF) -> None:
         painter.setPen(Qt.GlobalColor.white)
         painter.setBrush(Qt.GlobalColor.white)
         painter.drawEllipse(point, 5, 5)
     
-    def _draw_satellite(self, painter: QPainter, satellite: Satellite, point: QPointF) -> None:
+    def _draw_satellite(self, painter: QPainter, satellite: Satellite, scene: Scene, point: QPointF) -> None:
         painter.setPen(Qt.GlobalColor.white)
         painter.setBrush(Qt.GlobalColor.white)
         painter.drawEllipse(point, 3, 3)
 
-    def _draw_comet(self, painter: QPainter, comet: Comet, point: QPointF) -> None:
+    def _draw_comet(self, painter: QPainter, comet: Comet, scene: Scene, point: QPointF) -> None:
         painter.setPen(Qt.GlobalColor.white)
         painter.setBrush(Qt.GlobalColor.white)
         painter.drawEllipse(point, 4, 4)
 
-    def _draw_deep_sky_object(self, painter: QPainter, deep_sky_object: DeepSkyObject, point: QPointF) -> None:
+    def _draw_deep_sky_object(self, painter: QPainter, deep_sky_object: DeepSkyObject, scene: Scene, point: QPointF) -> None:
         painter.setPen(Qt.GlobalColor.white)
         painter.setBrush(Qt.GlobalColor.white)
         painter.drawEllipse(point, 6, 6)
 
     
-    def _get_star_radius(self, magnitude: Magnitude) -> float:
-        radius = max(1.0, 3.0 - magnitude.value * 0.5)
+    def _get_star_radius(self, magnitude: Magnitude, rendering_settings: RenderingSettings) -> float:
+        radius = max(
+            rendering_settings.minimum_star_radius,
+            rendering_settings.star_size
+            - magnitude.value * rendering_settings.star_scale
+        )
         return radius
     
 
