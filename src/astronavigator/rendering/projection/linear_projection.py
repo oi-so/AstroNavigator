@@ -45,3 +45,20 @@ class LinearProjection(Projection):
         viewport_size: QSize
     ) -> Position:
         raise NotImplementedError("Orthographic unprojection is not implemented yet.")
+
+
+    def visible_bounds(self, camera: SkyCamera, viewport_size: QSize) -> tuple[Position, Position]:
+        width = viewport_size.width()
+        height = viewport_size.height()
+
+        scale = min(width, height) / camera.fov_deg
+
+        half_width_deg = (width / 2) / scale
+        half_height_deg = (height / 2) / scale
+
+        min_ra = camera.center.ra_deg - half_width_deg
+        max_ra = camera.center.ra_deg + half_width_deg
+        min_dec = camera.center.dec_deg - half_height_deg
+        max_dec = camera.center.dec_deg + half_height_deg
+
+        return Position(min_ra, min_dec), Position(max_ra, max_dec)

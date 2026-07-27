@@ -46,3 +46,23 @@ class Projection(ABC):
         Position
             Position: 天球上の座標。Celestial coordinates.
         """
+
+    @abstractmethod
+    def visible_bounds(self, camera: SkyCamera, viewport_size: QSize) -> tuple[Position, Position]:
+        """
+        ビューポート内に表示される天球上の範囲を取得する。
+        Get the range of celestial coordinates visible within the viewport.
+
+        Parameters
+        ----------
+        camera : SkyCamera
+            スカイカメラ。
+        viewport_size : QSize
+            ビューポートのサイズ。
+
+        Returns
+        -------
+        tuple[Position, Position]
+            Position: ビューポート内に表示される天球上の範囲の最小座標。Minimum celestial coordinates visible within the viewport.
+            Position: ビューポート内に表示される天球上の範囲の最大座標。Maximum celestial coordinates visible within the viewport.
+        """
