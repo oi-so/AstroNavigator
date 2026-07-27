@@ -8,6 +8,7 @@ from astronavigator.scene.scene import Scene
 from astronavigator.sky.sky_object import SkyObject, Star, Moon, Satellite, Comet, DeepSkyObject
 from astronavigator.sky.magnitude import Magnitude
 from astronavigator.rendering.star_color import STAR_COLORS
+from astronavigator.rendering.star_size import calculate_star_radius
 
 
 SELECTION_RADIUS = 15
@@ -23,6 +24,9 @@ class Renderer:
 
     def _draw_background(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         painter.fillRect(viewport, Qt.GlobalColor.black)
+
+        painter.setPen(Qt.GlobalColor.white)
+        painter.setBrush(Qt.GlobalColor.white)
 
     def _draw_objects(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         for obj in scene.objects:
@@ -87,11 +91,7 @@ class Renderer:
 
     
     def _get_star_radius(self, magnitude: Magnitude, rendering_settings: RenderingSettings) -> float:
-        radius = max(
-            rendering_settings.minimum_star_radius,
-            rendering_settings.star_size
-            - magnitude.value * rendering_settings.star_scale
-        )
+        radius = calculate_star_radius(magnitude)
         return radius
     
 
