@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from typing import TYPE_CHECKING, Iterable
-
+from collections.abc import Generator
 from PySide6.QtCore import QPointF, QSize
 
 from astronavigator.rendering.projection.projection import Projection
@@ -65,22 +65,22 @@ class LinearProjection(Projection):
         return Position(min_ra, min_dec), Position(max_ra, max_dec)
 
 
-    def iter_ra_lines(self, camera: SkyCamera, viewport_size: QSize, interval_deg: float) -> Iterable[Iterable[Position]]:
+    def iter_ra_lines(self, camera: SkyCamera, viewport_size: QSize, interval_deg: float) -> Generator[tuple[float, Iterable[Position]], None, None]:
         min_pos, max_pos = self.visible_bounds(camera, viewport_size)
         start_ra = math.floor(min_pos.ra_deg / interval_deg) * interval_deg
     
         ra = start_ra
         while ra <= max_pos.ra_deg:
-            yield self._iter_ra_line(ra, min_pos.dec_deg - interval_deg, max_pos.dec_deg + interval_deg, interval_deg)
+            yield (ra, self._iter_ra_line(ra, min_pos.dec_deg - interval_deg, max_pos.dec_deg + interval_deg, interval_deg))
             ra += interval_deg
 
-    def iter_dec_lines(self, camera: SkyCamera, viewport_size: QSize, interval_deg: float) -> Iterable[Iterable[Position]]:
+    def iter_dec_lines(self, camera: SkyCamera, viewport_size: QSize, interval_deg: float) -> Generator[tuple[float, Iterable[Position]], None, None]:
         min_pos, max_pos = self.visible_bounds(camera, viewport_size)
         start_dec = math.floor(min_pos.dec_deg / interval_deg) * interval_deg
     
         dec = start_dec
         while dec <= max_pos.dec_deg:
-            yield self._iter_dec_line(dec, min_pos.ra_deg - interval_deg, max_pos.ra_deg + interval_deg, interval_deg)
+            yield (dec, self._iter_dec_line(dec, min_pos.ra_deg - interval_deg, max_pos.ra_deg + interval_deg, interval_deg))
             dec += interval_deg
 
 

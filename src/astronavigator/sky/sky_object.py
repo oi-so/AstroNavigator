@@ -28,7 +28,7 @@ class SkyObject(ABC):
 class Star(SkyObject):
     _position: Position
     _magnitude: Magnitude
-    spectral_type: SpectralType
+    spectral_type: SpectralType = SpectralType.UNKNOWN
     def get_position(self) -> Position:
         return self._position
     

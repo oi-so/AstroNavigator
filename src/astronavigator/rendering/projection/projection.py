@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Generator, Iterable
 
 from PySide6.QtCore import QPointF, QSize
 
@@ -68,9 +68,9 @@ class Projection(ABC):
         """
 
     @abstractmethod
-    def iter_ra_lines(self, camera: SkyCamera, viewport_size: QSize, interval_deg: float) -> Iterable[Iterable[Position]]:
+    def iter_ra_lines(self, camera: SkyCamera, viewport_size: QSize, interval_deg: float) -> Generator[tuple[float, Iterable[Position]], None, None]:
         ...
 
     @abstractmethod
-    def iter_dec_lines(self, camera: SkyCamera, viewport_size: QSize, interval_deg: float) -> Iterable[Iterable[Position]]:
+    def iter_dec_lines(self, camera: SkyCamera, viewport_size: QSize, interval_deg: float) -> Generator[tuple[float, Iterable[Position]], None, None]:
         ...
