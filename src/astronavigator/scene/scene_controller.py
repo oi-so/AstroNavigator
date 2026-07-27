@@ -54,6 +54,7 @@ class SceneController:
         self._scene.selection.selected = sky_object
         self._event_bus.publish(EventType.SELECTION_CHANGED, sky_object)
 
+    # TODO: 非表示のオブジェクトを選択できないようにする
     def select_object_at(self, position: QPointF, viewport_size: QSize) -> None:
         obj = self._find_nearest_object(position, viewport_size)
         self.select_object(obj)
