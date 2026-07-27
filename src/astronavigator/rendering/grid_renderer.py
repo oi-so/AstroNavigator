@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from bisect import bisect_right
 import math
+from typing import Iterable
 from PySide6.QtCore import QRect
 from PySide6.QtGui import QPainter
 from collections import OrderedDict
@@ -47,63 +48,75 @@ class GridRenderer:
         camera = scene.sky_camera
         camera_fov = camera.fov_deg
         ra_interval, dec_interval = self._get_grid_interval(camera_fov)
-        min_ra, max_ra = camera.visible_ra_range()
-        min_dec, max_dec = camera.visible_dec_range()
+        min_ra, max_ra = camera.visible_ra_range(viewport.size())
+        min_dec, max_dec = camera.visible_dec_range(viewport.size())
+        min_ra -= ra_interval
+        max_ra += ra_interval
+        min_dec -= dec_interval
+        max_dec += dec_interval
+        
         start_ra = math.floor(min_ra / ra_interval) * ra_interval
         start_dec = math.floor(min_dec / dec_interval) * dec_interval
 
         ra = start_ra
-        dec = start_dec
-        while dec <= max_dec:
-            previous = None
-            while ra < max_ra:
-                point = scene.sky_camera.project(Position(ra, dec), viewport.size())
-                if point is None:
-                    previous = None
-                    ra += ra_interval
-                    continue
-
-                if previous is not None:
-                    painter.drawLine(previous, point)
-
-                previous = point
-                ra += ra_interval
-                ra %= 360
-
-            dec += dec_interval
-            ra = start_ra
+        while ra < max_ra:
+            self._draw_polyline(
+                painter, 
+                scene, 
+                viewport, 
+                self._iter_ra_line(ra, start_dec, max_dec, dec_interval)
+            )
+            ra += ra_interval
 
 
     def _draw_dec_grid(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         camera = scene.sky_camera
         camera_fov = camera.fov_deg
         ra_interval, dec_interval = self._get_grid_interval(camera_fov)
-        min_ra, max_ra = camera.visible_ra_range()
-        min_dec, max_dec = camera.visible_dec_range()
+        min_ra, max_ra = camera.visible_ra_range(viewport.size())
+        min_dec, max_dec = camera.visible_dec_range(viewport.size())
+        min_ra -= ra_interval
+        max_ra += ra_interval
+        min_dec -= dec_interval
+        max_dec += dec_interval
         start_ra = math.floor(min_ra / ra_interval) * ra_interval
         start_dec = math.floor(min_dec / dec_interval) * dec_interval
 
-
-        ra = start_ra
         dec = start_dec
+        while dec <= max_dec:
+            self._draw_polyline(
+                painter, 
+                scene, 
+                viewport, 
+                self._iter_dec_line(dec, start_ra, max_ra, ra_interval)
+            )
+            dec += dec_interval
+
+
+    def _draw_polyline(self, painter: QPainter, scene: Scene, viewport: QRect, positions: Iterable[Position]) -> None:
+        previous = None
+        for pos in positions:
+            point = scene.sky_camera.project(pos, viewport.size())
+            if point is None:
+                previous = None
+                continue
+
+            if previous is not None:
+                painter.drawLine(previous, point)
+
+            previous = point
+
+    def _iter_ra_line(self, ra: float, min_dec: float, max_dec: float, dec_interval: float) -> Iterable[Position]:
+        dec = min_dec
+        while dec <= max_dec:
+            yield Position(ra, dec)
+            dec += dec_interval
+
+    def _iter_dec_line(self, dec: float, min_ra: float, max_ra: float, ra_interval: float) -> Iterable[Position]:
+        ra = min_ra
         while ra < max_ra:
-            previous = None
-            while dec <= max_dec:
-                point = scene.sky_camera.project(Position(ra, dec), viewport.size())
-                if point is None:
-                    previous = None
-                    dec += dec_interval
-                    continue
-
-                if previous is not None:
-                    painter.drawLine(previous, point)
-
-                previous = point
-                dec += dec_interval
-
+            yield Position(ra % 360, dec)
             ra += ra_interval
-            ra %= 360
-            dec = start_dec
 
     # def _draw_celestial_equator(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
     #     raise NotImplementedError("Celestial equator drawing is not implemented yet.")

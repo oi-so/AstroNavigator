@@ -61,7 +61,7 @@ class SkyCamera:
         return self.projection.project(position, self, viewport_size)
 
 
-    def visible_ra_range(self) -> tuple[float, float]:
+    def visible_ra_range(self, viewport_size: QSize) -> tuple[float, float]:
         """"
         現在のカメラの視野における赤経の範囲を取得する。
         Get the range of right ascension in the current camera's field of view.
@@ -72,13 +72,16 @@ class SkyCamera:
             赤経の範囲 (min_ra, max_ra)。
             Range of right ascension (min_ra, max_ra).
         """
-        half_fov = self.fov_deg / 2
-        min_ra = (self.center.ra_deg - half_fov) % 360
-        max_ra = (self.center.ra_deg + half_fov) % 360
+        width = viewport_size.width()
+        height = viewport_size.height()
+        scale = min(width, height) / self.fov_deg
+        half_ra = (width / 2) / scale
+        min_ra = self.center.ra_deg - half_ra
+        max_ra = self.center.ra_deg + half_ra
         return min_ra, max_ra
 
 
-    def visible_dec_range(self) -> tuple[float, float]:
+    def visible_dec_range(self, viewport_size: QSize) -> tuple[float, float]:
         """"
         現在のカメラの視野における赤緯の範囲を取得する。
         Get the range of declination in the current camera's field of view.
@@ -89,7 +92,10 @@ class SkyCamera:
             赤緯の範囲 (min_dec, max_dec)。
             Range of declination (min_dec, max_dec).
         """
-        half_fov = self.fov_deg / 2
-        min_dec = max(-90, self.center.dec_deg - half_fov)
-        max_dec = min(90, self.center.dec_deg + half_fov)
+        width = viewport_size.width()
+        height = viewport_size.height()
+        scale = min(width, height) / self.fov_deg
+        half_dec = (height / 2) / scale
+        min_dec = max(-90, self.center.dec_deg - half_dec)
+        max_dec = min(90, self.center.dec_deg + half_dec)
         return min_dec, max_dec
