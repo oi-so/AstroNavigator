@@ -46,51 +46,24 @@ class GridRenderer:
 
     def _draw_ra_grid(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         camera = scene.sky_camera
-        camera_fov = camera.fov_deg
-        ra_interval, dec_interval = self._get_grid_interval(camera_fov)
-        min_ra, max_ra = camera.visible_ra_range(viewport.size())
-        min_dec, max_dec = camera.visible_dec_range(viewport.size())
-        min_ra -= ra_interval
-        max_ra += ra_interval
-        min_dec -= dec_interval
-        max_dec += dec_interval
-        
-        start_ra = math.floor(min_ra / ra_interval) * ra_interval
-        start_dec = math.floor(min_dec / dec_interval) * dec_interval
-
-        ra = start_ra
-        while ra < max_ra:
-            self._draw_polyline(
-                painter, 
-                scene, 
-                viewport, 
-                self._iter_ra_line(ra, start_dec, max_dec, dec_interval)
-            )
-            ra += ra_interval
+        ra_interval, _ = self._get_grid_interval(camera.fov_deg)
+        for line in camera.projection.iter_ra_lines(
+            camera, 
+            viewport.size(), 
+            ra_interval
+        ):
+            self._draw_polyline(painter, scene, viewport, line)
 
 
     def _draw_dec_grid(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         camera = scene.sky_camera
-        camera_fov = camera.fov_deg
-        ra_interval, dec_interval = self._get_grid_interval(camera_fov)
-        min_ra, max_ra = camera.visible_ra_range(viewport.size())
-        min_dec, max_dec = camera.visible_dec_range(viewport.size())
-        min_ra -= ra_interval
-        max_ra += ra_interval
-        min_dec -= dec_interval
-        max_dec += dec_interval
-        start_ra = math.floor(min_ra / ra_interval) * ra_interval
-        start_dec = math.floor(min_dec / dec_interval) * dec_interval
-
-        dec = start_dec
-        while dec <= max_dec:
-            self._draw_polyline(
-                painter, 
-                scene, 
-                viewport, 
-                self._iter_dec_line(dec, start_ra, max_ra, ra_interval)
-            )
-            dec += dec_interval
+        _, dec_interval = self._get_grid_interval(camera.fov_deg)
+        for line in camera.projection.iter_dec_lines(
+            camera, 
+            viewport.size(), 
+            dec_interval
+        ):
+            self._draw_polyline(painter, scene, viewport, line)
 
 
     def _draw_polyline(self, painter: QPainter, scene: Scene, viewport: QRect, positions: Iterable[Position]) -> None:

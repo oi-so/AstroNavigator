@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 
 from PySide6.QtCore import QPointF, QSize
 
@@ -66,3 +66,11 @@ class Projection(ABC):
             Position: ビューポート内に表示される天球上の範囲の最小座標。Minimum celestial coordinates visible within the viewport.
             Position: ビューポート内に表示される天球上の範囲の最大座標。Maximum celestial coordinates visible within the viewport.
         """
+
+    @abstractmethod
+    def iter_ra_lines(self, camera: SkyCamera, viewport_size: QSize, interval_deg: float) -> Iterable[Iterable[Position]]:
+        ...
+
+    @abstractmethod
+    def iter_dec_lines(self, camera: SkyCamera, viewport_size: QSize, interval_deg: float) -> Iterable[Iterable[Position]]:
+        ...

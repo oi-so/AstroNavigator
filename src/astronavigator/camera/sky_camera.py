@@ -59,11 +59,3 @@ class SkyCamera:
             None: 表示範囲外。Out of display range.
         """
         return self.projection.project(position, self, viewport_size)
-
-
-    def visible_ra_range(self, viewport_size: QSize) -> tuple[float, float]:
-        return self.projection.visible_bounds(self, viewport_size)[0].ra_deg, self.projection.visible_bounds(self, viewport_size)[1].ra_deg
-
-
-    def visible_dec_range(self, viewport_size: QSize) -> tuple[float, float]:
-        return self.projection.visible_bounds(self, viewport_size)[0].dec_deg, self.projection.visible_bounds(self, viewport_size)[1].dec_deg

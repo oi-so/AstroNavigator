@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import math
+from typing import TYPE_CHECKING, Iterable
 
 from PySide6.QtCore import QPointF, QSize
 
@@ -62,3 +63,35 @@ class LinearProjection(Projection):
         max_dec = camera.center.dec_deg + half_height_deg
 
         return Position(min_ra, min_dec), Position(max_ra, max_dec)
+
+
+    def iter_ra_lines(self, camera: SkyCamera, viewport_size: QSize, interval_deg: float) -> Iterable[Iterable[Position]]:
+        min_pos, max_pos = self.visible_bounds(camera, viewport_size)
+        start_ra = math.floor(min_pos.ra_deg / interval_deg) * interval_deg
+    
+        ra = start_ra
+        while ra <= max_pos.ra_deg:
+            yield self._iter_ra_line(ra, min_pos.dec_deg - interval_deg, max_pos.dec_deg + interval_deg, interval_deg)
+            ra += interval_deg
+
+    def iter_dec_lines(self, camera: SkyCamera, viewport_size: QSize, interval_deg: float) -> Iterable[Iterable[Position]]:
+        min_pos, max_pos = self.visible_bounds(camera, viewport_size)
+        start_dec = math.floor(min_pos.dec_deg / interval_deg) * interval_deg
+    
+        dec = start_dec
+        while dec <= max_pos.dec_deg:
+            yield self._iter_dec_line(dec, min_pos.ra_deg - interval_deg, max_pos.ra_deg + interval_deg, interval_deg)
+            dec += interval_deg
+
+
+    def _iter_ra_line(self, ra: float, min_dec: float, max_dec: float, dec_interval: float) -> Iterable[Position]:
+        dec = min_dec
+        while dec <= max_dec:
+            yield Position(ra, dec)
+            dec += dec_interval
+
+    def _iter_dec_line(self, dec: float, min_ra: float, max_ra: float, ra_interval: float) -> Iterable[Position]:
+        ra = min_ra
+        while ra <= max_ra:
+            yield Position(ra, dec)
+            ra += ra_interval
