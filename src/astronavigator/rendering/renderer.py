@@ -10,6 +10,7 @@ from astronavigator.sky.magnitude import Magnitude
 from astronavigator.rendering.star_color import STAR_COLORS
 from astronavigator.rendering.star_size import calculate_star_radius
 from astronavigator.rendering.limiting_magnitude import calculate_limiting_magnitude
+from astronavigator.rendering.grid_renderer import GridRenderer
 
 
 SELECTION_RADIUS = 15
@@ -17,8 +18,12 @@ LABEL_OFFSET = QPointF(5, -5)
 
 
 class Renderer:
+    def __init__(self) -> None:
+        self._grid_renderer = GridRenderer()
+
     def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         self._draw_background(painter, scene, viewport)
+        self._grid_renderer.render(painter, scene, viewport)
         self._draw_objects(painter, scene, viewport)
         self._draw_selection(painter, scene, viewport)
         self._draw_labels(painter, scene, viewport)
