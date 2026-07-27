@@ -66,7 +66,7 @@ class Renderer:
     def _draw_star(self, painter: QPainter, star: Star, scene: Scene, point: QPointF) -> None:
         painter.setPen(STAR_COLORS[star.spectral_type])
         painter.setBrush(STAR_COLORS[star.spectral_type])
-        radius = self._get_star_radius(star.get_magnitude(), scene.rendering_settings)
+        radius = self._get_star_radius(star.get_magnitude(), scene.rendering_settings, scene.sky_camera.fov_deg)
         painter.drawEllipse(point, radius, radius)
 
     def _draw_moon(self, painter: QPainter, moon: Moon, scene: Scene, point: QPointF) -> None:
@@ -90,8 +90,8 @@ class Renderer:
         painter.drawEllipse(point, 6, 6)
 
     
-    def _get_star_radius(self, magnitude: Magnitude, rendering_settings: RenderingSettings) -> float:
-        radius = calculate_star_radius(magnitude)
+    def _get_star_radius(self, magnitude: Magnitude, rendering_settings: RenderingSettings, camera_fov_deg: float) -> float:
+        radius = calculate_star_radius(magnitude, camera_fov_deg)
         return radius
     
 
