@@ -130,12 +130,23 @@ class Renderer:
             if point is None:
                 continue
             
-            if not self._should_draw_label(obj):
+            if not self._should_draw_label(obj, scene.rendering_settings):
                 continue
 
             painter.setPen(Qt.GlobalColor.white)
             painter.drawText(point + LABEL_OFFSET, obj.name)
 
 
-    def _should_draw_label(self, obj: SkyObject) -> bool:
-        return True  # Placeholder for label visibility logic, can be based on magnitude or other criteria
+    def _should_draw_label(self, obj: SkyObject, settings: RenderingSettings) -> bool:
+        # TODO: もう少し柔軟に設定できるようにする
+
+        if not settings.show_labels:
+            return False
+        
+        if obj.get_magnitude().value > settings.label_limiting_magnitude:
+            return False
+
+        if obj.name.startswith("HYG") and not settings.show_catalog_names:
+            return False
+
+        return True
