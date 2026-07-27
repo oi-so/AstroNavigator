@@ -9,6 +9,7 @@ from astronavigator.sky.sky_object import SkyObject, Star, Moon, Satellite, Come
 from astronavigator.sky.magnitude import Magnitude
 from astronavigator.rendering.star_color import STAR_COLORS
 from astronavigator.rendering.star_size import calculate_star_radius
+from astronavigator.rendering.limiting_magnitude import calculate_limiting_magnitude
 
 
 SELECTION_RADIUS = 15
@@ -33,7 +34,7 @@ class Renderer:
             self._draw_object(obj, painter, scene, viewport)
 
     def _draw_object(self, obj: SkyObject, painter: QPainter, scene: Scene, viewport: QRect) -> None:
-        if not self._is_visible(obj, scene.rendering_settings):
+        if not self._is_visible(scene, obj, scene.rendering_settings):
             return
         
         point = scene.sky_camera.project(
@@ -95,9 +96,13 @@ class Renderer:
         return radius
     
 
-    def _is_visible(self, obj: SkyObject, rendering_settings: RenderingSettings) -> bool:
-        return obj.get_magnitude().is_visible(rendering_settings.limiting_magnitude)
-    
+    def _is_visible(self, scene: Scene, obj: SkyObject, rendering_settings: RenderingSettings) -> bool:
+        effective_limit = calculate_limiting_magnitude(
+            rendering_settings.limiting_magnitude,
+            scene.sky_camera.fov_deg
+        )
+        return obj.get_magnitude().is_visible(effective_limit)
+
     def _draw_selection(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         selected_obj = scene.selection.selected
         if selected_obj is None:
@@ -119,7 +124,7 @@ class Renderer:
 
     def _draw_labels(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         for obj in scene.objects:
-            if not self._is_visible(obj, scene.rendering_settings):
+            if not self._is_visible(scene, obj, scene.rendering_settings):
                 continue
             
             point = scene.sky_camera.project(
