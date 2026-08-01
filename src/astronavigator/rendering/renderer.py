@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import QPointF, QRect
 from PySide6.QtGui import QPainter, Qt
 
+from astronavigator.rendering.constellation_renderer import ConstellationRenderer
 from astronavigator.rendering.rendering_settings import RenderingSettings
 from astronavigator.scene.scene import Scene
 from astronavigator.sky.sky_object import SkyObject, Star, Moon, Satellite, Comet, DeepSkyObject
@@ -20,10 +21,12 @@ LABEL_OFFSET = QPointF(5, -5)
 class Renderer:
     def __init__(self) -> None:
         self._grid_renderer = GridRenderer()
+        self._constellation_renderer = ConstellationRenderer()
 
     def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         self._draw_background(painter, scene, viewport)
         self._grid_renderer.render(painter, scene, viewport)
+        self._constellation_renderer.render(painter, scene, viewport)
         self._draw_objects(painter, scene, viewport)
         self._draw_selection(painter, scene, viewport)
         self._draw_labels(painter, scene, viewport)

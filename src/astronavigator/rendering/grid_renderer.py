@@ -116,6 +116,7 @@ class GridRenderer:
         painter.drawText(point + QPoint(5, -5), label)
 
 
+    # TODO: 以下実装
     # def _draw_celestial_equator(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
     #     raise NotImplementedError("Celestial equator drawing is not implemented yet.")
 
