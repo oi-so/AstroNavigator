@@ -28,7 +28,6 @@ class MainWindow(QMainWindow):
 
         self._selection_panel = SelectionPanel(self._application)
 
-
     def _create_docks(self):
         self._selection_dock = QDockWidget("Selection", self)
         self._selection_dock.setWidget(self._selection_panel)
