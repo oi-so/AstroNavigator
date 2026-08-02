@@ -8,16 +8,14 @@ class LayerManager:
 
     def add_layer(self, layer: Layer):
         self.layers.append(layer)
-        self.layers.sort(key=lambda x: x.priority)
 
-    def remove_layer(self, layer: Layer):
-        self.layers.remove(layer)
+    def render(self, painter, scene, viewport):
+        for layer in self.layers:
+            layer.render(painter, scene, viewport)
 
-    def get_visible_layers(self):
-        return [layer for layer in self.layers if layer.visible]
-
-    def find_layer(self, layer_type: LayerType) -> Layer | None:
+    def get(self, layer_type: LayerType) -> Layer | None:
         for layer in self.layers:
             if layer.layer_type == layer_type:
                 return layer
+            
         return None

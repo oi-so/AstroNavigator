@@ -1,0 +1,141 @@
+from __future__ import annotations
+
+from PySide6.QtCore import QPointF, QRect, Qt
+from PySide6.QtGui import QColor, QPainter, QPen
+
+from astronavigator.layer.layer import Layer, LayerType
+from astronavigator.rendering.limiting_magnitude import calculate_limiting_magnitude
+from astronavigator.rendering.rendering_settings import RenderingSettings
+from astronavigator.rendering.star_color import STAR_COLORS
+from astronavigator.rendering.star_size import calculate_star_radius
+from astronavigator.scene.scene import Scene
+from astronavigator.sky.sky_object import Comet, Moon, Satellite, SkyObject, Star, DeepSkyObject
+from astronavigator.sky.magnitude import Magnitude
+
+
+LABEL_OFFSET = QPointF(5, -5)
+
+
+class ObjectLayer(Layer):
+    def __init__(self, visible: bool = True):
+        super().__init__(visible=visible, layer_type=LayerType.Stars)
+
+    def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+        if not self.visible:
+            return
+
+        for obj in scene.objects:
+            self._draw_object(obj, painter, scene, viewport)
+
+
+    def _draw_object(self, obj: SkyObject, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+        if not self._is_visible(scene, obj, scene.rendering_settings):
+            return
+        
+        point = scene.sky_camera.project(
+                obj.get_position(), 
+                viewport.size()
+            )
+
+        if point is None: 
+            return
+
+        
+        match obj:
+            case Star():
+                self._draw_star(painter, obj, scene, point)
+
+            case Moon():
+                self._draw_moon(painter, obj, scene, point)
+
+            case Satellite():
+                self._draw_satellite(painter, obj, scene, point)
+            
+            case Comet():
+                self._draw_comet(painter, obj, scene, point)
+            
+            case DeepSkyObject():
+                self._draw_deep_sky_object(painter, obj, scene, point)
+
+            case _:
+                raise TypeError(f"Unknown SkyObject type: {type(obj).__name__}")
+
+    def _draw_star(self, painter: QPainter, star: Star, scene: Scene, point: QPointF) -> None:
+        painter.setPen(STAR_COLORS[star.spectral_type])
+        painter.setBrush(STAR_COLORS[star.spectral_type])
+        radius = self._get_star_radius(star.get_magnitude(), scene.rendering_settings, scene.sky_camera.fov_deg)
+        painter.drawEllipse(point, radius, radius)
+
+    def _draw_moon(self, painter: QPainter, moon: Moon, scene: Scene, point: QPointF) -> None:
+        painter.setPen(Qt.GlobalColor.white)
+        painter.setBrush(Qt.GlobalColor.white)
+        painter.drawEllipse(point, 5, 5)
+    
+    def _draw_satellite(self, painter: QPainter, satellite: Satellite, scene: Scene, point: QPointF) -> None:
+        painter.setPen(Qt.GlobalColor.white)
+        painter.setBrush(Qt.GlobalColor.white)
+        painter.drawEllipse(point, 3, 3)
+
+    def _draw_comet(self, painter: QPainter, comet: Comet, scene: Scene, point: QPointF) -> None:
+        painter.setPen(Qt.GlobalColor.white)
+        painter.setBrush(Qt.GlobalColor.white)
+        painter.drawEllipse(point, 4, 4)
+
+    def _draw_deep_sky_object(self, painter: QPainter, deep_sky_object: DeepSkyObject, scene: Scene, point: QPointF) -> None:
+        painter.setPen(Qt.GlobalColor.white)
+        painter.setBrush(Qt.GlobalColor.white)
+        painter.drawEllipse(point, 6, 6)
+
+    def _is_visible(self, scene: Scene, obj: SkyObject, rendering_settings: RenderingSettings) -> bool:
+        effective_limit = calculate_limiting_magnitude(
+            rendering_settings.limiting_magnitude,
+            scene.sky_camera.fov_deg
+        )
+        return obj.get_magnitude().is_visible(effective_limit)
+
+
+    
+    def _get_star_radius(self, magnitude: Magnitude, rendering_settings: RenderingSettings, camera_fov_deg: float) -> float:
+        radius = calculate_star_radius(magnitude, camera_fov_deg)
+        return radius
+
+
+
+    def _draw_labels(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+        for obj in scene.objects:
+            if not self._is_visible(scene, obj, scene.rendering_settings):
+                continue
+            
+            point = scene.sky_camera.project(
+                obj.get_position(),
+                viewport.size()
+            )
+
+            if point is None:
+                continue
+            
+            if not self._should_draw_label(obj, scene.rendering_settings):
+                continue
+
+            self._set_pen(painter, scene.rendering_settings.color_settings.constellation_label_color)
+            painter.drawText(point + LABEL_OFFSET, obj.name)
+
+
+    def _should_draw_label(self, obj: SkyObject, settings: RenderingSettings) -> bool:
+        # TODO: もう少し柔軟に設定できるようにする
+        if not settings.show_labels:
+            return False
+        
+        if obj.get_magnitude().value > settings.label_limiting_magnitude:
+            return False
+
+        if obj.name.startswith("HYG") and not settings.show_catalog_names:
+            return False
+
+        return True
+
+
+    def _set_pen(self, painter: QPainter, color: QColor) -> None:
+        pen = QPen(color)
+        pen.setWidthF(1.0)
+        painter.setPen(pen)

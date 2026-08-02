@@ -25,7 +25,6 @@ class Scene:
     selection: Selection = field(default_factory=Selection)
     focus: Focus = field(default_factory=Focus)
 
-    layer_manager: LayerManager = field(default_factory=LayerManager)
     sky_camera: SkyCamera = field(default_factory=SkyCamera.default)
 
     rendering_settings: RenderingSettings = field(default_factory=RenderingSettings)

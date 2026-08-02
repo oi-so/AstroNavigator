@@ -3,7 +3,7 @@ from __future__ import annotations
 from bisect import bisect_right
 from typing import Iterable
 from PySide6.QtCore import QPoint, QRect
-from PySide6.QtGui import QPainter
+from PySide6.QtGui import QColor, QPainter, QPen
 from collections import OrderedDict
 
 from astronavigator.scene.scene import Scene
@@ -53,6 +53,8 @@ class GridRenderer:
             viewport.size(), 
             ra_interval
         ):
+            self._set_pen(painter, scene.rendering_settings.color_settings.ra_dec_grid_color)
+            painter.setBrush(scene.rendering_settings.color_settings.ra_dec_grid_color)
             self._draw_polyline(painter, scene, viewport, line)
             self._draw_ra_grid_label(painter, scene, viewport, Position(ra, camera.projection.visible_bounds(camera, viewport.size())[0].dec_deg))
 
@@ -65,6 +67,8 @@ class GridRenderer:
             viewport.size(), 
             dec_interval
         ):
+            self._set_pen(painter, scene.rendering_settings.color_settings.ra_dec_grid_color)
+            painter.setBrush(scene.rendering_settings.color_settings.ra_dec_grid_color)
             self._draw_polyline(painter, scene, viewport, line)
             self._draw_dec_grid_label(painter, scene, viewport, Position(camera.projection.visible_bounds(camera, viewport.size())[0].ra_deg, dec))
 
@@ -95,6 +99,7 @@ class GridRenderer:
 
 
     def _draw_ra_grid_label(self, painter: QPainter, scene: Scene, viewport: QRect, position: Position) -> None:
+        
         point = scene.sky_camera.project(position, viewport.size())
         if point is None:
             return
@@ -104,6 +109,7 @@ class GridRenderer:
         else:
             label = format_ra_deg(position.ra_deg)
 
+        self._set_pen(painter, scene.rendering_settings.color_settings.ra_dec_label_color)
         painter.drawText(point + QPoint(5, -5), label)
 
 
@@ -113,6 +119,7 @@ class GridRenderer:
             return
 
         label = format_dec_deg(position.dec_deg)
+        self._set_pen(painter, scene.rendering_settings.color_settings.ra_dec_label_color)
         painter.drawText(point + QPoint(5, -5), label)
 
 
@@ -122,3 +129,9 @@ class GridRenderer:
 
     # def _draw_ecliptic(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
     #     raise NotImplementedError("Ecliptic drawing is not implemented yet.")
+
+
+    def _set_pen(self, painter: QPainter, color: QColor) -> None:
+        pen = QPen(color)
+        pen.setWidthF(1.0)
+        painter.setPen(pen)
