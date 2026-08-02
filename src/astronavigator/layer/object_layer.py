@@ -12,10 +12,6 @@ from astronavigator.scene.scene import Scene
 from astronavigator.sky.sky_object import Comet, Moon, Satellite, SkyObject, Star, DeepSkyObject
 from astronavigator.sky.magnitude import Magnitude
 
-
-LABEL_OFFSET = QPointF(5, -5)
-
-
 class ObjectLayer(Layer):
     def __init__(self, visible: bool = True):
         super().__init__(visible=visible, layer_type=LayerType.Stars)
@@ -98,41 +94,6 @@ class ObjectLayer(Layer):
     def _get_star_radius(self, magnitude: Magnitude, rendering_settings: RenderingSettings, camera_fov_deg: float) -> float:
         radius = calculate_star_radius(magnitude, camera_fov_deg)
         return radius
-
-
-
-    def _draw_labels(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
-        for obj in scene.objects:
-            if not self._is_visible(scene, obj, scene.rendering_settings):
-                continue
-            
-            point = scene.sky_camera.project(
-                obj.get_position(),
-                viewport.size()
-            )
-
-            if point is None:
-                continue
-            
-            if not self._should_draw_label(obj, scene.rendering_settings):
-                continue
-
-            self._set_pen(painter, scene.rendering_settings.color_settings.constellation_label_color)
-            painter.drawText(point + LABEL_OFFSET, obj.name)
-
-
-    def _should_draw_label(self, obj: SkyObject, settings: RenderingSettings) -> bool:
-        # TODO: もう少し柔軟に設定できるようにする
-        if not settings.show_labels:
-            return False
-        
-        if obj.get_magnitude().value > settings.label_limiting_magnitude:
-            return False
-
-        if obj.name.startswith("HYG") and not settings.show_catalog_names:
-            return False
-
-        return True
 
 
     def _set_pen(self, painter: QPainter, color: QColor) -> None:
