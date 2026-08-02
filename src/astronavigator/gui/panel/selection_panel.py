@@ -67,9 +67,10 @@ class SelectionPanel(QWidget):
             self._magnitude_value.setText("-")
         else:
             position = sky_object.get_position()
+            settings = self._application.scene.gui_settings
 
             self._name_value.setText(sky_object.name)
             self._type_value.setText(sky_object.object_type.name)
-            self._ra_value.setText(f"{position.ra_deg:.2f}")
-            self._dec_value.setText(f"{position.dec_deg:.2f}")
+            self._ra_value.setText(position.get_ra(settings.ra_format))
+            self._dec_value.setText(position.get_dec(settings.dec_format))
             self._magnitude_value.setText(f"{sky_object.get_magnitude():.2f}")
