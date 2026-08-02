@@ -12,7 +12,7 @@ from astronavigator.sky.magnitude import Magnitude
 from astronavigator.sky.spectral_type import parse_spectral_type
 
 
-class HygParser(CatalogParser):
+class HygParser(CatalogParser[Catalog]):
     def parse(self, file: TextIO) -> Catalog:
         reader = csv.DictReader(file)
 

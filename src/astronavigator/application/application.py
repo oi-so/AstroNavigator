@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from astronavigator.catalog.catalog import ConstellationCatalog
+
 from astronavigator.catalog.catalog_manager import CatalogManager
+from astronavigator.catalog.parser.constellation_parser import ConstellationJsonParser
 from astronavigator.catalog.parser.hyg_parser import HygParser
 from astronavigator.catalog.provider.debug_catalog_provider import DebugCatalogProvider
 from astronavigator.catalog.provider.local_file_provider import LocalFileProvider
@@ -10,26 +11,20 @@ from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.event.event_bus import EventBus
-from astronavigator.sky.constellation_line import Constellation, ConstellationLine
 from astronavigator.sky.position import Position
-from astronavigator.catalog.catalog_info import HYG
+from astronavigator.catalog.catalog_info import CONSTELLATIONS, HYG
 
 
 class Application:
     def __init__(self):
-        # catalog = ConstellationCatalog("Debug")
-        # catalog.constellations.append(Constellation("Orion", [ConstellationLine("24436", "25336"), ConstellationLine("25336", "25930")], Position(84, -1)))
-
         self._scene = Scene()
         self._event_bus = EventBus()
         self._scene_controller = SceneController(self._scene, self._event_bus)
         self._renderer = Renderer()
         self._input_controller = InputController(self._scene_controller)
         self._catalog_manager = CatalogManager()
-
-        # self._scene_controller.add_constellation_catalog(catalog)
-
         self._load_hyg()
+        self._load_constellations()
 
     def _test(self):
         provider = DebugCatalogProvider()
@@ -43,6 +38,13 @@ class Application:
         provider = LocalFileProvider(path=HYG.save_path, parser=parser)
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
+
+    def _load_constellations(self):
+        self._catalog_manager.download_catalog(CONSTELLATIONS)
+        parser = ConstellationJsonParser()
+        provider = LocalFileProvider(path=CONSTELLATIONS.save_path, parser=parser)
+        catalog = provider.load()
+        self._scene_controller.add_constellation_catalog(catalog)
 
 
     @property

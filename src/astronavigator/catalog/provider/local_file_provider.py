@@ -1,21 +1,23 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Generic, TypeVar
 
-from astronavigator.catalog.catalog import Catalog
 from astronavigator.catalog.parser.catalog_parser import CatalogParser
 from astronavigator.catalog.provider.catalog_provider import CatalogProvider
 
 
-class LocalFileProvider(CatalogProvider):
+T = TypeVar("T")
+
+class LocalFileProvider(CatalogProvider[T], Generic[T]):
     def __init__(
         self,
         path: Path,
-        parser: CatalogParser,
+        parser: CatalogParser[T],
     ) -> None:
         self._path = path
         self._parser = parser
 
-    def load(self) -> Catalog:
-        with self._path.open("r", encoding="utf-8", newline="") as file:
+    def load(self) -> T:
+        with self._path.open("r", encoding="utf-8") as file:
             return self._parser.parse(file)

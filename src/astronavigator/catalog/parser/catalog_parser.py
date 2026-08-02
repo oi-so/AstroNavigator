@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import TextIO
-
-from astronavigator.catalog.catalog import Catalog
+from typing import Generic, TextIO, TypeVar
 
 
-class CatalogParser(ABC):
+T = TypeVar("T")
 
+class CatalogParser(ABC, Generic[T]):
     @abstractmethod
-    def parse(self, file: TextIO) -> Catalog:
+    def parse(self, file: TextIO) -> T:
         """ファイルからCatalogを生成する。"""
         ...

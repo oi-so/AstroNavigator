@@ -10,12 +10,18 @@ class CatalogManager:
 
     
     def download_catalog(self, catalog_info: CatalogInfo) -> None:
+
+
         if not self._should_download_catalog(catalog_info):
             return
         data = self._downloader.download(catalog_info.url)
 
         catalog_info.save_path.parent.mkdir(parents=True, exist_ok=True)
-        catalog_info.save_path.write_bytes(data)
+        if catalog_info.converter:
+            converted_data = catalog_info.converter.convert(data.decode("utf-8"))
+            catalog_info.save_path.write_text(converted_data, encoding="utf-8")
+        else:
+            catalog_info.save_path.write_bytes(data)
         print(f"Downloaded catalog: {catalog_info.name} to {catalog_info.save_path}")
 
     def _should_download_catalog(self, catalog_info: CatalogInfo) -> bool:
