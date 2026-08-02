@@ -9,7 +9,7 @@ from astronavigator.scene.scene import Scene
 
 class ConstellationLayer(Layer):
     def __init__(self) -> None:
-        super().__init__(visible=True, layer_type=LayerType.Constellation)
+        super().__init__(visible=True, layer_type=LayerType.CONSTELLATION)
 
         self.renderer = ConstellationRenderer()
 

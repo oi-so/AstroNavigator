@@ -15,7 +15,7 @@ LABEL_OFFSET = QPointF(5, -5)
 
 class LabelLayer(Layer):
     def __init__(self, visible: bool = True):
-        super().__init__(visible=visible, layer_type=LayerType.Labels)
+        super().__init__(visible=visible, layer_type=LayerType.LABELS)
 
 
     def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:

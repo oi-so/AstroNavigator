@@ -12,13 +12,14 @@ if TYPE_CHECKING:
 
 
 class LayerType(Enum):
-    Stars = auto()
-    Planets = auto()
-    Grid = auto()
-    Labels = auto()
-    MilkyWay = auto()
-    Constellation = auto()
-    SATELLITE = auto()
+    GRID = auto()
+    CONSTELLATION = auto()
+    LABELS = auto()
+
+    OBJECTS = auto()
+    SELECTION = auto()
+
+    MILKY_WAY = auto()
     MOUNT = auto()
 
 
@@ -30,4 +31,4 @@ class Layer(ABC):
 
     @abstractmethod
     def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
-        pass
+        ...

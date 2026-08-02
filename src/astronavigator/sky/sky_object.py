@@ -73,3 +73,21 @@ class DeepSkyObject(SkyObject):
     
     def get_magnitude(self) -> Magnitude:
         return self._magnitude
+
+@dataclass(slots=True)
+class Asteroid(SkyObject):
+    spectral_type: SpectralType = SpectralType.UNKNOWN
+
+    def get_position(self) -> Position:
+        raise NotImplementedError("Asteroid position calculation is not implemented yet.")
+
+    def get_magnitude(self) -> Magnitude:
+        raise NotImplementedError("Asteroid magnitude calculation is not implemented yet.")
+
+@dataclass(slots=True)
+class Planet(SkyObject):
+    def get_position(self) -> Position:
+        raise NotImplementedError("Planet position calculation is not implemented yet.")
+
+    def get_magnitude(self) -> Magnitude:
+        raise NotImplementedError("Planet magnitude calculation is not implemented yet.")

@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 
 from astronavigator.rendering.rendering_settings import RenderingSettings
 from astronavigator.scene.focus import Focus
-from astronavigator.layer.layer_manager import LayerManager
 from astronavigator.scene.object_index import ObjectIndex
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.selection import Selection

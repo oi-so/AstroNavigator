@@ -9,7 +9,7 @@ from astronavigator.scene.scene import Scene
 
 class GridLayer(Layer):
     def __init__(self) -> None:
-        super().__init__(visible=True, layer_type=LayerType.Grid)
+        super().__init__(visible=True, layer_type=LayerType.GRID)
 
         self.renderer = GridRenderer()
 

@@ -4,7 +4,6 @@ from PySide6.QtCore import QRect
 from PySide6.QtGui import QPainter, Qt
 
 from astronavigator.layer.layer import Layer, LayerType
-from astronavigator.rendering.constellation_renderer import ConstellationRenderer
 from astronavigator.scene.scene import Scene
 
 SELECTION_RADIUS = 15
@@ -12,9 +11,7 @@ SELECTION_RADIUS = 15
 
 class SelectionLayer(Layer):
     def __init__(self) -> None:
-        super().__init__(visible=True, layer_type=LayerType.Constellation)
-
-        self.renderer = ConstellationRenderer()
+        super().__init__(visible=True, layer_type=LayerType.SELECTION)
 
     def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         selected_obj = scene.selection.selected
