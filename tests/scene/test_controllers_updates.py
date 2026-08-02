@@ -41,7 +41,7 @@ def test_select_object():
 
     controller = SceneController(scene, EventBus())
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, None, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.select_object(new_sky_object)
 
@@ -53,7 +53,7 @@ def test_clear_selection():
 
     controller = SceneController(scene, EventBus())
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, None, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.select_object(new_sky_object)
 
@@ -68,7 +68,7 @@ def test_add_and_remove_object():
 
     controller = SceneController(scene, EventBus())
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, None, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.add_object(new_sky_object)
 

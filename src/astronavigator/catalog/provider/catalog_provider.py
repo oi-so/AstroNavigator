@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-
-from astronavigator.catalog.catalog import Catalog
-
+from typing import TypeVar, Generic
 
 
-class CatalogProvider(ABC):
+T = TypeVar("T")
+
+class CatalogProvider(ABC, Generic[T]):
     @abstractmethod
-    def load(self) -> Catalog:
+    def load(self) -> T:
         ...

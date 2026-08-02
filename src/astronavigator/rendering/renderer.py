@@ -3,10 +3,15 @@ from __future__ import annotations
 from PySide6.QtCore import QPointF, QRect
 from PySide6.QtGui import QPainter, Qt
 
-from astronavigator.camera.sky_camera import SkyCamera
+from astronavigator.rendering.constellation_renderer import ConstellationRenderer
+from astronavigator.rendering.rendering_settings import RenderingSettings
 from astronavigator.scene.scene import Scene
 from astronavigator.sky.sky_object import SkyObject, Star, Moon, Satellite, Comet, DeepSkyObject
 from astronavigator.sky.magnitude import Magnitude
+from astronavigator.rendering.star_color import STAR_COLORS
+from astronavigator.rendering.star_size import calculate_star_radius
+from astronavigator.rendering.limiting_magnitude import calculate_limiting_magnitude
+from astronavigator.rendering.grid_renderer import GridRenderer
 
 
 SELECTION_RADIUS = 15
@@ -14,8 +19,14 @@ LABEL_OFFSET = QPointF(5, -5)
 
 
 class Renderer:
+    def __init__(self) -> None:
+        self._grid_renderer = GridRenderer()
+        self._constellation_renderer = ConstellationRenderer()
+
     def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         self._draw_background(painter, scene, viewport)
+        self._grid_renderer.render(painter, scene, viewport)
+        self._constellation_renderer.render(painter, scene, viewport)
         self._draw_objects(painter, scene, viewport)
         self._draw_selection(painter, scene, viewport)
         self._draw_labels(painter, scene, viewport)
@@ -23,15 +34,18 @@ class Renderer:
     def _draw_background(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         painter.fillRect(viewport, Qt.GlobalColor.black)
 
+        painter.setPen(Qt.GlobalColor.white)
+        painter.setBrush(Qt.GlobalColor.white)
+
     def _draw_objects(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         for obj in scene.objects:
-            self._draw_object(obj, painter, scene.sky_camera, viewport)
+            self._draw_object(obj, painter, scene, viewport)
 
-    def _draw_object(self, obj: SkyObject, painter: QPainter, camera: SkyCamera, viewport: QRect) -> None:
-        if not self._is_visible(obj, camera):
+    def _draw_object(self, obj: SkyObject, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+        if not self._is_visible(scene, obj, scene.rendering_settings):
             return
         
-        point = camera.project(
+        point = scene.sky_camera.project(
                 obj.get_position(), 
                 viewport.size()
             )
@@ -41,58 +55,62 @@ class Renderer:
         
         match obj:
             case Star():
-                self._draw_star(painter, obj, point)
+                self._draw_star(painter, obj, scene, point)
 
             case Moon():
-                self._draw_moon(painter, obj, point)
+                self._draw_moon(painter, obj, scene, point)
 
             case Satellite():
-                self._draw_satellite(painter, obj, point)
+                self._draw_satellite(painter, obj, scene, point)
             
             case Comet():
-                self._draw_comet(painter, obj, point)
+                self._draw_comet(painter, obj, scene, point)
             
             case DeepSkyObject():
-                self._draw_deep_sky_object(painter, obj, point)
+                self._draw_deep_sky_object(painter, obj, scene, point)
 
             case _:
                 raise TypeError(f"Unknown SkyObject type: {type(obj).__name__}")
 
-    def _draw_star(self, painter: QPainter, star: Star, point: QPointF) -> None:
-        painter.setPen(Qt.GlobalColor.white)
-        painter.setBrush(Qt.GlobalColor.white)
-        radius = self._get_star_radius(star.get_magnitude())
+    def _draw_star(self, painter: QPainter, star: Star, scene: Scene, point: QPointF) -> None:
+        painter.setPen(STAR_COLORS[star.spectral_type])
+        painter.setBrush(STAR_COLORS[star.spectral_type])
+        radius = self._get_star_radius(star.get_magnitude(), scene.rendering_settings, scene.sky_camera.fov_deg)
         painter.drawEllipse(point, radius, radius)
 
-    def _draw_moon(self, painter: QPainter, moon: Moon, point: QPointF) -> None:
+    def _draw_moon(self, painter: QPainter, moon: Moon, scene: Scene, point: QPointF) -> None:
         painter.setPen(Qt.GlobalColor.white)
         painter.setBrush(Qt.GlobalColor.white)
         painter.drawEllipse(point, 5, 5)
     
-    def _draw_satellite(self, painter: QPainter, satellite: Satellite, point: QPointF) -> None:
+    def _draw_satellite(self, painter: QPainter, satellite: Satellite, scene: Scene, point: QPointF) -> None:
         painter.setPen(Qt.GlobalColor.white)
         painter.setBrush(Qt.GlobalColor.white)
         painter.drawEllipse(point, 3, 3)
 
-    def _draw_comet(self, painter: QPainter, comet: Comet, point: QPointF) -> None:
+    def _draw_comet(self, painter: QPainter, comet: Comet, scene: Scene, point: QPointF) -> None:
         painter.setPen(Qt.GlobalColor.white)
         painter.setBrush(Qt.GlobalColor.white)
         painter.drawEllipse(point, 4, 4)
 
-    def _draw_deep_sky_object(self, painter: QPainter, deep_sky_object: DeepSkyObject, point: QPointF) -> None:
+    def _draw_deep_sky_object(self, painter: QPainter, deep_sky_object: DeepSkyObject, scene: Scene, point: QPointF) -> None:
         painter.setPen(Qt.GlobalColor.white)
         painter.setBrush(Qt.GlobalColor.white)
         painter.drawEllipse(point, 6, 6)
 
     
-    def _get_star_radius(self, magnitude: Magnitude) -> float:
-        radius = max(1.0, 3.0 - magnitude.value * 0.5)
+    def _get_star_radius(self, magnitude: Magnitude, rendering_settings: RenderingSettings, camera_fov_deg: float) -> float:
+        radius = calculate_star_radius(magnitude, camera_fov_deg)
         return radius
     
 
-    def _is_visible(self, obj: SkyObject, camera: SkyCamera) -> bool:
-        return obj.get_magnitude().is_visible(camera.limit_magnitude)
-    
+    def _is_visible(self, scene: Scene, obj: SkyObject, rendering_settings: RenderingSettings) -> bool:
+        effective_limit = calculate_limiting_magnitude(
+            rendering_settings.limiting_magnitude,
+            scene.sky_camera.fov_deg
+        )
+        return obj.get_magnitude().is_visible(effective_limit)
+
     def _draw_selection(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         selected_obj = scene.selection.selected
         if selected_obj is None:
@@ -114,7 +132,7 @@ class Renderer:
 
     def _draw_labels(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         for obj in scene.objects:
-            if not self._is_visible(obj, scene.sky_camera):
+            if not self._is_visible(scene, obj, scene.rendering_settings):
                 continue
             
             point = scene.sky_camera.project(
@@ -125,12 +143,23 @@ class Renderer:
             if point is None:
                 continue
             
-            if not self._should_draw_label(obj):
+            if not self._should_draw_label(obj, scene.rendering_settings):
                 continue
 
             painter.setPen(Qt.GlobalColor.white)
             painter.drawText(point + LABEL_OFFSET, obj.name)
 
 
-    def _should_draw_label(self, obj: SkyObject) -> bool:
-        return True  # Placeholder for label visibility logic, can be based on magnitude or other criteria
+    def _should_draw_label(self, obj: SkyObject, settings: RenderingSettings) -> bool:
+        # TODO: もう少し柔軟に設定できるようにする
+
+        if not settings.show_labels:
+            return False
+        
+        if obj.get_magnitude().value > settings.label_limiting_magnitude:
+            return False
+
+        if obj.name.startswith("HYG") and not settings.show_catalog_names:
+            return False
+
+        return True

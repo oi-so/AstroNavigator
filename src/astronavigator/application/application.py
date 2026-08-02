@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+
 from astronavigator.catalog.catalog_manager import CatalogManager
+from astronavigator.catalog.parser.constellation_parser import ConstellationJsonParser
 from astronavigator.catalog.parser.hyg_parser import HygParser
 from astronavigator.catalog.provider.debug_catalog_provider import DebugCatalogProvider
 from astronavigator.catalog.provider.local_file_provider import LocalFileProvider
@@ -10,7 +12,7 @@ from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.event.event_bus import EventBus
 from astronavigator.sky.position import Position
-from astronavigator.catalog.catalog_info import HYG
+from astronavigator.catalog.catalog_info import CONSTELLATIONS, HYG
 
 
 class Application:
@@ -21,8 +23,8 @@ class Application:
         self._renderer = Renderer()
         self._input_controller = InputController(self._scene_controller)
         self._catalog_manager = CatalogManager()
-
-        self._load_hyg()  # テスト用の星を追加
+        self._load_hyg()
+        self._load_constellations()
 
     def _test(self):
         provider = DebugCatalogProvider()
@@ -36,6 +38,13 @@ class Application:
         provider = LocalFileProvider(path=HYG.save_path, parser=parser)
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
+
+    def _load_constellations(self):
+        self._catalog_manager.download_catalog(CONSTELLATIONS)
+        parser = ConstellationJsonParser()
+        provider = LocalFileProvider(path=CONSTELLATIONS.save_path, parser=parser)
+        catalog = provider.load()
+        self._scene_controller.add_constellation_catalog(catalog)
 
 
     @property

@@ -9,6 +9,7 @@ from astronavigator.scene.scene import Scene
 from astronavigator.event.event_bus import EventBus
 from astronavigator.sky.sky_object import SkyObject
 from astronavigator.scene.time import Time
+from astronavigator.catalog.catalog import ConstellationCatalog
 
 
 SELECTION_THRESHOLD = 20
@@ -54,6 +55,7 @@ class SceneController:
         self._scene.selection.selected = sky_object
         self._event_bus.publish(EventType.SELECTION_CHANGED, sky_object)
 
+    # TODO: 非表示のオブジェクトを選択できないようにする
     def select_object_at(self, position: QPointF, viewport_size: QSize) -> None:
         obj = self._find_nearest_object(position, viewport_size)
         self.select_object(obj)
@@ -77,6 +79,10 @@ class SceneController:
     def zoom_camera(self, factor: float) -> None:
         self._scene.sky_camera.zoom(factor)
         self._event_bus.publish(EventType.CAMERA_ZOOMED, self._scene.sky_camera)
+
+    def add_constellation_catalog(self, catalog: ConstellationCatalog) -> None:
+        self._scene.constellations.extend(catalog.constellations)
+        self._event_bus.publish(EventType.SCENE_UPDATED, catalog)
 
 
     def _find_nearest_object(self, position: QPointF, viewport_size: QSize) -> SkyObject | None:
