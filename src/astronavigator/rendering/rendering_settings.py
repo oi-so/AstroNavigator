@@ -58,3 +58,5 @@ class RenderingSettings:
     ra_format: RightAscensionFormat = RightAscensionFormat.HMS
 
     color_settings: ColorSettings = field(default_factory=ColorSettings)
+
+    selection_radius: int = 15
