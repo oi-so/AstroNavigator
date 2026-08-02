@@ -17,8 +17,8 @@ class ConstellationRenderer:
         for constellation in constellations:
             for line in constellation.lines:
 
-                start_pos = scene.object_index.find_by_id(line.start_id)
-                end_pos = scene.object_index.find_by_id(line.end_id)
+                start_pos = scene.object_index.find_by_hip(int(line.start_id))
+                end_pos = scene.object_index.find_by_hip(int(line.end_id))
 
                 if start_pos is None or end_pos is None:
                     continue
