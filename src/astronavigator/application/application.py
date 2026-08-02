@@ -24,7 +24,7 @@ class Application:
         self._input_controller = InputController(self._scene_controller)
         self._catalog_manager = CatalogManager()
         self._load_hyg()
-        self._load_constellations()
+        # self._load_constellations()
 
     def _test(self):
         provider = DebugCatalogProvider()

@@ -73,7 +73,7 @@ def test_set_selection():
 
     event_bus.subscribe(EventType.SELECTION_CHANGED, callback)
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, None, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.select_object(new_sky_object)
 
@@ -95,7 +95,7 @@ def test_clear_selection():
 
     event_bus.subscribe(EventType.SELECTION_CHANGED, callback)
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, None, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.select_object(new_sky_object)
 
@@ -124,7 +124,7 @@ def test_set_focused_object():
 
     event_bus.subscribe(EventType.FOCUS_CHANGED, callback)
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, None, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.set_focus(new_sky_object)
 
@@ -146,7 +146,7 @@ def test_clear_focus():
 
     event_bus.subscribe(EventType.FOCUS_CHANGED, callback)
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, None, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.set_focus(new_sky_object)
 
@@ -175,7 +175,7 @@ def test_add_and_remove_object():
     event_bus.subscribe(EventType.OBJECT_ADDED, callback)
     event_bus.subscribe(EventType.OBJECT_REMOVED, callback)
 
-    new_sky_object = Star("test", "testObject", ObjectType.STAR, Position(0.0, 0.0), Magnitude(1.0))
+    new_sky_object = Star("test", "testObject", ObjectType.STAR, None, Position(0.0, 0.0), Magnitude(1.0))
 
     controller.add_object(new_sky_object)
 

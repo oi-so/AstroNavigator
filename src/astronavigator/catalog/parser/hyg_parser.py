@@ -50,4 +50,5 @@ class HygParser(CatalogParser[Catalog]):
             ),
             _magnitude=Magnitude(float(row["mag"])),
             spectral_type=parse_spectral_type(row["spect"]),
+            hip=int(row["hip"]) if row["hip"] else None,
         )

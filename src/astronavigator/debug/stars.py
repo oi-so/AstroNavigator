@@ -26,6 +26,7 @@ def create_test_stars() -> Sequence[SkyObject]:
                             ra_deg=ra,
                             dec_deg=dec,
                         ),
+                        hip=None,
                         _magnitude=Magnitude(random.randint(-1, 6)),
                     )
                 )

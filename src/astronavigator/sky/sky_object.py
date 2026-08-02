@@ -14,6 +14,7 @@ class SkyObject(ABC):
     id: str
     name: str
     object_type: ObjectType
+    hip: int | None
 
     @abstractmethod
     def get_position(self) -> Position:

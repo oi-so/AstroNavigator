@@ -19,6 +19,7 @@ def create_star(
         id=object_id,
         name=name,
         object_type=ObjectType.STAR,
+        hip=None,
         _position=Position(ra, dec),
         _magnitude=Magnitude(mag),
     )
