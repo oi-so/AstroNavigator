@@ -9,3 +9,6 @@ class Magnitude:
 
     def is_visible(self, limit: float) -> bool:
         return self.value <= limit
+
+    def __format__(self, format_spec: str) -> str:
+        return f"{self.value:{format_spec}}"

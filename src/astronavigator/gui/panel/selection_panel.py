@@ -3,6 +3,8 @@ from __future__ import annotations
 from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QWidget, QVBoxLayout, QHBoxLayout
 
 from astronavigator.application.application import Application
+from astronavigator.event.event_type import EventType
+from astronavigator.sky.sky_object import SkyObject
 
 
 
@@ -45,7 +47,29 @@ class SelectionPanel(QWidget):
 
         layout.addLayout(button_layout)
 
+        def selection_changed_callback(event):
+            self.update_selection(event.payload)
+
+        self._application.event_bus.subscribe(EventType.SELECTION_CHANGED, selection_changed_callback)
+
 
     def _add_field(self, layout: QVBoxLayout, label_text: str, value_label: QLabel) -> None:
         layout.addWidget(QLabel(label_text))
         layout.addWidget(value_label)
+
+
+    def update_selection(self, sky_object: SkyObject | None) -> None:
+        if sky_object is None:
+            self._name_value.setText("-")
+            self._type_value.setText("-")
+            self._ra_value.setText("-")
+            self._dec_value.setText("-")
+            self._magnitude_value.setText("-")
+        else:
+            position = sky_object.get_position()
+
+            self._name_value.setText(sky_object.name)
+            self._type_value.setText(sky_object.object_type.name)
+            self._ra_value.setText(f"{position.ra_deg:.2f}")
+            self._dec_value.setText(f"{position.dec_deg:.2f}")
+            self._magnitude_value.setText(f"{sky_object.get_magnitude():.2f}")
