@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QRect
-from PySide6.QtGui import QPainter
+from PySide6.QtGui import QColor, QPainter, QPen
 
 from astronavigator.scene.scene import Scene
 
@@ -12,6 +12,8 @@ class ConstellationRenderer:
 
 
     def _draw_constellation_lines(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+        self._set_pen(painter, scene.rendering_settings.color_settings.constellation_line_color)
+
         constellations = scene.constellations
         camera = scene.sky_camera
         for constellation in constellations:
@@ -31,6 +33,7 @@ class ConstellationRenderer:
 
 
     def _draw_constellation_labels(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+        self._set_pen(painter, scene.rendering_settings.color_settings.constellation_label_color)
         constellations = scene.constellations
         camera = scene.sky_camera
         for constellation in constellations:
@@ -40,3 +43,9 @@ class ConstellationRenderer:
             p = camera.project(label_position, viewport.size())
             if p:
                 painter.drawText(p, name)
+
+
+    def _set_pen(self, painter: QPainter, color: QColor) -> None:
+        pen = QPen(color)
+        pen.setWidthF(1.0)
+        painter.setPen(pen)

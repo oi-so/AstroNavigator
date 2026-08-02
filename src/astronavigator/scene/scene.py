@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 
 from astronavigator.rendering.rendering_settings import RenderingSettings
 from astronavigator.scene.focus import Focus
-from astronavigator.layer.layer_manager import LayerManager
 from astronavigator.scene.object_index import ObjectIndex
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.selection import Selection
@@ -25,7 +24,6 @@ class Scene:
     selection: Selection = field(default_factory=Selection)
     focus: Focus = field(default_factory=Focus)
 
-    layer_manager: LayerManager = field(default_factory=LayerManager)
     sky_camera: SkyCamera = field(default_factory=SkyCamera.default)
 
     rendering_settings: RenderingSettings = field(default_factory=RenderingSettings)
