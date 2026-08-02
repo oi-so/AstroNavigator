@@ -219,7 +219,9 @@ __marimo__/
 
 
 .vscode/
-data/
+
+data/*
+!data/constellation_label.json
 
 
 .DS_Store

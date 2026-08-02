@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 
 from astronavigator.catalog.converter.converter import CatalogConverter
 
 
+CONSTELLATION_LABELS_PATH = Path(Path.cwd() / "data" / "constellation_label.json")
+
+
+
 class ConstellationConverter(CatalogConverter):
     def convert(self, source: str) -> str:
         constellations = []
+        with open(CONSTELLATION_LABELS_PATH, "r", encoding="utf-8") as f:
+            constellation_labels = json.load(f)
         
         for line in source.strip().splitlines():
             tokens = line.strip().split()
@@ -29,7 +36,9 @@ class ConstellationConverter(CatalogConverter):
             
             constellations.append({
                 "name": name,
-                "lines": lines
+                "lines": lines,
+                "ra_deg": constellation_labels.get(name, {}).get("ra_deg"),
+                "dec_deg": constellation_labels.get(name, {}).get("dec_deg")
             })
 
         return json.dumps(constellations, indent=2, ensure_ascii=False)

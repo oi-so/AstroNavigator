@@ -24,7 +24,10 @@ class ConstellationJsonParser(CatalogParser[ConstellationCatalog]):
             constellations.append(
                 Constellation(
                     name=item["name"],
-                    label_position=Position(0, 0), # TODO: とりあえず仮
+                    label_position=Position(
+                        ra_deg=item.get("ra_deg"),
+                        dec_deg=item.get("dec_deg")
+                    ),
                     lines=lines
                 )
             )
