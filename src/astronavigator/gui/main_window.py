@@ -8,6 +8,7 @@ from astronavigator.application.application import Application
 from astronavigator.gui.sky_view import SkyView
 from astronavigator.gui.panel.selection_panel import SelectionPanel
 from astronavigator.gui.panel.observer_panel import ObserverPanel
+from astronavigator.gui.panel.time_panel import TimePanel
 
 
 class MainWindow(QMainWindow):
@@ -31,7 +32,7 @@ class MainWindow(QMainWindow):
 
         self._observer_dock = self._create_dock("Observer", ObserverPanel(self._application), Qt.DockWidgetArea.RightDockWidgetArea)
 
-        # self._time_dock = self._create_dock("Time", TimePanel(self._application), Qt.DockWidgetArea.RightDockWidgetArea)
+        self._time_dock = self._create_dock("Time", TimePanel(self._application), Qt.DockWidgetArea.RightDockWidgetArea)
 
         # self._mount_dock = self._create_dock("Mount", MountPanel(self._application), Qt.DockWidgetArea.RightDockWidgetArea)
 

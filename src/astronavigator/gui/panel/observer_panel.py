@@ -31,7 +31,7 @@ class ObserverPanel(QWidget):
         self._current_location_button = QPushButton("現在地")
         self._edit_button = QPushButton("編集")
 
-        self._current_location_button.clicked.connect(self._on_edit_clicked)
+        self._current_location_button.clicked.connect(self._on_current_location_clicked)
         self._edit_button.clicked.connect(self._on_edit_clicked)
 
         line = QFrame()
