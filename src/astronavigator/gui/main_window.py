@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QDockWidget, QMainWindow
+from PySide6.QtWidgets import QDockWidget, QMainWindow, QWidget
 from PySide6.QtCore import Qt
 
 
 from astronavigator.application.application import Application
 from astronavigator.gui.sky_view import SkyView
-
 from astronavigator.gui.panel.selection_panel import SelectionPanel
+from astronavigator.gui.panel.observer_panel import ObserverPanel
 
 
 class MainWindow(QMainWindow):
@@ -26,11 +26,21 @@ class MainWindow(QMainWindow):
     def _create_widgets(self):
         self._sky_view = SkyView(self._application.scene, self._application.renderer, self._application.input_controller, self)
 
-        self._selection_panel = SelectionPanel(self._application)
-
     def _create_docks(self):
-        self._selection_dock = QDockWidget("Selection", self)
-        self._selection_dock.setWidget(self._selection_panel)
+        self._selection_dock = self._create_dock("Selection", SelectionPanel(self._application), Qt.DockWidgetArea.LeftDockWidgetArea)
+
+        self._observer_dock = self._create_dock("Observer", ObserverPanel(self._application), Qt.DockWidgetArea.RightDockWidgetArea)
+
+        # self._time_dock = self._create_dock("Time", TimePanel(self._application), Qt.DockWidgetArea.RightDockWidgetArea)
+
+        # self._mount_dock = self._create_dock("Mount", MountPanel(self._application), Qt.DockWidgetArea.RightDockWidgetArea)
+
+
+    def _create_dock(self, title: str, widget: QWidget, area: Qt.DockWidgetArea) -> QDockWidget:
+        dock = QDockWidget(title, self)
+        dock.setWidget(widget)
+        self.addDockWidget(area, dock)
+        return dock
 
 
     def _setup_layout(self):
