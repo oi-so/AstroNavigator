@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QLabel, QWidget, QVBoxLayout
+from PySide6.QtWidgets import QFrame, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton
 
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
@@ -28,6 +28,23 @@ class ObserverPanel(QWidget):
 
         layout.addStretch()
 
+        self._current_location_button = QPushButton("現在地")
+        self._edit_button = QPushButton("編集")
+
+        self._current_location_button.clicked.connect(self._on_edit_clicked)
+        self._edit_button.clicked.connect(self._on_edit_clicked)
+
+        line = QFrame()
+        line.setFrameShape(QFrame.Shape.HLine)
+        layout.addWidget(line)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self._current_location_button)
+        button_layout.addWidget(self._edit_button)
+
+        layout.addLayout(button_layout)
+
+
         self._application.event_bus.subscribe(EventType.OBSERVER_CHANGED, self._on_observer_changed)
         self._update_observer(self._application.scene.observer)
 
@@ -50,3 +67,10 @@ class ObserverPanel(QWidget):
             self._longitude_value.setText(f"{observer.longitude:.2f}")
             self._elevation_value.setText(f"{observer.elevation:.2f}")
             self._timezone_value.setText(f"{observer.timezone}")
+
+
+    def _on_edit_clicked(self) -> None:
+        raise NotImplementedError("Observer edit functionality is not implemented yet.")
+
+    def _on_current_location_clicked(self) -> None:
+        raise NotImplementedError("Current location functionality is not implemented yet.")
