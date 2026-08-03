@@ -41,7 +41,6 @@ class MainWindow(QMainWindow):
     def _create_dock(self, title: str, widget: QWidget, area: Qt.DockWidgetArea) -> QDockWidget:
         dock = QDockWidget(title, self)
         dock.setWidget(widget)
-        self.addDockWidget(area, dock)
         return dock
 
 
@@ -49,3 +48,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._sky_view)
 
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._selection_dock)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._observer_dock)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._time_dock)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._mount_dock)
+
+        self.splitDockWidget(self._observer_dock, self._time_dock, Qt.Orientation.Vertical)
+        self.splitDockWidget(self._time_dock, self._mount_dock, Qt.Orientation.Vertical)
