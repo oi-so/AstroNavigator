@@ -25,6 +25,10 @@ class SelectionPanel(QWidget):
         self._sync_button = QPushButton("同期")
         self._center_button = QPushButton("中央")
 
+        self._goto_button.clicked.connect(self._application.main_actions.goto_mount_action.trigger)
+        self._sync_button.clicked.connect(self._application.main_actions.sync_mount_action.trigger)
+        self._center_button.clicked.connect(self._application.main_actions.center_mount_action.trigger)
+
 
         layout = QVBoxLayout(self)
 
