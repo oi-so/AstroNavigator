@@ -11,6 +11,7 @@ class MainMenuBar(QMenuBar):
         super().__init__(parent)
         self._application = application
         self._docks = docks
+        self._actions = self._application.main_actions
 
         self._create_file_menu()
         self._create_view_menu()
@@ -34,7 +35,11 @@ class MainMenuBar(QMenuBar):
 
     def _create_mount_menu(self) -> None:
         self._mount_menu = self.addMenu("Mount")
-        
+        self._mount_menu.addAction(self._actions.connect_mount_action)
+        self._mount_menu.addAction(self._actions.disconnect_mount_action)
+        self._mount_menu.addAction(self._actions.goto_mount_action)
+        self._mount_menu.addAction(self._actions.sync_mount_action)
+        self._mount_menu.addAction(self._actions.center_mount_action)
 
     def _create_time_menu(self) -> None:
         self._time_menu = self.addMenu("Time")

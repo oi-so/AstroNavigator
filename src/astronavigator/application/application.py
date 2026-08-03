@@ -6,6 +6,7 @@ from astronavigator.catalog.parser.constellation_parser import ConstellationJson
 from astronavigator.catalog.parser.hyg_parser import HygParser
 from astronavigator.catalog.provider.debug_catalog_provider import DebugCatalogProvider
 from astronavigator.catalog.provider.local_file_provider import LocalFileProvider
+from astronavigator.gui.actions.main_actions import MainActions
 from astronavigator.input.input_controller import InputController
 from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
@@ -22,6 +23,7 @@ class Application:
         self._scene_controller = SceneController(self._scene, self._event_bus)
         self._renderer = Renderer()
         self._input_controller = InputController(self._scene_controller)
+        self.main_actions = MainActions(self)
         self._catalog_manager = CatalogManager()
         self._load_hyg()
         self._load_constellations()
