@@ -23,6 +23,9 @@ class MainWindow(QMainWindow):
         self._create_widgets()
         self._create_docks()
         self._setup_layout()
+        self._create_menu_bar()
+        self._create_tool_bar()
+        self._create_status_bar()
 
 
     def _create_widgets(self):
@@ -41,6 +44,10 @@ class MainWindow(QMainWindow):
     def _create_dock(self, title: str, widget: QWidget, area: Qt.DockWidgetArea) -> QDockWidget:
         dock = QDockWidget(title, self)
         dock.setWidget(widget)
+        dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable | 
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable
+        )
         return dock
 
 
@@ -54,3 +61,17 @@ class MainWindow(QMainWindow):
 
         self.splitDockWidget(self._observer_dock, self._time_dock, Qt.Orientation.Vertical)
         self.splitDockWidget(self._time_dock, self._mount_dock, Qt.Orientation.Vertical)
+
+
+    def _create_menu_bar(self):
+        menu_bar = self.menuBar()
+        pass
+
+    def _create_tool_bar(self):
+        tool_bar = self.addToolBar("Main Toolbar")
+        pass
+
+
+    def _create_status_bar(self):
+        status_bar = self.statusBar()
+        pass
