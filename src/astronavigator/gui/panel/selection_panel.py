@@ -47,18 +47,18 @@ class SelectionPanel(QWidget):
 
         layout.addLayout(button_layout)
 
-        def selection_changed_callback(event):
-            self.update_selection(event.payload)
-
-        self._application.event_bus.subscribe(EventType.SELECTION_CHANGED, selection_changed_callback)
+        self._application.event_bus.subscribe(EventType.SELECTION_CHANGED, self._on_selection_changed)
+        self._update_selection(self._application.scene.selection.selected)
 
 
     def _add_field(self, layout: QVBoxLayout, label_text: str, value_label: QLabel) -> None:
         layout.addWidget(QLabel(label_text))
         layout.addWidget(value_label)
 
+    def _on_selection_changed(self, event) -> None:
+        self._update_selection(event.payload)
 
-    def update_selection(self, sky_object: SkyObject | None) -> None:
+    def _update_selection(self, sky_object: SkyObject | None) -> None:
         if sky_object is None:
             self._name_value.setText("-")
             self._type_value.setText("-")
