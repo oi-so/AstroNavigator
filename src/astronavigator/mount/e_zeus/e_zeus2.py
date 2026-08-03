@@ -16,8 +16,8 @@ class EZeus2_RA_DEC(StrEnum):
     DEC = "DC"
 
 class EZeus2_Direction(StrEnum):
-    POSITIVE = "F"
-    NEGATIVE = "R"
+    FORWARD = "F"
+    REVERSE = "R"
 
 class EZeus2_Speed(Enum):
     STOP = 0
