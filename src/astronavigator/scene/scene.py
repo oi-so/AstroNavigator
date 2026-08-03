@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 
+from astronavigator.gui.gui_settings import GuiSettings
 from astronavigator.rendering.rendering_settings import RenderingSettings
 from astronavigator.scene.focus import Focus
 from astronavigator.scene.object_index import ObjectIndex
@@ -27,3 +28,4 @@ class Scene:
     sky_camera: SkyCamera = field(default_factory=SkyCamera.default)
 
     rendering_settings: RenderingSettings = field(default_factory=RenderingSettings)
+    gui_settings: GuiSettings = field(default_factory=GuiSettings)

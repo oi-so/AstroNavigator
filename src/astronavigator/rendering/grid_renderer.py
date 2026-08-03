@@ -105,7 +105,7 @@ class GridRenderer:
             return
 
         if scene.rendering_settings.ra_format == RightAscensionFormat.HMS:
-            label = format_ra_hms(position.ra_deg)
+            label = format_ra_hms(position.ra_deg, False)
         else:
             label = format_ra_deg(position.ra_deg)
 
