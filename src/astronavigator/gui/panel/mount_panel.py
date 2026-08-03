@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QFrame, QLabel, QWidget, QVBoxLayout, QHBoxLayout,
 
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
-from astronavigator.mount.mount import Mount
+from astronavigator.mount.mount import Mount, MountState
 
 
 
@@ -67,5 +67,10 @@ class MountPanel(QWidget):
             self._ra_value.setText(str(mount.position.get_ra(settings.ra_format)) if mount.position else "-")
             self._dec_value.setText(str(mount.position.get_dec(settings.dec_format)) if mount.position else "-")
 
+
     def _on_connect_clicked(self) -> None:
-        raise NotImplementedError("Mount connect functionality is not implemented yet.")
+        mount = self._application.scene.mount
+        if mount.state in [MountState.DISCONNECTED, MountState.ERROR]:
+            self._application.main_actions.connect_mount_action.trigger()
+        else:
+            self._application.main_actions.disconnect_mount_action.trigger()
