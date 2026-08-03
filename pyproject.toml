@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 dependencies = [
     "astropy>=8.0.1",
     "numpy>=2.5.1",
+    "pyserial>=3.5",
     "pyside6>=6.11.1",
     "skyfield>=1.54",
     "tzdata>=2026.3",
