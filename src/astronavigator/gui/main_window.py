@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt
 
 
 from astronavigator.application.application import Application
+from astronavigator.gui.menu.main_menu_bar import MainMenuBar
 from astronavigator.gui.sky_view import SkyView
 from astronavigator.gui.panel.selection_panel import SelectionPanel
 from astronavigator.gui.panel.observer_panel import ObserverPanel
@@ -16,38 +17,42 @@ class MainWindow(QMainWindow):
     def __init__(self, application: Application):
         super().__init__()
         self._application = application
+        self._docks: list[QDockWidget] = []
 
         self.setWindowTitle("AstroNavigator")
         self.resize(1280, 720)
 
         self._create_widgets()
         self._create_docks()
-        self._setup_layout()
+
         self._create_menu_bar()
         self._create_tool_bar()
         self._create_status_bar()
+
+        self._setup_layout()
 
 
     def _create_widgets(self):
         self._sky_view = SkyView(self._application.scene, self._application.renderer, self._application.input_controller, self)
 
     def _create_docks(self):
-        self._selection_dock = self._create_dock("Selection", SelectionPanel(self._application), Qt.DockWidgetArea.LeftDockWidgetArea)
+        self._selection_dock = self._create_dock("Selection", SelectionPanel(self._application))
 
-        self._observer_dock = self._create_dock("Observer", ObserverPanel(self._application), Qt.DockWidgetArea.RightDockWidgetArea)
+        self._observer_dock = self._create_dock("Observer", ObserverPanel(self._application))
 
-        self._time_dock = self._create_dock("Time", TimePanel(self._application), Qt.DockWidgetArea.RightDockWidgetArea)
+        self._time_dock = self._create_dock("Time", TimePanel(self._application))
 
-        self._mount_dock = self._create_dock("Mount", MountPanel(self._application), Qt.DockWidgetArea.RightDockWidgetArea)
+        self._mount_dock = self._create_dock("Mount", MountPanel(self._application))
 
 
-    def _create_dock(self, title: str, widget: QWidget, area: Qt.DockWidgetArea) -> QDockWidget:
+    def _create_dock(self, title: str, widget: QWidget) -> QDockWidget:
         dock = QDockWidget(title, self)
         dock.setWidget(widget)
         dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetMovable | 
             QDockWidget.DockWidgetFeature.DockWidgetFloatable
         )
+        self._docks.append(dock)
         return dock
 
 
@@ -64,14 +69,19 @@ class MainWindow(QMainWindow):
 
 
     def _create_menu_bar(self):
-        menu_bar = self.menuBar()
-        pass
+        self._menu_bar = MainMenuBar(self._application, self.get_docks())
+        self.setMenuBar(self._menu_bar)
 
     def _create_tool_bar(self):
-        tool_bar = self.addToolBar("Main Toolbar")
+        self._tool_bar = self.addToolBar("Main Toolbar")
         pass
 
 
     def _create_status_bar(self):
-        status_bar = self.statusBar()
+        self._status_bar = self.statusBar()
         pass
+
+
+
+    def get_docks(self) -> tuple[QDockWidget, ...]:
+        return tuple(self._docks)
