@@ -46,7 +46,7 @@ class EZeus2:
 
     def _send(self, cmd: str) -> str:
         self.serial.reset_input_buffer()
-        self.serial.write(cmd.encode("ascii"))
+        self.serial.write(cmd.encode("ascii") + b"\r")
 
         resp = self.serial.readline().decode("ascii", errors="replace").strip()
         return resp
@@ -70,8 +70,8 @@ class EZeus2:
         resp = self._send("GP")
 
         # GP#HHHHHHHH#hhhhhhhh GPは位置返答、#はモーターの値であることを表す
-        ra_hex = resp[2:10]
-        dec_hex = resp[11:19]
+        ra_hex = resp[3:11]
+        dec_hex = resp[12:20]
 
         return int(ra_hex, 16), int(dec_hex, 16)
 
@@ -101,7 +101,7 @@ class EZeus2:
         # #で区切り文字(連続の場合はステップ数なし)
         # HHHHHHHHでステップ数
         if steps is None:
-            cmd = f"DV{axis.value}{direction.value}{speed.value}#"
+            cmd = f"DV{axis.value}{direction.value}{speed.value}"
         else:
             cmd = f"DV{axis.value}{direction.value}{speed.value}{steps:08X}"
 
@@ -155,8 +155,8 @@ class EZeus2:
 
     def get_revolution_step(self) -> tuple[int, int]:
         resp = self._send("RD")
-        ra_hex = resp[2:10]
-        dec_hex = resp[11:19]
+        ra_hex = resp[3:11]
+        dec_hex = resp[12:20]
         return int(ra_hex, 16), int(dec_hex, 16)
 
     def set_revolution_step(self, ra_steps: int, dec_steps: int) -> str:
@@ -187,6 +187,12 @@ class EZeus2:
     def get_handbox_slowdown(self) -> tuple[int, int]:
         resp = self._send("SL")
         return int(resp[3:5], 16), int(resp[6:8], 16)
+
+    def set_handbox_slowdown(self, ra_steps: int, dec_steps: int) -> str:
+        cmd = f"SL#{ra_steps:02X}#{dec_steps:02X}"
+        resp = self._send(cmd)
+        self._check_ack(resp)
+        return resp
 
     def get_backlash(self) -> tuple[bool, int, int]:
         """ギアの遊びを想定するらしい"""
