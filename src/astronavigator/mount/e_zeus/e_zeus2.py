@@ -1,3 +1,7 @@
+# http://www2.synapse.ne.jp/haya/zeus/e-zeus2_com.html
+# https://web.archive.org/web/20240704072325/http://www2.synapse.ne.jp/haya/zeus/e-zeus2_com.html
+
+
 from __future__ import annotations
 
 from enum import Enum, StrEnum

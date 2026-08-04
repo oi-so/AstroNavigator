@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QFrame, QLabel, QWidget, QVBoxLayout, QHBoxLayout,
 
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
-from astronavigator.mount.mount import Mount, MountState
+from astronavigator.mount.mount import Mount, ConnectionState
 
 
 
@@ -70,7 +70,7 @@ class MountPanel(QWidget):
 
     def _on_connect_clicked(self) -> None:
         mount = self._application.scene.mount
-        if mount.state in [MountState.DISCONNECTED, MountState.ERROR]:
+        if mount.state in [ConnectionState.DISCONNECTED, ConnectionState.ERROR]:
             self._application.main_actions.connect_mount_action.trigger()
         else:
             self._application.main_actions.disconnect_mount_action.trigger()
