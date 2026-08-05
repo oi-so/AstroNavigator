@@ -10,6 +10,14 @@ STEP_COUNTER_MODULO = 1 << 32
 STEP_COUNTER_HALF = 1 << 31
 
 
+# TODO:
+# - 子午線反転
+# - SideOfPier対応
+# - SlewPath対応
+# - RA/DECの符号確認
+# - can_なんとかの実装
+
+
 @dataclass(slots=True)
 class EZeus2MountSettings:
     reference_position: Position = field(default_factory=lambda: Position(0.0, 0.0))
@@ -187,3 +195,21 @@ class EZeus2(Mount):
 
     def home(self) -> None:
         raise NotImplementedError("Home operation is not supported for E-ZEUS2 mount")
+
+
+    @property
+    def can_sync(self) -> bool:
+        return True
+
+
+    @property
+    def can_slew(self) -> bool:
+        return True
+
+    @property
+    def can_home(self) -> bool:
+        return False
+
+    @property
+    def can_move_axis(self) -> bool:
+        return True
