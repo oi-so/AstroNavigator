@@ -51,9 +51,8 @@ class Mount(ABC):
         ...
 
     @property
-    @abstractmethod
     def is_connected(self) -> bool:
-        ...
+        return self.state == ConnectionState.CONNECTED
 
     @abstractmethod
     def set_tracking(self, tracking: bool) -> None:

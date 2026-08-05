@@ -6,7 +6,7 @@ import serial
 
 
 
-from astronavigator.mount.mount import Axis, Mount, MountDevice
+from astronavigator.mount.mount import Axis, ConnectionState, Mount, MountDevice
 from astronavigator.mount.e_zeus.e_zeus2_protocol import EZeus2Protocol, EZeus2StatusIndex, EZeus2_RA_DEC, EZeus2_Direction, EZeus2_Speed
 from astronavigator.sky.position import Position
 
@@ -38,15 +38,15 @@ class EZeus2(Mount):
         self._protocol = EZeus2Protocol(port)
         self._settings = EZeus2MountSettings()
         self._driver_name = None
+        self._state = ConnectionState.DISCONNECTED
+
+    @property
+    def state(self) -> ConnectionState:
+        return self._state
 
     @property
     def settings(self) -> EZeus2MountSettings:
         return self._settings
-
-
-    @property
-    def is_connected(self) -> bool:
-        return self._protocol.is_connected
 
     @property
     def is_tracking(self) -> bool:
@@ -66,25 +66,34 @@ class EZeus2(Mount):
     
 
     def connect(self) -> None:
-        self._protocol.connect()
+        self._state = ConnectionState.CONNECTING
 
-        ra_steps_per_rev, dec_steps_per_rev = self._protocol.get_revolution_step()
+        try:
+            self._protocol.connect()
 
-        if ra_steps_per_rev <= 0 or dec_steps_per_rev <= 0:
-            raise RuntimeError(
-                "Invalid steps per revolution received from mount"
-                f" (RA: {ra_steps_per_rev}, DEC: {dec_steps_per_rev})"
-            )
-        
-        self._settings.ra_steps_per_rev = ra_steps_per_rev
-        self._settings.dec_steps_per_rev = dec_steps_per_rev
+            ra_steps_per_rev, dec_steps_per_rev = self._protocol.get_revolution_step()
 
-        self._driver_name = self._protocol.get_version()
+            if ra_steps_per_rev <= 0 or dec_steps_per_rev <= 0:
+                raise RuntimeError(
+                    "Invalid steps per revolution received from mount"
+                    f" (RA: {ra_steps_per_rev}, DEC: {dec_steps_per_rev})"
+                )
+            
+            self._settings.ra_steps_per_rev = ra_steps_per_rev
+            self._settings.dec_steps_per_rev = dec_steps_per_rev
+            self._driver_name = self._protocol.get_version()
+
+            self._state = ConnectionState.CONNECTED
+
+        except Exception as e:
+            self._state = ConnectionState.ERROR
+            raise e
+
 
     def disconnect(self) -> None:
         self._protocol.disconnect()
         self._driver_name = None
-
+        self._state = ConnectionState.DISCONNECTED
 
     def get_position(self) -> Position:
         ra_steps, dec_steps = self._protocol.get_position()
@@ -228,12 +237,13 @@ class EZeus2(Mount):
         for port in cls.find_ports():
             try:
                 protocol = EZeus2Protocol(port)
-                protocol.connect()
+                version = protocol.quick_check()
 
-                name = protocol.get_version()
+                if version is None:
+                    continue
+
                 identifier = port
-
-                devices.append(MountDevice(name=name, identifier=identifier, driver=cls))
+                devices.append(MountDevice(name=f"E-ZEUS2 ({version})", identifier=identifier, driver=cls))
                 protocol.disconnect()
 
             except serial.SerialException:

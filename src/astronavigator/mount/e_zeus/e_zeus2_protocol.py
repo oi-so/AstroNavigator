@@ -243,3 +243,17 @@ class EZeus2Protocol:
     def get_version(self) -> str:
         resp = self._send("VR")
         return resp
+
+
+    def quick_check(self) -> str | None:
+        try:
+            with serial.Serial(self._port, self._baundrate, timeout=0.3) as ser:
+                ser.reset_input_buffer()
+                ser.write(b"VR\r")
+                resp = ser.readline().decode("ascii", errors="replace").strip()
+                if resp.startswith("VR"):
+                    return resp
+                else:
+                    return None
+        except Exception:
+            return None
