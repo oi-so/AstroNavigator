@@ -1,7 +1,12 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 
-from astronavigator.mount.mount import Axis, Mount
+import serial
+
+
+
+from astronavigator.mount.mount import Axis, Mount, MountDevice
 from astronavigator.mount.e_zeus.e_zeus2_protocol import EZeus2Protocol, EZeus2StatusIndex, EZeus2_RA_DEC, EZeus2_Direction, EZeus2_Speed
 from astronavigator.sky.position import Position
 
@@ -213,3 +218,34 @@ class EZeus2(Mount):
     @property
     def can_move_axis(self) -> bool:
         return True
+
+
+
+    @classmethod
+    def discover(cls) -> list[MountDevice]:
+        devices = []
+
+        for port in cls.find_ports():
+            try:
+                protocol = EZeus2Protocol(port)
+                protocol.connect()
+
+                name = protocol.get_version()
+                identifier = port
+
+                devices.append(MountDevice(name=name, identifier=identifier, driver=cls))
+                protocol.disconnect()
+
+            except serial.SerialException:
+                continue
+            except Exception:
+                continue
+
+        return devices
+
+
+    @classmethod
+    def create(cls, identifier: str) -> Mount:
+        mount = cls(identifier)
+        mount.connect()
+        return mount
