@@ -7,8 +7,8 @@ from PySide6.QtGui import QAction
 
 
 from astronavigator.event.event_type import EventType
-from astronavigator.mount.e_zeus.e_zeus2 import EZeus2
 from astronavigator.gui.dialog.mount_selection_dialog import MountSelectionDialog
+from astronavigator.mount.mount import Mount
 
 if TYPE_CHECKING:
     from astronavigator.application.application import Application
@@ -31,13 +31,6 @@ class MainActions(QObject):
         self.now_action = QAction("現在時刻", self)
         self.settings_action = QAction("設定", self)
 
-        self.connect_mount_action.setEnabled(True)
-        self.disconnect_mount_action.setEnabled(False)
-        self.goto_mount_action.setEnabled(False)
-        self.sync_mount_action.setEnabled(False)
-        self.center_mount_action.setEnabled(False)
-        self.stop_mount_action.setEnabled(False)
-
         self.connect_mount_action.triggered.connect(self._connect_mount)
         self.disconnect_mount_action.triggered.connect(self._disconnect_mount)
         self.goto_mount_action.triggered.connect(self._goto_mount)
@@ -50,7 +43,8 @@ class MainActions(QObject):
 
 
     def _connect_mount(self):
-        devices = EZeus2.discover()
+        devices = Mount.discover_all()
+
         dialog = MountSelectionDialog(devices)
         if dialog.exec() == MountSelectionDialog.DialogCode.Accepted:
             selected_device = dialog.selected_device

@@ -108,3 +108,16 @@ class Mount(ABC):
     def find_ports() -> list[str]:
         ports = list_ports.comports()
         return [port.device for port in ports]
+
+
+
+    @classmethod
+    def discover_all(cls) -> list[MountDevice]:
+        all_devices: list[MountDevice] = []
+        for subclass in cls.__subclasses__():
+            try:
+                devices = subclass.discover()
+                all_devices.extend(devices)
+            except Exception as e:
+                print(f"Error discovering devices for {subclass.__name__}: {e}")
+        return all_devices
