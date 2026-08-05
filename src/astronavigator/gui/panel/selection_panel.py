@@ -54,6 +54,24 @@ class SelectionPanel(QWidget):
         self._application.event_bus.subscribe(EventType.SELECTION_CHANGED, self._on_selection_changed)
         self._update_selection(self._application.scene.selection.selected)
 
+        self._application.event_bus.subscribe(EventType.MOUNT_CONNECTED, self._on_mount_connected)
+        self._application.event_bus.subscribe(EventType.MOUNT_DISCONNECTED, self._on_mount_disconnected)
+
+        self._change_mount_buttons_enabled(self._application.scene.mount.is_connected if self._application.scene.mount else False)
+
+    def _on_mount_connected(self, event) -> None:
+        self._change_mount_buttons_enabled(True)
+
+    def _on_mount_disconnected(self, event) -> None:
+        self._change_mount_buttons_enabled(False)
+
+    def _change_mount_buttons_enabled(self, enabled: bool) -> None:
+        if self._application.scene.selection.selected is None:
+            enabled = False
+        self._goto_button.setEnabled(enabled)
+        self._sync_button.setEnabled(enabled)
+        self._center_button.setEnabled(enabled)
+
 
     def _add_field(self, layout: QVBoxLayout, label_text: str, value_label: QLabel) -> None:
         layout.addWidget(QLabel(label_text))
@@ -78,3 +96,5 @@ class SelectionPanel(QWidget):
             self._ra_value.setText(position.get_ra(settings.ra_format))
             self._dec_value.setText(position.get_dec(settings.dec_format))
             self._magnitude_value.setText(f"{sky_object.get_magnitude():.2f}")
+
+            self._change_mount_buttons_enabled(self._application.scene.mount.is_connected if self._application.scene.mount else False)

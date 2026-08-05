@@ -29,8 +29,11 @@ class MountPanel(QWidget):
         layout.addStretch()
 
         self._connect_button = QPushButton("接続")
+        self._stop_button = QPushButton("停止")
+        self._stop_button.setEnabled(False)
 
         self._connect_button.clicked.connect(self._on_connect_clicked)
+        self._stop_button.clicked.connect(self._on_stop_clicked)
 
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
@@ -38,11 +41,13 @@ class MountPanel(QWidget):
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self._connect_button)
+        button_layout.addWidget(self._stop_button)
 
         layout.addLayout(button_layout)
 
 
-        self._application.event_bus.subscribe(EventType.MOUNT_CHANGED, self._on_mount_changed)
+        self._application.event_bus.subscribe(EventType.MOUNT_CONNECTED, self._on_mount_connected)
+        self._application.event_bus.subscribe(EventType.MOUNT_DISCONNECTED, self._on_mount_disconnected)
         self._update_mount(self._application.scene.mount)
 
 
@@ -50,7 +55,10 @@ class MountPanel(QWidget):
         layout.addWidget(QLabel(label_text))
         layout.addWidget(value_label)
 
-    def _on_mount_changed(self, event) -> None:
+    def _on_mount_connected(self, event) -> None:
+        self._update_mount(event.payload)
+
+    def _on_mount_disconnected(self, event) -> None:
         self._update_mount(event.payload)
 
     def _update_mount(self, mount: Mount | None) -> None:
@@ -59,6 +67,8 @@ class MountPanel(QWidget):
             self._connection_value.setText("-")
             self._ra_value.setText("-")
             self._dec_value.setText("-")
+            self._stop_button.setEnabled(False)
+            self._connect_button.setText("接続")
         else:
             settings = self._application.scene.gui_settings
 
@@ -66,6 +76,9 @@ class MountPanel(QWidget):
             self._connection_value.setText(mount.driver_name if mount.driver_name else "-")
             self._ra_value.setText(str(mount.position.get_ra(settings.ra_format)) if mount.position else "-")
             self._dec_value.setText(str(mount.position.get_dec(settings.dec_format)) if mount.position else "-")
+
+            self._stop_button.setEnabled(mount.state == ConnectionState.CONNECTED)
+            self._connect_button.setText("切断" if mount.state == ConnectionState.CONNECTED else "接続")
 
 
     def _on_connect_clicked(self) -> None:
@@ -75,3 +88,7 @@ class MountPanel(QWidget):
             self._application.main_actions.connect_mount_action.trigger()
         else:
             self._application.main_actions.disconnect_mount_action.trigger()
+
+
+    def _on_stop_clicked(self) -> None:
+        self._application.main_actions.stop_mount_action.trigger()

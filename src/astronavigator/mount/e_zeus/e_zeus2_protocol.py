@@ -40,7 +40,7 @@ class EZeus2StatusIndex(StrEnum):
     DEC_SPEED = "dec_speed"
 
 class EZeus2Protocol:
-    def __init__(self, port: str, baudrate: int = 9600, timeout: float = 1.0):
+    def __init__(self, port: str, baudrate: int = 9600, timeout: float = 0.5):
         self._port = port
         self._baundrate = baudrate
         self._timeout = timeout
