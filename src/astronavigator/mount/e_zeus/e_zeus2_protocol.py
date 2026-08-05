@@ -25,11 +25,19 @@ class EZeus2_Direction(StrEnum):
 
 class EZeus2_Speed(Enum):
     STOP = 0
-    SIDEREAL = 1
+    STACKING = 1
     SLOW = 2
     MEDIUM = 3
     FAST = 4
 
+# E-ZEUS2にstatusを問い合わせた時のindex
+class EZeus2StatusIndex(StrEnum):
+    RA_STATUS = "ra_status"
+    RA_DIRECTION = "ra_direction"
+    RA_SPEED = "ra_speed"
+    DEC_STATUS = "dec_status"
+    DEC_DIRECTION = "dec_direction"
+    DEC_SPEED = "dec_speed"
 
 class EZeus2Protocol:
     def __init__(self, port: str, baudrate: int = 9600, timeout: float = 1.0):
@@ -37,6 +45,11 @@ class EZeus2Protocol:
         self._baundrate = baudrate
         self._timeout = timeout
         self.serial: serial.Serial | None = None
+        self._is_connected = False
+
+    @property
+    def is_connected(self) -> bool:
+        return self._is_connected
 
     def connect(self):
         self.serial = serial.Serial(
@@ -47,12 +60,14 @@ class EZeus2Protocol:
             stopbits=serial.STOPBITS_ONE,
             timeout=self._timeout,
         )
+        self._is_connected = True
         time.sleep(2)
 
 
     def disconnect(self) -> None:
         if self.serial is None: 
             raise RuntimeError("Serial port is not open")
+        self._is_connected = False
         self.serial.close()
 
 
@@ -158,12 +173,12 @@ class EZeus2Protocol:
         """
 
         return {
-            "ra_status": resp[2],
-            "ra_direction": resp[3],
-            "ra_speed": int(resp[4]),
-            "dec_status": resp[5],
-            "dec_direction": resp[6],
-            "dec_speed": int(resp[7]),
+            EZeus2StatusIndex.RA_STATUS: resp[2],
+            EZeus2StatusIndex.RA_DIRECTION: resp[3],
+            EZeus2StatusIndex.RA_SPEED: int(resp[4]),
+            EZeus2StatusIndex.DEC_STATUS: resp[5],
+            EZeus2StatusIndex.DEC_DIRECTION: resp[6],
+            EZeus2StatusIndex.DEC_SPEED: int(resp[7]),
         }
 
 
