@@ -25,7 +25,7 @@ class EZeus2_Direction(StrEnum):
 
 class EZeus2_Speed(Enum):
     STOP = 0
-    STACKING = 1
+    SIDEREAL = 1
     SLOW = 2
     MEDIUM = 3
     FAST = 4
