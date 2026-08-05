@@ -70,7 +70,8 @@ class MountPanel(QWidget):
 
     def _on_connect_clicked(self) -> None:
         mount = self._application.scene.mount
-        if mount.state in [ConnectionState.DISCONNECTED, ConnectionState.ERROR]:
+        
+        if mount is None or not (mount.state == ConnectionState.CONNECTED or mount.state == ConnectionState.CONNECTING):
             self._application.main_actions.connect_mount_action.trigger()
         else:
             self._application.main_actions.disconnect_mount_action.trigger()

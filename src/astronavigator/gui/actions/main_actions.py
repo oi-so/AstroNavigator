@@ -5,6 +5,10 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QObject
 from PySide6.QtGui import QAction
 
+
+from astronavigator.mount.e_zeus.e_zeus2 import EZeus2
+from astronavigator.gui.dialog.selection_dialog import MountSelectionDialog
+
 if TYPE_CHECKING:
     from astronavigator.application.application import Application
 
@@ -33,8 +37,16 @@ class MainActions(QObject):
         self.now_action.triggered.connect(self._set_now)
         self.settings_action.triggered.connect(self._open_settings)
 
+
+
     def _connect_mount(self):
-        raise NotImplementedError("Mount connection not implemented yet.")
+        devices = EZeus2.discover()
+        dialog = MountSelectionDialog(devices)
+        if dialog.exec() == MountSelectionDialog.DialogCode.Accepted:
+            selected_device = dialog.selected_device
+            if selected_device:
+                mount = selected_device.driver.create(selected_device.identifier)
+                self._application.scene.mount = mount
 
 
     def _disconnect_mount(self):
