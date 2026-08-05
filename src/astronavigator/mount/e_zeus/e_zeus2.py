@@ -1,210 +1,215 @@
 from __future__ import annotations
+from dataclasses import dataclass, field
 
-from enum import Enum, StrEnum
-import serial
-import time
-
-
-class EZeus2Error(Enum):
-    NO_ERROR = 0
-    ERROR = 1
-    UNKNOWN_COMMAND = 2
+from astronavigator.mount.mount import Axis, Mount
+from astronavigator.mount.e_zeus.e_zeus2_protocol import EZeus2Protocol, EZeus2StatusIndex, EZeus2_RA_DEC, EZeus2_Direction, EZeus2_Speed
+from astronavigator.sky.position import Position
 
 
-class EZeus2_RA_DEC(StrEnum):
-    RA = "RA"
-    DEC = "DC"
-
-class EZeus2_Direction(StrEnum):
-    POSITIVE = "F"
-    NEGATIVE = "R"
-
-class EZeus2_Speed(Enum):
-    STOP = 0
-    SIDEREAL = 1
-    SLOW = 2
-    MEDIUM = 3
-    FAST = 4
+STEP_COUNTER_MODULO = 1 << 32
+STEP_COUNTER_HALF = 1 << 31
 
 
-class EZeus2:
-    def __init__(self, port: str, baudrate: int = 9600, timeout: float = 1.0):
-        self.serial = serial.Serial(
-            port=port,
-            baudrate=baudrate,
-            bytesize=serial.EIGHTBITS,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            timeout=timeout,
-        )
-        time.sleep(2)
+# TODO:
+# - 子午線反転
+# - SideOfPier対応
+# - SlewPath対応
+# - RA/DECの符号確認
+# - can_なんとかの実装
 
 
-    def close(self):
-        self.serial.close()
+@dataclass(slots=True)
+class EZeus2MountSettings:
+    reference_position: Position = field(default_factory=lambda: Position(0.0, 0.0))
+    reference_steps: tuple[int, int] = field(default_factory=lambda: (0, 0))
+    ra_steps_per_rev: int | None = None
+    dec_steps_per_rev: int | None = None
+    ra_sign: int = 1
+    dec_sign: int = 1
 
 
-    def _send(self, cmd: str) -> str:
-        self.serial.reset_input_buffer()
-        self.serial.write(cmd.encode("ascii"))
+class EZeus2(Mount):
+    def __init__(self, port: str) -> None:
+        self._protocol = EZeus2Protocol(port)
+        self._settings = EZeus2MountSettings()
+        self._driver_name = None
 
-        resp = self.serial.readline().decode("ascii", errors="replace").strip()
-        return resp
+    @property
+    def settings(self) -> EZeus2MountSettings:
+        return self._settings
 
 
-    def _check_ack(self, resp: str) -> EZeus2Error:
-        if resp.startswith("!"):
-            return EZeus2Error.ERROR
-        elif resp.startswith("?"):
-            return EZeus2Error.UNKNOWN_COMMAND
+    @property
+    def is_connected(self) -> bool:
+        return self._protocol.is_connected
+
+    @property
+    def is_tracking(self) -> bool:
+        status = self._protocol.get_status()
+        # TODO: 向き確認
+        return (status[EZeus2StatusIndex.RA_DIRECTION] == "F" and status[EZeus2StatusIndex.RA_SPEED] == 1)
+
+    @property
+    def driver_name(self) -> str:
+        if self._driver_name is None:
+            raise RuntimeError("Mount is not connected, driver name is not available")
+        return self._driver_name
+
+    @property
+    def position(self) -> Position:
+        return self.get_position()
+    
+
+    def connect(self) -> None:
+        self._protocol.connect()
+
+        ra_steps_per_rev, dec_steps_per_rev = self._protocol.get_revolution_step()
+
+        if ra_steps_per_rev <= 0 or dec_steps_per_rev <= 0:
+            raise RuntimeError(
+                "Invalid steps per revolution received from mount"
+                f" (RA: {ra_steps_per_rev}, DEC: {dec_steps_per_rev})"
+            )
+        
+        self._settings.ra_steps_per_rev = ra_steps_per_rev
+        self._settings.dec_steps_per_rev = dec_steps_per_rev
+
+        self._driver_name = self._protocol.get_version()
+
+    def disconnect(self) -> None:
+        self._protocol.disconnect()
+        self._driver_name = None
+
+
+    def get_position(self) -> Position:
+        ra_steps, dec_steps = self._protocol.get_position()
+        return self._step_to_position(ra_steps, dec_steps)
+
+
+    def _step_difference(self, new_steps: int, reference_steps: int) -> int:
+        delta = (new_steps - reference_steps + STEP_COUNTER_HALF) % STEP_COUNTER_MODULO - STEP_COUNTER_HALF
+        return delta
+
+    def _step_to_position(self, ra_steps: int, dec_steps: int) -> Position:
+        ra_steps_per_rev = self._settings.ra_steps_per_rev
+        dec_steps_per_rev = self._settings.dec_steps_per_rev
+
+        if ra_steps_per_rev is None or dec_steps_per_rev is None:
+            raise RuntimeError("Steps per revolution not set")
+
+        reference_ra_steps, reference_dec_steps = self._settings.reference_steps
+
+        delta_ra_steps = self._step_difference(ra_steps, reference_ra_steps)
+        delta_dec_steps = self._step_difference(dec_steps, reference_dec_steps)
+
+        delta_ra_deg = (delta_ra_steps / ra_steps_per_rev) * 360.0 * self._settings.ra_sign
+        delta_dec_deg = (delta_dec_steps / dec_steps_per_rev) * 360.0 * self._settings.dec_sign
+
+        return self._settings.reference_position.moved(delta_ra_deg, delta_dec_deg)
+
+    @staticmethod
+    def _angle_difference(new_angle: float, reference_angle: float) -> float:
+        delta = (new_angle - reference_angle + 180.0) % 360.0 - 180.0
+        return delta
+
+
+    def sync(self, position: Position) -> None:
+        self._settings.reference_position = position
+        self._settings.reference_steps = self._protocol.get_position()
+
+
+    def _convert_speed(self, speed: float) -> EZeus2_Speed:
+        if not (0.0 <= speed <= 1.0):
+            raise ValueError(f"Speed must be between 0.0 and 1.0, got {speed}")
+
+        if speed == 0.0:
+            return EZeus2_Speed.STOP
+        elif speed < 0.3:
+            return EZeus2_Speed.SLOW
+        elif speed < 0.7:
+            return EZeus2_Speed.MEDIUM
+        elif speed <= 1.0:
+            return EZeus2_Speed.FAST
         else:
-            return EZeus2Error.NO_ERROR
+            raise ValueError(f"Invalid speed value: {speed}")
 
-
-
-    def get_position(self) -> tuple[int, int]:
-        """
-        RA/DECの現在のステップ位置を16進法8桁で取得
-        """
-
-        resp = self._send("GP")
-
-        # GP#HHHHHHHH#hhhhhhhh GPは位置返答、#はモーターの値であることを表す
-        ra_hex = resp[2:10]
-        dec_hex = resp[11:19]
-
-        return int(ra_hex, 16), int(dec_hex, 16)
-
-
-    def drive(self, axis: EZeus2_RA_DEC, direction: EZeus2_Direction, speed: EZeus2_Speed, steps: int | None = None) -> str:
-        """
-        指定した軸を指定した方向に指定した速度で駆動する
-
-        Args:
-            axis (EZeus2_RA_DEC): 駆動する軸
-            direction (EZeus2_Direction): 駆動方向
-            speed (EZeus2_Speed): 0=停止、1=恒星時(RAのみ)、2=低速、3=中速、4=高速
-            steps (int | None): 駆動するステップ数。Noneの場合はSPが来るまで連続
-
-        Returns:
-            str: レスポンス
-        """
-
-        if axis == EZeus2_RA_DEC.DEC and speed == EZeus2_Speed.SIDEREAL:
-            raise ValueError("DEC軸は恒星時駆動できません")
-
-        # DVRAF2#HHHHHHHH
-        # DVはドライブコマンド
-        # RA/DCで赤経or赤緯指定
-        # F/Rで正転or逆転指定
-        # 0=停止、1=恒星時(RAのみ)、2=低速、3=中速、4=高速
-        # #で区切り文字(連続の場合はステップ数なし)
-        # HHHHHHHHでステップ数
-        if steps is None:
-            cmd = f"DV{axis.value}{direction.value}{speed.value}#"
+    def _axis_to_e_axis(self, axis: Axis) -> EZeus2_RA_DEC:
+        if axis == Axis.RA:
+            return EZeus2_RA_DEC.RA
+        elif axis == Axis.DEC:
+            return EZeus2_RA_DEC.DEC
         else:
-            cmd = f"DV{axis.value}{direction.value}{speed.value}{steps:08X}"
-
-        resp = self._send(cmd)
-        self._check_ack(resp)
-        return resp
+            raise ValueError(f"Invalid axis: {axis}")
 
 
-    def stop(self, to_siderial: bool = False) -> str:
-        """
-        駆動を停止する
+    def move_axis(self, axis: Axis, speed: float) -> None:
+        e_axis = self._axis_to_e_axis(axis)
+        e_direction: EZeus2_Direction = (EZeus2_Direction.FORWARD if speed >= 0 else EZeus2_Direction.REVERSE)
+        e_speed: EZeus2_Speed = self._convert_speed(abs(speed))
+        self._protocol.drive(e_axis, e_direction, e_speed)
 
-        Args:
-            to_siderial (bool): Trueの場合は恒星時駆動に切り替える
+    def stop_axis(self, axis: Axis) -> None:
+        e_axis = self._axis_to_e_axis(axis)
+        self._protocol.drive(e_axis, EZeus2_Direction.FORWARD, EZeus2_Speed.STOP)
 
-        Returns:
-            str: レスポンス
-        """
+    def stop(self) -> None:
+        self._protocol.stop()
 
-        cmd = f"SP{1 if to_siderial else 0}"
-        resp = self._send(cmd)
-        self._check_ack(resp)
-        return resp
-
-
-
-    def get_status(self) -> dict:
-        resp = self._send("ST")
-
-        """
-        返答は以下のようになっている
-        01: ST→状態返答
-        2: P→赤経がPCで動作、B→赤経がE-ZEUS2で動作、I→赤経がアイドル中(恒星運転の場合も含む)
-        3: F→赤経が正転、R→赤経が逆転
-        4: 設計モーターのスピード(0=停止、1=恒星時(RAのみ)、2=低速、3=中速、4=高速) (E-ZEUS2で動作中は必ず0)
-
-        5: P→赤緯がPCで動作、B→赤緯がE-ZEUS2で動作、I→赤緯がアイドル中
-        6: F→赤緯が正転、R→赤緯が逆転
-        7: 設計モーターのスピード(0=停止、2=低速、3=中速、4=高速) (E-ZEUS2で動作中は必ず0)
-        """
-
-        return {
-            "ra_status": resp[2],
-            "ra_direction": resp[3],
-            "ra_speed": int(resp[4]),
-            "dec_status": resp[5],
-            "dec_direction": resp[6],
-            "dec_speed": int(resp[7]),
-        }
+    def set_tracking(self, tracking: bool) -> None:
+            self._protocol.stop(to_siderial=tracking)
 
 
-    def get_revolution_step(self) -> tuple[int, int]:
-        resp = self._send("RD")
-        ra_hex = resp[2:10]
-        dec_hex = resp[11:19]
-        return int(ra_hex, 16), int(dec_hex, 16)
+    def slew_to(self, position: Position) -> None:
+        target_ra_steps, target_dec_steps = self._position_to_step(position)
+        current_ra_steps, current_dec_steps = self._protocol.get_position()
 
-    def set_revolution_step(self, ra_steps: int, dec_steps: int) -> str:
-        # モーター停止中か恒星追尾時のみ
-        # 現在位置がクリアされる
-        cmd = f"RD#{ra_steps:08X}#{dec_steps:08X}"
-        resp = self._send(cmd)
-        self._check_ack(resp)
-        return resp
+        delta_ra_steps = self._step_difference(target_ra_steps, current_ra_steps)
+        delta_dec_steps = self._step_difference(target_dec_steps, current_dec_steps)
+        ra_direction = EZeus2_Direction.FORWARD if delta_ra_steps >= 0 else EZeus2_Direction.REVERSE
+        dec_direction = EZeus2_Direction.FORWARD if delta_dec_steps >= 0 else EZeus2_Direction.REVERSE
 
+        self._protocol.drive(EZeus2_RA_DEC.RA, ra_direction, EZeus2_Speed.FAST, abs(delta_ra_steps))
+        self._protocol.drive(EZeus2_RA_DEC.DEC, dec_direction, EZeus2_Speed.FAST, abs(delta_dec_steps))
 
-    def get_arrival_margin(self) -> tuple[int, int]:
-        """高速移動から導入位置より何ステップ前で速度を遅くするか"""
-        resp = self._send("PA")
-        ra_hex = resp[3:5]
-        dec_hex = resp[6:8]
-        return int(ra_hex, 16), int(dec_hex, 16)
+    def _position_to_step(self, position: Position) -> tuple[int, int]:
+        ra_steps_per_rev = self._settings.ra_steps_per_rev
+        dec_steps_per_rev = self._settings.dec_steps_per_rev
 
+        if ra_steps_per_rev is None or dec_steps_per_rev is None:
+            raise RuntimeError("Steps per revolution not set")
 
-    def set_arrival_margin(self, ra_steps: int, dec_steps: int) -> str:
-        """高速移動から導入位置より何ステップ前で速度を遅くするか"""
-        cmd = f"PA#{ra_steps:02X}#{dec_steps:02X}"
-        resp = self._send(cmd)
-        self._check_ack(resp)
-        return resp
+        reference_ra_steps, reference_dec_steps = self._settings.reference_steps
+        reference_position = self._settings.reference_position
 
+        # TODO: 最短距離か計算
+        delta_ra_deg = self._angle_difference(position.ra_deg, reference_position.ra_deg)
+        delta_dec_deg = self._angle_difference(position.dec_deg, reference_position.dec_deg)
 
-    def get_handbox_slowdown(self) -> tuple[int, int]:
-        resp = self._send("SL")
-        return int(resp[3:5], 16), int(resp[6:8], 16)
+        delta_ra_steps = int((delta_ra_deg / 360.0) * ra_steps_per_rev * self._settings.ra_sign)
+        delta_dec_steps = int((delta_dec_deg / 360.0) * dec_steps_per_rev * self._settings.dec_sign)
 
-    def get_backlash(self) -> tuple[bool, int, int]:
-        """ギアの遊びを想定するらしい"""
-        resp = self._send("BL")
-        active = resp[2] == "A"
-        ra_backlash = resp[4:12]
-        dec_backlash = resp[13:21]
-        return active, int(ra_backlash, 16), int(dec_backlash, 16)
+        new_ra_steps = (reference_ra_steps + delta_ra_steps) % STEP_COUNTER_MODULO
+        new_dec_steps = (reference_dec_steps + delta_dec_steps) % STEP_COUNTER_MODULO
+
+        return new_ra_steps, new_dec_steps
+
+    def home(self) -> None:
+        raise NotImplementedError("Home operation is not supported for E-ZEUS2 mount")
 
 
-    def set_backlash(self, ra_backlash: int, dec_backlash: int) -> str:
-        """外部から操作されたり動作中は拒否される。赤緯は普通0"""
-        cmd = f"BL#{ra_backlash:08X}#{dec_backlash:08X}"
-        resp = self._send(cmd)
-        self._check_ack(resp)
-        return resp
+    @property
+    def can_sync(self) -> bool:
+        return True
 
 
-    def get_version(self) -> str:
-        resp = self._send("VR")
-        return resp
+    @property
+    def can_slew(self) -> bool:
+        return True
+
+    @property
+    def can_home(self) -> bool:
+        return False
+
+    @property
+    def can_move_axis(self) -> bool:
+        return True
