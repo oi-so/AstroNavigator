@@ -18,6 +18,8 @@ class EventType(Enum):
 
     MOUNT_CONNECTED = auto()
     MOUNT_DISCONNECTED = auto()
+    MOUNT_STATE_CHANGED = auto()
+    
 
     CAMERA_MOVED = auto()
     CAMERA_ZOOMED = auto()

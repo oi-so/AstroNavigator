@@ -48,7 +48,21 @@ class MountPanel(QWidget):
 
         self._application.event_bus.subscribe(EventType.MOUNT_CONNECTED, self._on_mount_connected)
         self._application.event_bus.subscribe(EventType.MOUNT_DISCONNECTED, self._on_mount_disconnected)
+        self._application.event_bus.subscribe(EventType.MOUNT_STATE_CHANGED, self._on_update_mount_state)
         self._update_mount(self._application.scene.mount)
+
+
+    def _on_update_mount_state(self, event) -> None:
+        self._update_buttons()
+
+
+    def _update_buttons(self) -> None:
+        mount = self._application.scene.mount
+        if mount is not None:
+            if mount.is_tracking or mount.is_slewing:
+                self._stop_button.setText("停止")
+            else:
+                self._stop_button.setText("追尾")
 
 
     def _add_field(self, layout: QVBoxLayout, label_text: str, value_label: QLabel) -> None:
@@ -91,4 +105,8 @@ class MountPanel(QWidget):
 
 
     def _on_stop_clicked(self) -> None:
-        self._application.main_actions.stop_mount_action.trigger()
+        if self._application.scene.mount is not None:
+            if self._application.scene.mount.is_tracking or self._application.scene.mount.is_slewing:
+                self._application.main_actions.stop_mount_action.trigger()
+            else:
+                self._application.main_actions.start_mount_tracking_action.trigger()

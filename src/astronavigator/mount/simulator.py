@@ -21,6 +21,13 @@ class SimulatorMount(Mount):
     def state(self) -> ConnectionState:
         return self._state
 
+    def update_status(self) -> None:
+        # シミュレーターなので、状態は常に接続済みで追尾中とする
+        if self._state == ConnectionState.CONNECTED:
+            self._is_tracking = True
+        else:
+            self._is_tracking = False
+
     @property
     def is_tracking(self) -> bool:
         return self._is_tracking

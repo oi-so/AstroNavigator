@@ -39,6 +39,10 @@ class EZeus2(Mount):
         self._settings = EZeus2MountSettings()
         self._driver_name = None
         self._state = ConnectionState.DISCONNECTED
+        self._e_zeus2_status = None
+
+    def update_status(self) -> None:
+        self._e_zeus2_status = self._protocol.get_status()
 
     @property
     def state(self) -> ConnectionState:
@@ -50,7 +54,9 @@ class EZeus2(Mount):
 
     @property
     def is_tracking(self) -> bool:
-        status = self._protocol.get_status()
+        status = self._e_zeus2_status
+        if status is None:
+            self.update_status()
         # TODO: 向き確認
         return (status[EZeus2StatusIndex.RA_DIRECTION] == "F" and status[EZeus2StatusIndex.RA_SPEED] == 1)
 
@@ -66,7 +72,9 @@ class EZeus2(Mount):
 
     @property
     def is_slewing(self) -> bool:
-        status = self._protocol.get_status()
+        status = self._e_zeus2_status
+        if status is None:
+            self.update_status()
         return (status[EZeus2StatusIndex.RA_STATUS] != "I" or status[EZeus2StatusIndex.DEC_STATUS] != "I")
     
 

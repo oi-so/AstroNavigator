@@ -88,6 +88,8 @@ class SceneController:
     def connect_mount(self, mount: Mount) -> None:
         self._scene.mount = mount
         mount.connect()
+        mount.set_tracking(True)
+        mount.update_status()
         self._event_bus.publish(EventType.MOUNT_CONNECTED, mount)
 
     def disconnect_mount(self) -> None:

@@ -35,6 +35,10 @@ class Mount(ABC):
     def state(self) -> ConnectionState:
         ...
 
+    @abstractmethod
+    def update_status(self) -> None:
+        ...
+
     @property
     @abstractmethod
     def position(self) -> Position:

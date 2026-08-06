@@ -60,13 +60,10 @@ class SelectionPanel(QWidget):
 
         self._application.event_bus.subscribe(EventType.MOUNT_CONNECTED, self._on_mount_state_changed)
         self._application.event_bus.subscribe(EventType.MOUNT_DISCONNECTED, self._on_mount_state_changed)
+        self._application.event_bus.subscribe(EventType.MOUNT_STATE_CHANGED, self._on_mount_state_changed)
 
         self._change_mount_buttons_enabled(self._application.scene.mount.is_connected if self._application.scene.mount else False)
 
-        # TODO: 接続状態が変わったかチェックするアルゴリズムを移す
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._update_goto_button)
-        self._timer.start(500)
 
     def _on_mount_connected(self, event) -> None:
         self._change_mount_buttons_enabled(True)
