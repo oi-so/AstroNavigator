@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QWidget, QVBoxLayout, QHBoxLayout
+from PySide6.QtCore import QTimer
 
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
@@ -25,7 +26,7 @@ class SelectionPanel(QWidget):
         self._sync_button = QPushButton("同期")
         self._center_button = QPushButton("中央")
 
-        self._goto_button.clicked.connect(self._application.main_actions.goto_mount_action.trigger)
+        self._goto_button.clicked.connect(self._on_goto_button_clicked)
         self._sync_button.clicked.connect(self._application.main_actions.sync_mount_action.trigger)
         self._center_button.clicked.connect(self._application.main_actions.center_mount_action.trigger)
 
@@ -57,13 +58,37 @@ class SelectionPanel(QWidget):
         self._application.event_bus.subscribe(EventType.MOUNT_CONNECTED, self._on_mount_connected)
         self._application.event_bus.subscribe(EventType.MOUNT_DISCONNECTED, self._on_mount_disconnected)
 
+        self._application.event_bus.subscribe(EventType.MOUNT_CONNECTED, self._on_mount_state_changed)
+        self._application.event_bus.subscribe(EventType.MOUNT_DISCONNECTED, self._on_mount_state_changed)
+
         self._change_mount_buttons_enabled(self._application.scene.mount.is_connected if self._application.scene.mount else False)
+
+        # TODO: 接続状態が変わったかチェックするアルゴリズムを移す
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._update_goto_button)
+        self._timer.start(500)
 
     def _on_mount_connected(self, event) -> None:
         self._change_mount_buttons_enabled(True)
 
     def _on_mount_disconnected(self, event) -> None:
         self._change_mount_buttons_enabled(False)
+
+    def _on_goto_button_clicked(self) -> None:
+        mount = self._application.scene.mount
+
+        if mount is None:
+            return
+
+        if mount.is_slewing:
+            self._application.main_actions.abort_slew_action.trigger()
+        else:
+            self._application.main_actions.goto_mount_action.trigger()
+
+        self._update_goto_button()
+
+    def _on_mount_state_changed(self, event) -> None:
+        self._update_goto_button()
 
     def _change_mount_buttons_enabled(self, enabled: bool) -> None:
         if self._application.scene.selection.selected is None:
@@ -79,6 +104,20 @@ class SelectionPanel(QWidget):
 
     def _on_selection_changed(self, event) -> None:
         self._update_selection(event.payload)
+
+    def _update_goto_button(self) -> None:
+        mount = self._application.scene.mount
+        if mount is None or not mount.is_connected:
+            self._goto_button.setText("導入")
+            self._goto_button.setEnabled(False)
+            return
+
+        self._goto_button.setEnabled(self._application.scene.selection.selected is not None)
+
+        if mount.is_slewing:
+            self._goto_button.setText("導入停止")
+        else:
+            self._goto_button.setText("導入")
 
     def _update_selection(self, sky_object: SkyObject | None) -> None:
         if sky_object is None:

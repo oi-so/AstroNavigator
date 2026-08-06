@@ -63,6 +63,11 @@ class EZeus2(Mount):
     @property
     def position(self) -> Position:
         return self.get_position()
+
+    @property
+    def is_slewing(self) -> bool:
+        status = self._protocol.get_status()
+        return (status[EZeus2StatusIndex.RA_STATUS] != "I" or status[EZeus2StatusIndex.DEC_STATUS] != "I")
     
 
     def connect(self) -> None:
@@ -257,5 +262,4 @@ class EZeus2(Mount):
     @classmethod
     def create(cls, identifier: str) -> Mount:
         mount = cls(identifier)
-        mount.connect()
         return mount

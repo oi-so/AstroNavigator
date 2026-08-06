@@ -54,6 +54,11 @@ class Mount(ABC):
     def is_connected(self) -> bool:
         return self.state == ConnectionState.CONNECTED
 
+    @property
+    @abstractmethod
+    def is_slewing(self) -> bool:
+        ...
+
     @abstractmethod
     def set_tracking(self, tracking: bool) -> None:
         ...

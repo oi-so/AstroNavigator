@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject
 from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QMessageBox
 
 
-from astronavigator.event.event_type import EventType
 from astronavigator.gui.dialog.mount_selection_dialog import MountSelectionDialog
 from astronavigator.mount.mount import Mount
 
@@ -26,6 +26,7 @@ class MainActions(QObject):
         self.goto_mount_action = QAction("導入", self)
         self.sync_mount_action = QAction("同期", self)
         self.center_mount_action = QAction("中央", self)
+        self.abort_slew_action = QAction("導入停止", self)
         self.stop_mount_action = QAction("停止", self)
 
         self.now_action = QAction("現在時刻", self)
@@ -36,6 +37,7 @@ class MainActions(QObject):
         self.goto_mount_action.triggered.connect(self._goto_mount)
         self.sync_mount_action.triggered.connect(self._sync_mount)
         self.center_mount_action.triggered.connect(self._center_mount)
+        self.abort_slew_action.triggered.connect(self._abort_slew)
         self.stop_mount_action.triggered.connect(self._stop_mount)
         self.now_action.triggered.connect(self._set_now)
         self.settings_action.triggered.connect(self._open_settings)
@@ -49,21 +51,25 @@ class MainActions(QObject):
         if dialog.exec() == MountSelectionDialog.DialogCode.Accepted:
             selected_device = dialog.selected_device
             if selected_device:
-                mount = selected_device.driver.create(selected_device.identifier)
-                self._application.scene.mount = mount
-                self._application.event_bus.publish(EventType.MOUNT_CONNECTED, mount)
+                try:
+                    mount = selected_device.driver.create(selected_device.identifier)
+                    self._application.scene_controller.connect_mount(mount)
+                except Exception as e:
+                    QMessageBox.critical(None, "接続エラー", f"マウントの接続に失敗しました: {e}")
 
 
     def _disconnect_mount(self):
+        self._application.scene_controller.disconnect_mount()
+
+    def _abort_slew(self):
         if self._application.scene.mount:
-            self._application.scene.mount.disconnect()
-            self._application.scene.mount = None
-            self._application.event_bus.publish(EventType.MOUNT_DISCONNECTED, None)
+            self._application.scene.mount.stop()
+            self._application.scene.mount.set_tracking(True)
 
     def _stop_mount(self):
         if self._application.scene.mount:
             self._application.scene.mount.stop()
-            self._application.scene.mount.set_tracking(True)
+            self._application.scene.mount.set_tracking(False)
 
 
     def _goto_mount(self):

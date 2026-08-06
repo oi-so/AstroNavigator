@@ -34,6 +34,10 @@ class SimulatorMount(Mount):
         # 本来は時間経過や手動操作に応じて座標を推移させる処理をここに入れることも可能
         return self._position
 
+    @property
+    def is_slewing(self) -> bool:
+        return False
+
     def connect(self) -> None:
         self._state = ConnectionState.CONNECTING
         # 接続の疑似ウェイト（0.2秒）
@@ -100,5 +104,4 @@ class SimulatorMount(Mount):
     @classmethod
     def create(cls, identifier: str) -> Mount:
         mount = cls(identifier)
-        mount.connect()
         return mount
