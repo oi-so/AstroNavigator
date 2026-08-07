@@ -34,31 +34,38 @@ class ObjectLayer(Layer):
 
         if self.show_stars:
             for obj in context.scene.object_index.find_by_type(ObjectType.STAR):
-                self._draw_object(obj, context)
+                if obj.get_magnitude().is_visible(limit_magnitude):
+                    self._draw_object(obj, context)
 
         if self.show_deep_sky_objects:
-                for obj in context.scene.object_index.find_by_type(ObjectType.DSO):
+            for obj in context.scene.object_index.find_by_type(ObjectType.DSO):
+                if obj.get_magnitude().is_visible(limit_magnitude):
                     self._draw_object(obj, context)
 
         if self.show_asteroids:
             for obj in context.scene.object_index.find_by_type(ObjectType.ASTEROID):
-                self._draw_object(obj, context)
+                if obj.get_magnitude().is_visible(limit_magnitude):
+                    self._draw_object(obj, context)
 
         if self.show_comets:
             for obj in context.scene.object_index.find_by_type(ObjectType.COMET):
-                self._draw_object(obj, context)
+                if obj.get_magnitude().is_visible(limit_magnitude):
+                    self._draw_object(obj, context)
 
         if self.show_planets:
             for obj in context.scene.object_index.find_by_type(ObjectType.PLANET):
-                self._draw_object(obj, context)
+                if obj.get_magnitude().is_visible(limit_magnitude):
+                    self._draw_object(obj, context)
 
         if self.show_moon:
             for obj in context.scene.object_index.find_by_type(ObjectType.MOON):
-                self._draw_object(obj, context)
+                if obj.get_magnitude().is_visible(limit_magnitude):
+                    self._draw_object(obj, context)
 
         if self.show_satellites:
             for obj in context.scene.object_index.find_by_type(ObjectType.SATELLITE):
-                self._draw_object(obj, context)
+                if obj.get_magnitude().is_visible(limit_magnitude):
+                    self._draw_object(obj, context)
 
 
 
