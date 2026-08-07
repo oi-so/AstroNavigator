@@ -24,8 +24,8 @@ class Application:
     def __init__(self):
         self._scene = Scene()
         self._event_bus = EventBus()
-        self._projection_manager = ProjectionManager(LinearProjection())
-        # self._projection_manager = ProjectionManager(HorizontalProjection())
+        # self._projection_manager = ProjectionManager(LinearProjection())
+        self._projection_manager = ProjectionManager(HorizontalProjection())
         self._scene_controller = SceneController(self._scene, self._event_bus, self._projection_manager)
         self._renderer = Renderer(projection_manager=self._projection_manager)
         self._input_controller = InputController(self._scene_controller)

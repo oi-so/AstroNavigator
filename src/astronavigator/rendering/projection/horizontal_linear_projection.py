@@ -5,6 +5,7 @@ import math
 from typing import Iterable, Any
 from collections.abc import Generator
 from PySide6.QtCore import QPointF, QSize
+from skyfield.api import wgs84
 
 from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
@@ -25,6 +26,9 @@ class HorizontalLinearProjectionContext:
     time: Time
     observer: Observer
     skyfield: Any
+    topos: Any
+    skyfield_time: Any
+    observer_position: Any
 
 
 
@@ -115,27 +119,34 @@ class HorizontalLinearProjection(Projection[HorizontalPosition, HorizontalLinear
 
     def create_context(self, scene: Scene) -> HorizontalLinearProjectionContext:
         camera = scene.sky_camera
+        center = camera.center
         time = scene.time
         observer = scene.observer
-        skyfield = scene.skyfield
+        context = scene.skyfield
 
-        if skyfield is None:
+        if context is None:
             raise ValueError("Skyfield context is not available in the scene.")
 
-        horizontal_center = CoordinateTransformer.equatorial_to_horizontal(camera.center, time, observer, skyfield)
+        earth = context.ephemeris["earth"]
+        topos = earth + wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
+        skyfield_time = context.timescale.from_datetime(time.utc)
+        observer_position = topos.at(skyfield_time)
 
         return HorizontalLinearProjectionContext(
-            center=horizontal_center,
+            center=CoordinateTransformer.equatorial_to_horizontal(center, observer_position),
             fov_deg=camera.fov_deg,
             rotate_deg=camera.rotation,
             time=time,
             observer=observer,
-            skyfield=skyfield
+            skyfield=context,
+            topos=topos,
+            skyfield_time=skyfield_time,
+            observer_position=topos.at(skyfield_time)
         )
 
 
     def project_object(self, obj: SkyObject, context: HorizontalLinearProjectionContext, viewport_size: QSize) -> QPointF | None:
-        position = CoordinateTransformer.equatorial_to_horizontal(obj.get_position(), context.time, context.observer, context.skyfield)
+        position = CoordinateTransformer.equatorial_to_horizontal(obj.get_position(), context.observer_position)
         return self.project(position, context, viewport_size)
 
     def project_grid_position(
@@ -160,4 +171,4 @@ class HorizontalLinearProjection(Projection[HorizontalPosition, HorizontalLinear
 
 
     def convert_position(self, position: Position, context: HorizontalLinearProjectionContext) -> HorizontalPosition:
-        return CoordinateTransformer.equatorial_to_horizontal(position, context.time, context.observer, context.skyfield)
+        return CoordinateTransformer.equatorial_to_horizontal(position, context.observer_position)

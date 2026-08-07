@@ -78,9 +78,7 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
 
         center = CoordinateTransformer.equatorial_to_horizontal(
             context.scene.sky_camera.center,
-            context.scene.time,
-            context.scene.observer,
-            context.scene.skyfield
+            context.projection_context.observer_position
         )
         camera = context.scene.sky_camera
         viewport_size = context.viewport.size()

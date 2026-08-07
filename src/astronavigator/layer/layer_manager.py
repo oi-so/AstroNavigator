@@ -12,7 +12,8 @@ class LayerManager:
 
     def render(self, context: RendererContext):
         for layer in self.layers:
-            layer.render(context)
+            if layer.visible:
+                layer.render(context)
 
 
     def set_visible(self, layer_type: LayerType, visible: bool) -> None:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any
 
 from skyfield.api import Star, wgs84
 
@@ -12,15 +13,8 @@ class CoordinateTransformer:
     @staticmethod
     def equatorial_to_horizontal(
         position: Position,
-        time: Time,
-        observer: Observer,
-        context: SkyfieldContext
+        observer_position: Any,
     ) -> HorizontalPosition:
-        earth = context.ephemeris["earth"]
-        topos = earth + wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
-
-        t = context.timescale.from_datetime(time.utc)
-
         ra = position.ra_hours
         dec = position.dec_deg
 
@@ -29,7 +23,7 @@ class CoordinateTransformer:
             dec_degrees=dec
         )
 
-        apparent = topos.at(t).observe(star).apparent()
+        apparent = observer_position.observe(star).apparent()
         alt, az, distance = apparent.altaz()
         return HorizontalPosition(az.degrees, alt.degrees)
 
