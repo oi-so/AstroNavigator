@@ -3,12 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum, auto
 from dataclasses import dataclass
-from PySide6.QtCore import QRect
-from PySide6.QtGui import QPainter
 
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from astronavigator.scene.scene import Scene
+from astronavigator.rendering.render_context import RendererContext
 
 
 class LayerType(Enum):
@@ -30,5 +26,5 @@ class Layer(ABC):
     layer_type: LayerType
 
     @abstractmethod
-    def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+    def render(self, context: RendererContext) -> None:
         ...

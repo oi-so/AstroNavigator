@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QPointF, QRect, Qt
+from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QColor, QPainter, QPen
 
 from astronavigator.layer.layer import Layer, LayerType
@@ -11,6 +11,7 @@ from astronavigator.scene.scene import Scene
 from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.sky_object import Comet, Moon, Satellite, SkyObject, Star, DeepSkyObject, Asteroid, Planet
 from astronavigator.sky.magnitude import Magnitude
+from astronavigator.rendering.render_context import RendererContext
 
 class ObjectLayer(Layer):
     def __init__(self, visible: bool = True):
@@ -25,49 +26,50 @@ class ObjectLayer(Layer):
         self.show_moon = True
         self.limit_magnitude = 6.0
 
-    def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+    def render(self, context: RendererContext) -> None:
         if not self.visible:
             return
 
-        self.limit_magnitude = calculate_limiting_magnitude(scene.rendering_settings.limiting_magnitude, scene.sky_camera.fov_deg)
+        limit_magnitude = calculate_limiting_magnitude(context.scene.rendering_settings.limiting_magnitude, context.scene.sky_camera.fov_deg)
 
         if self.show_stars:
-            for obj in scene.object_index.find_by_type(ObjectType.STAR):
-                self._draw_object(obj, painter, scene, viewport)
+            for obj in context.scene.object_index.find_by_type(ObjectType.STAR):
+                self._draw_object(obj, context)
 
         if self.show_deep_sky_objects:
-                for obj in scene.object_index.find_by_type(ObjectType.DSO):
-                    self._draw_object(obj, painter, scene, viewport)
+                for obj in context.scene.object_index.find_by_type(ObjectType.DSO):
+                    self._draw_object(obj, context)
 
         if self.show_asteroids:
-            for obj in scene.object_index.find_by_type(ObjectType.ASTEROID):
-                self._draw_object(obj, painter, scene, viewport)
+            for obj in context.scene.object_index.find_by_type(ObjectType.ASTEROID):
+                self._draw_object(obj, context)
 
         if self.show_comets:
-            for obj in scene.object_index.find_by_type(ObjectType.COMET):
-                self._draw_object(obj, painter, scene, viewport)
+            for obj in context.scene.object_index.find_by_type(ObjectType.COMET):
+                self._draw_object(obj, context)
 
         if self.show_planets:
-            for obj in scene.object_index.find_by_type(ObjectType.PLANET):
-                self._draw_object(obj, painter, scene, viewport)
+            for obj in context.scene.object_index.find_by_type(ObjectType.PLANET):
+                self._draw_object(obj, context)
 
         if self.show_moon:
-            for obj in scene.object_index.find_by_type(ObjectType.MOON):
-                self._draw_object(obj, painter, scene, viewport)
-                
+            for obj in context.scene.object_index.find_by_type(ObjectType.MOON):
+                self._draw_object(obj, context)
+
         if self.show_satellites:
-            for obj in scene.object_index.find_by_type(ObjectType.SATELLITE):
-                self._draw_object(obj, painter, scene, viewport)
+            for obj in context.scene.object_index.find_by_type(ObjectType.SATELLITE):
+                self._draw_object(obj, context)
 
 
 
-    def _draw_object(self, obj: SkyObject, painter: QPainter, scene: Scene, viewport: QRect) -> None:
-        if not self._is_visible(scene, obj):
+    def _draw_object(self, obj: SkyObject, context: RendererContext) -> None:
+        if not self._is_visible(context.scene, obj):
             return
         
-        point = scene.sky_camera.project(
+        point = context.projection.project(
                 obj.get_position(), 
-                viewport.size()
+                context.projection_context,
+                context.viewport.size()
             )
 
         if point is None: 
@@ -76,25 +78,25 @@ class ObjectLayer(Layer):
         
         match obj:
             case Star():
-                self._draw_star(painter, obj, scene, point)
+                self._draw_star(context.painter, obj, context.scene, point)
 
             case Moon():
-                self._draw_moon(painter, obj, scene, point)
+                self._draw_moon(context.painter, obj, context.scene, point)
 
             case Satellite():
-                self._draw_satellite(painter, obj, scene, point)
+                self._draw_satellite(context.painter, obj, context.scene, point)
             
             case Comet():
-                self._draw_comet(painter, obj, scene, point)
+                self._draw_comet(context.painter, obj, context.scene, point)
             
             case DeepSkyObject():
-                self._draw_deep_sky_object(painter, obj, scene, point)
+                self._draw_deep_sky_object(context.painter, obj, context.scene, point)
 
             case Planet():
                 raise NotImplementedError("Planet rendering is not implemented yet.")
 
             case Asteroid():
-                self._draw_star(painter, obj, scene, point)
+                self._draw_star(context.painter, obj, context.scene, point)
 
             case _:
                 raise TypeError(f"Unknown SkyObject type: {type(obj).__name__}")
@@ -126,7 +128,8 @@ class ObjectLayer(Layer):
         painter.drawEllipse(point, 6, 6)
 
     def _is_visible(self, scene: Scene, obj: SkyObject) -> bool:
-        return obj.get_magnitude().is_visible(self.limit_magnitude)
+        limit_magnitude = calculate_limiting_magnitude(scene.rendering_settings.limiting_magnitude, scene.sky_camera.fov_deg)
+        return obj.get_magnitude().is_visible(limit_magnitude)
 
 
     

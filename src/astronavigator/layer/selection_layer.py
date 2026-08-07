@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QRect
-from PySide6.QtGui import QPainter, Qt
+from PySide6.QtGui import Qt
 
 from astronavigator.layer.layer import Layer, LayerType
-from astronavigator.scene.scene import Scene
+from astronavigator.rendering.render_context import RendererContext
 
 SELECTION_RADIUS = 15
 
@@ -13,21 +12,22 @@ class SelectionLayer(Layer):
     def __init__(self) -> None:
         super().__init__(visible=True, layer_type=LayerType.SELECTION)
 
-    def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
-        selected_obj = scene.selection.selected
+    def render(self, context: RendererContext) -> None:
+        selected_obj = context.scene.selection.selected
         if selected_obj is None:
             return
         
-        point = scene.sky_camera.project(
+        point = context.projection.project(
             selected_obj.get_position(),
-            viewport.size()
+            context.projection_context,
+            context.viewport.size()
         )
 
         if point is None:
             return
 
-        color = scene.rendering_settings.color_settings.selection_color
-        radius = scene.rendering_settings.selection_radius
-        painter.setPen(color)
-        painter.setBrush(Qt.GlobalColor.transparent)
-        painter.drawEllipse(point, radius, radius)
+        color = context.scene.rendering_settings.color_settings.selection_color
+        radius = context.scene.rendering_settings.selection_radius
+        context.painter.setPen(color)
+        context.painter.setBrush(Qt.GlobalColor.transparent)
+        context.painter.drawEllipse(point, radius, radius)

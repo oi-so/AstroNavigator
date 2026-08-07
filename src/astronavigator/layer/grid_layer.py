@@ -1,20 +1,18 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QRect
-from PySide6.QtGui import QPainter
 
 from astronavigator.layer.layer import Layer, LayerType
-from astronavigator.rendering.grid_renderer import GridRenderer
-from astronavigator.scene.scene import Scene
+from astronavigator.rendering.grid_renderer import EquatorialGridRenderer
+from astronavigator.rendering.render_context import RendererContext
 
 class GridLayer(Layer):
     def __init__(self) -> None:
         super().__init__(visible=True, layer_type=LayerType.GRID)
 
-        self.renderer = GridRenderer()
+        self.renderer = EquatorialGridRenderer()
 
-    def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+    def render(self, context: RendererContext) -> None:
         if not self.visible:
             return
 
-        self.renderer.render(painter, scene, viewport)
+        self.renderer.render(context)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from astronavigator.layer.layer import Layer, LayerType
+from astronavigator.rendering.render_context import RendererContext
 
 
 class LayerManager:
@@ -9,9 +10,9 @@ class LayerManager:
     def add_layer(self, layer: Layer):
         self.layers.append(layer)
 
-    def render(self, painter, scene, viewport):
+    def render(self, context: RendererContext):
         for layer in self.layers:
-            layer.render(painter, scene, viewport)
+            layer.render(context)
 
 
     def set_visible(self, layer_type: LayerType, visible: bool) -> None:

@@ -9,6 +9,8 @@ from astronavigator.catalog.provider.debug_catalog_provider import DebugCatalogP
 from astronavigator.catalog.provider.local_file_provider import LocalFileProvider
 from astronavigator.gui.actions.main_actions import MainActions
 from astronavigator.input.input_controller import InputController
+from astronavigator.rendering.projection.linear_projection import LinearProjection
+from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
@@ -21,8 +23,9 @@ class Application:
     def __init__(self):
         self._scene = Scene()
         self._event_bus = EventBus()
-        self._scene_controller = SceneController(self._scene, self._event_bus)
-        self._renderer = Renderer()
+        self._projection_manager = ProjectionManager(LinearProjection())
+        self._scene_controller = SceneController(self._scene, self._event_bus, self._projection_manager)
+        self._renderer = Renderer(projection_manager=self._projection_manager)
         self._input_controller = InputController(self._scene_controller)
         self.main_actions = MainActions(self)
         self._catalog_manager = CatalogManager()
@@ -55,9 +58,6 @@ class Application:
         self._catalog_manager.download_catalog(EPHEMERIS)
         provider = LocalFileProvider(path=EPHEMERIS.save_path, parser=SkyfieldParser())
         self._scene.skyfield = provider.load()
-        print(self._scene.skyfield.ephemeris)
-        print(self._scene.skyfield.timescale)
-
 
     @property
     def scene(self) -> Scene:
