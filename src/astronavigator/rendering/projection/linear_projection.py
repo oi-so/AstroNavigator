@@ -9,6 +9,7 @@ from PySide6.QtCore import QPointF, QSize
 from astronavigator.rendering.projection.projection import Projection
 from astronavigator.scene.scene import Scene
 from astronavigator.sky.position import Position
+from astronavigator.sky.sky_object import SkyObject
 
 
 @dataclass(slots=True)
@@ -71,6 +72,11 @@ class LinearProjection(Projection[Position, LinearProjectionContext]):
         return Position(min_ra, min_dec), Position(max_ra, max_dec)
 
 
+    def iter_grid_lines(self, context: LinearProjectionContext, viewport_size: QSize, interval: float) -> Generator[tuple[float, Iterable[Position]], None, None]:
+        yield from self.iter_ra_lines(context, viewport_size, interval)
+        yield from self.iter_dec_lines(context, viewport_size, interval)
+
+
     def iter_ra_lines(self, context: LinearProjectionContext, viewport_size: QSize, interval_deg: float) -> Generator[tuple[float, Iterable[Position]], None, None]:
         min_pos, max_pos = self.visible_bounds(context, viewport_size)
         start_ra = math.floor(min_pos.ra_deg / interval_deg) * interval_deg
@@ -111,3 +117,12 @@ class LinearProjection(Projection[Position, LinearProjectionContext]):
             fov_deg=camera.fov_deg,
             rotate_deg=camera.rotation
         )
+
+
+    def project_object(self, obj: SkyObject, context: LinearProjectionContext, viewport_size: QSize) -> QPointF | None:
+        position = obj.get_position()
+        return self.project(position, context, viewport_size)
+
+    
+    def convert_position(self, position: Position, context: LinearProjectionContext) -> Position:
+        return position

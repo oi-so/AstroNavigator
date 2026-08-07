@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
+from typing import Generator, Generic, Iterable, TypeVar
 
 from PySide6.QtCore import QPointF, QSize
 
 from astronavigator.scene.scene import Scene
+from astronavigator.sky.position import Position
+from astronavigator.sky.sky_object import SkyObject
 
 
 
@@ -87,10 +89,62 @@ class Projection(ABC, Generic[T, C]):
             投影コンテキスト。Projection context.
         """
 
-    # @abstractmethod
-    # def iter_ra_lines(self, context: C, viewport_size: QSize, interval_deg: float) -> Generator[tuple[float, Iterable[T]], None, None]:
-    #     ...
 
-    # @abstractmethod
-    # def iter_dec_lines(self, context: C, viewport_size: QSize, interval_deg: float) -> Generator[tuple[float, Iterable[T]], None, None]:
-    #     ...
+    @abstractmethod
+    def iter_grid_lines(self, context: C, viewport_size: QSize, interval: float) -> Generator[tuple[float, Iterable[T]], None, None]:
+        """
+        ビューポート内に表示されるグリッド線を反復する。
+        Iterate over grid lines visible within the viewport.
+
+        Parameters
+        ----------
+        context : C
+            投影コンテキスト。
+        viewport_size : QSize
+            ビューポートのサイズ。
+        interval : float
+            グリッド線の間隔（度単位）。
+        """
+
+
+    @abstractmethod
+    def project_object(self, obj: SkyObject, context: C, viewport_size: QSize) -> QPointF | None:
+        """
+        オブジェクトをスクリーン座標に投影する。
+        Project an object to screen coordinates.
+
+        Parameters
+        ----------
+        obj : SkyObject
+            投影するオブジェクト。The object to project.
+        context : C
+            投影コンテキスト。Projection context.
+        viewport_size : QSize
+            ビューポートのサイズ。Viewport size.
+
+        Returns
+        -------
+        QPointF | None
+            スクリーン座標。Screen coordinates.
+            Noneの場合、オブジェクトはビューポート内に表示されない。If None, the object is not visible within the viewport.
+        """
+
+
+    @abstractmethod
+    def convert_position(self, position: Position, context: C) -> T:
+        """
+        天球上の座標を投影コンテキストに基づいて変換する。
+        Convert celestial coordinates based on the projection context.
+
+        Parameters
+        ----------
+        position : T
+            変換する天球上の座標。The celestial coordinates to convert.
+        context : C
+            投影コンテキスト。Projection context.
+
+        Returns
+        -------
+        T
+            変換後の天球上の座標。The converted celestial coordinates.
+        """

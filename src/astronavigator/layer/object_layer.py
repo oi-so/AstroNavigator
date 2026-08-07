@@ -73,11 +73,11 @@ class ObjectLayer(Layer):
         if not self._is_visible(context.scene, obj):
             return
         
-        point = context.projection.project(
-                obj.get_position(), 
-                context.projection_context,
-                context.viewport.size()
-            )
+        point = context.projection.project_object(
+            obj,
+            context.projection_context,
+            context.viewport.size()
+        )
 
         if point is None: 
             return

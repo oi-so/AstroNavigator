@@ -28,8 +28,28 @@ class ConstellationRenderer:
                 if start_pos is None or end_pos is None:
                     continue
 
-                p1 = projection.project(start_pos.get_position(), context.projection_context, viewport.size())
-                p2 = projection.project(end_pos.get_position(), context.projection_context, viewport.size())
+                start_pos_converted = projection.convert_position(
+                    start_pos.get_position(),
+                    context.projection_context
+                )
+
+                end_pos_converted = projection.convert_position(
+                    end_pos.get_position(),
+                    context.projection_context
+                )
+
+
+                p1 = projection.project(
+                    start_pos_converted,
+                    context.projection_context,
+                    viewport.size()
+                )
+
+                p2 = projection.project(
+                    end_pos_converted,
+                    context.projection_context,
+                    viewport.size()
+                )
 
                 if p1 and p2:
                     painter.drawLine(p1, p2)
@@ -47,7 +67,8 @@ class ConstellationRenderer:
             name = constellation.name
             label_position = constellation.label_position
 
-            p = projection.project(label_position, context.projection_context, viewport.size())
+            label_position_converted = projection.convert_position(label_position, context.projection_context)
+            p = projection.project(label_position_converted, context.projection_context, viewport.size())
             if p:
                 painter.drawText(p, name)
 

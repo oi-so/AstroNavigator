@@ -37,7 +37,7 @@ class LabelLayer(Layer):
             if not self._is_visible(scene, obj, scene.rendering_settings):
                 continue
 
-            point = projection.project(obj.get_position(), projection_context, viewport.size())
+            point = projection.project_object(obj, projection_context, viewport.size())
 
             if point is None:
                 continue

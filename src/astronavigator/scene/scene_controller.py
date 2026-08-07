@@ -112,7 +112,7 @@ class SceneController:
             if not obj.get_magnitude().is_visible(camera.limit_magnitude):
                 continue
 
-            point = projection.project(obj.get_position(), projection_context, viewport_size)
+            point = projection.project_object(obj, projection_context, viewport_size)
             if point is None:
                 continue
 

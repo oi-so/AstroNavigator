@@ -2,14 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
-from typing import Iterable
+from typing import Iterable, Any
 from collections.abc import Generator
 from PySide6.QtCore import QPointF, QSize
 
 from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
 from astronavigator.rendering.projection.projection import Projection
+from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
-from astronavigator.sky.position import HorizontalPosition
+from astronavigator.scene.time import Time
+from astronavigator.sky.position import HorizontalPosition, Position
+from astronavigator.sky.sky_object import SkyObject
+
 
 
 @dataclass(slots=True)
@@ -17,6 +21,9 @@ class HorizontalLinearProjectionContext:
     center: HorizontalPosition
     fov_deg: float
     rotate_deg: float
+    time: Time
+    observer: Observer
+    skyfield: Any
 
 
 
@@ -119,5 +126,21 @@ class HorizontalLinearProjection(Projection[HorizontalPosition, HorizontalLinear
         return HorizontalLinearProjectionContext(
             center=horizontal_center,
             fov_deg=camera.fov_deg,
-            rotate_deg=camera.rotation
+            rotate_deg=camera.rotation,
+            time=time,
+            observer=observer,
+            skyfield=skyfield
         )
+
+
+    def project_object(self, obj: SkyObject, context: HorizontalLinearProjectionContext, viewport_size: QSize) -> QPointF | None:
+        position = CoordinateTransformer.equatorial_to_horizontal(obj.get_position(), context.time, context.observer, context.skyfield)
+        return self.project(position, context, viewport_size)
+
+    def iter_grid_lines(self, context: HorizontalLinearProjectionContext, viewport_size: QSize, interval: float) -> Generator[tuple[float, Iterable[HorizontalPosition]], None, None]:
+        yield from self.iter_az_lines(context, viewport_size, interval)
+        yield from self.iter_alt_lines(context, viewport_size, interval)
+
+
+    def convert_position(self, position: Position, context: HorizontalLinearProjectionContext) -> HorizontalPosition:
+        return CoordinateTransformer.equatorial_to_horizontal(position, context.time, context.observer, context.skyfield)

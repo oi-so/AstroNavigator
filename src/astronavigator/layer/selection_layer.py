@@ -17,8 +17,8 @@ class SelectionLayer(Layer):
         if selected_obj is None:
             return
         
-        point = context.projection.project(
-            selected_obj.get_position(),
+        point = context.projection.project_object(
+            selected_obj,
             context.projection_context,
             context.viewport.size()
         )
