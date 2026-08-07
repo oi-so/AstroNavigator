@@ -6,6 +6,7 @@ from typing import TypeVar
 from astronavigator.layer.layer import Layer, LayerType
 from astronavigator.rendering.grid.horizontal_grid import HorizontalGrid
 from astronavigator.rendering.grid.equatorial_gird import EquatorialGrid
+from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.grid.grid_manager import GridManager
 from astronavigator.rendering.render_context import RendererContext
 
@@ -17,7 +18,7 @@ class GridLayer(Layer):
         super().__init__(visible=True, layer_type=LayerType.GRID)
 
         self.grid_manager = GridManager()
-        # self.grid_manager.add_grid(EquatorialGrid())
+        self.grid_manager.add_grid(EquatorialGrid())
         self.grid_manager.add_grid(HorizontalGrid())
 
     def render(self, context: RendererContext) -> None:
@@ -32,14 +33,19 @@ class GridLayer(Layer):
             context.painter.setPen(color)
 
             for line in grid.iter_lines(context):
-                self._draw_line(context, line)
+                self._draw_line(context, grid.coordinate_system, line)
 
 
-    def _draw_line(self, context: RendererContext, positions: Iterable[T]) -> None:
+    def _draw_line(self, context: RendererContext, coordinate_system: CoordinateSystem, positions: Iterable[T]) -> None:
         previous = None
 
         for position in positions:
-            point = context.projection.project(position, context.projection_context, context.viewport.size())
+            point = context.projection.project_grid_position(
+                position,
+                coordinate_system,
+                context.projection_context,
+                context.viewport.size()
+            )
 
             if point is None:
                 previous = None

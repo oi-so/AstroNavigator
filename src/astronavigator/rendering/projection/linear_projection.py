@@ -2,13 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
-from typing import Iterable
+from typing import Any, Iterable
 from collections.abc import Generator
 from PySide6.QtCore import QPointF, QSize
 
+from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
+from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.projection.projection import Projection
+from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
-from astronavigator.sky.position import Position
+from astronavigator.scene.time import Time
+from astronavigator.sky.position import HorizontalPosition, Position
 from astronavigator.sky.sky_object import SkyObject
 
 
@@ -17,6 +21,9 @@ class LinearProjectionContext:
     center: Position
     fov_deg: float
     rotate_deg: float
+    time: Time
+    observer: Observer
+    skyfield: Any
 
 
 class LinearProjection(Projection[Position, LinearProjectionContext]):
@@ -115,13 +122,40 @@ class LinearProjection(Projection[Position, LinearProjectionContext]):
         return LinearProjectionContext(
             center=camera.center,
             fov_deg=camera.fov_deg,
-            rotate_deg=camera.rotation
+            rotate_deg=camera.rotation,
+            time=scene.time,
+            observer=scene.observer,
+            skyfield=scene.skyfield
         )
 
 
     def project_object(self, obj: SkyObject, context: LinearProjectionContext, viewport_size: QSize) -> QPointF | None:
         position = obj.get_position()
         return self.project(position, context, viewport_size)
+
+    def project_grid_position(
+        self,
+        position: Position | HorizontalPosition,
+        coordinate_system: CoordinateSystem,
+        context: LinearProjectionContext,
+        viewport_size: QSize
+    ) -> QPointF | None:
+        if coordinate_system == CoordinateSystem.EQUATORIAL and isinstance(position, Position):
+            return self.project(position, context, viewport_size)
+
+        if coordinate_system == CoordinateSystem.HORIZONTAL and isinstance(position, HorizontalPosition):
+            if context.skyfield is None:
+                return None
+
+            equatorial_position = CoordinateTransformer.horizontal_to_equatorial(
+                position,
+                context.time,
+                context.observer,
+                context.skyfield
+            )
+            return self.project(equatorial_position, context, viewport_size)
+
+        return None
 
     
     def convert_position(self, position: Position, context: LinearProjectionContext) -> Position:

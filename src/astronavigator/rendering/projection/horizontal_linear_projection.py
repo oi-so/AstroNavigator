@@ -7,6 +7,7 @@ from collections.abc import Generator
 from PySide6.QtCore import QPointF, QSize
 
 from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
+from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.projection.projection import Projection
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
@@ -136,6 +137,22 @@ class HorizontalLinearProjection(Projection[HorizontalPosition, HorizontalLinear
     def project_object(self, obj: SkyObject, context: HorizontalLinearProjectionContext, viewport_size: QSize) -> QPointF | None:
         position = CoordinateTransformer.equatorial_to_horizontal(obj.get_position(), context.time, context.observer, context.skyfield)
         return self.project(position, context, viewport_size)
+
+    def project_grid_position(
+        self,
+        position: Position | HorizontalPosition,
+        coordinate_system: CoordinateSystem,
+        context: HorizontalLinearProjectionContext,
+        viewport_size: QSize
+    ) -> QPointF | None:
+        if coordinate_system == CoordinateSystem.HORIZONTAL and isinstance(position, HorizontalPosition):
+            return self.project(position, context, viewport_size)
+
+        if coordinate_system == CoordinateSystem.EQUATORIAL and isinstance(position, Position):
+            horizontal_position = self.convert_position(position, context)
+            return self.project(horizontal_position, context, viewport_size)
+
+        return None
 
     def iter_grid_lines(self, context: HorizontalLinearProjectionContext, viewport_size: QSize, interval: float) -> Generator[tuple[float, Iterable[HorizontalPosition]], None, None]:
         yield from self.iter_az_lines(context, viewport_size, interval)

@@ -34,7 +34,7 @@ class EquatorialGrid(CoordinateGrid[Position]):
 
 
     def iter_lines(self, context: RendererContext) -> Iterable[Iterable[Position]]:
-        min_pos, max_pos = context.projection.visible_bounds(context.projection_context, context.viewport.size())
+        min_pos, max_pos = self._visible_bounds(context)
 
         ra_interval, dec_interval = self._get_grid_intervals(context.scene.sky_camera.fov_deg)
 
@@ -69,3 +69,16 @@ class EquatorialGrid(CoordinateGrid[Position]):
             return GRID_INTERVAL_TABLE[SORTED_GRID_INTERVAL_KEYS[-1]]
         else:
             return GRID_INTERVAL_TABLE[SORTED_GRID_INTERVAL_KEYS[index - 1]]
+
+    def _visible_bounds(self, context: RendererContext) -> tuple[Position, Position]:
+        camera = context.scene.sky_camera
+        viewport_size = context.viewport.size()
+        scale = min(viewport_size.width(), viewport_size.height()) / camera.fov_deg
+
+        half_width_deg = (viewport_size.width() / 2) / scale
+        half_height_deg = (viewport_size.height() / 2) / scale
+
+        return (
+            Position(camera.center.ra_deg - half_width_deg, camera.center.dec_deg - half_height_deg),
+            Position(camera.center.ra_deg + half_width_deg, camera.center.dec_deg + half_height_deg),
+        )

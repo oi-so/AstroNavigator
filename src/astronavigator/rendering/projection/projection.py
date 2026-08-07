@@ -6,13 +6,15 @@ from typing import Generator, Generic, Iterable, TypeVar
 from PySide6.QtCore import QPointF, QSize
 
 from astronavigator.scene.scene import Scene
-from astronavigator.sky.position import Position
+from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
+from astronavigator.sky.position import HorizontalPosition, Position
 from astronavigator.sky.sky_object import SkyObject
 
 
 
 T = TypeVar("T")
 C = TypeVar("C")
+GridPosition = Position | HorizontalPosition
 
 
 class Projection(ABC, Generic[T, C]):
@@ -127,6 +129,19 @@ class Projection(ABC, Generic[T, C]):
         QPointF | None
             スクリーン座標。Screen coordinates.
             Noneの場合、オブジェクトはビューポート内に表示されない。If None, the object is not visible within the viewport.
+        """
+
+    @abstractmethod
+    def project_grid_position(
+        self,
+        position: GridPosition,
+        coordinate_system: CoordinateSystem,
+        context: C,
+        viewport_size: QSize
+    ) -> QPointF | None:
+        """
+        グリッド座標を現在の投影方式でスクリーン座標に投影する。
+        Project a grid coordinate in its native coordinate system.
         """
 
 

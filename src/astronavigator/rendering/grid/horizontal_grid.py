@@ -4,8 +4,10 @@ from bisect import bisect_right
 from collections.abc import Iterable
 from typing import OrderedDict
 
+from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
 from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
+from astronavigator.rendering.render_context import RendererContext
 from astronavigator.sky.position import HorizontalPosition
 
 
@@ -30,8 +32,12 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
         return CoordinateSystem.HORIZONTAL
 
 
-    def iter_lines(self, context) -> Iterable[Iterable[HorizontalPosition]]:
-        min_pos, max_pos = context.projection.visible_bounds(context.projection_context, context.viewport.size())
+    def iter_lines(self, context: RendererContext) -> Iterable[Iterable[HorizontalPosition]]:
+        bounds = self._visible_bounds(context)
+        if bounds is None:
+            return
+
+        min_pos, max_pos = bounds
 
         az_interval, alt_interval = self._get_grid_intervals(context.scene.sky_camera.fov_deg)
 
@@ -65,3 +71,25 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
             return GRID_INTERVAL_TABLE[SORTED_GRID_INTERVAL_KEYS[-1]]
         else:
             return GRID_INTERVAL_TABLE[SORTED_GRID_INTERVAL_KEYS[index - 1]]
+
+    def _visible_bounds(self, context: RendererContext) -> tuple[HorizontalPosition, HorizontalPosition] | None:
+        if context.scene.skyfield is None:
+            return None
+
+        center = CoordinateTransformer.equatorial_to_horizontal(
+            context.scene.sky_camera.center,
+            context.scene.time,
+            context.scene.observer,
+            context.scene.skyfield
+        )
+        camera = context.scene.sky_camera
+        viewport_size = context.viewport.size()
+        scale = min(viewport_size.width(), viewport_size.height()) / camera.fov_deg
+
+        half_width_deg = (viewport_size.width() / 2) / scale
+        half_height_deg = (viewport_size.height() / 2) / scale
+
+        return (
+            HorizontalPosition(center.azimuth_deg - half_width_deg, center.altitude_deg - half_height_deg),
+            HorizontalPosition(center.azimuth_deg + half_width_deg, center.altitude_deg + half_height_deg),
+        )

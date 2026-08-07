@@ -32,3 +32,22 @@ class CoordinateTransformer:
         apparent = topos.at(t).observe(star).apparent()
         alt, az, distance = apparent.altaz()
         return HorizontalPosition(az.degrees, alt.degrees)
+
+    @staticmethod
+    def horizontal_to_equatorial(
+        position: HorizontalPosition,
+        time: Time,
+        observer: Observer,
+        context: SkyfieldContext
+    ) -> Position:
+        earth = context.ephemeris["earth"]
+        topos = earth + wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
+
+        t = context.timescale.from_datetime(time.utc)
+
+        apparent = topos.at(t).from_altaz(
+            alt_degrees=position.altitude_deg,
+            az_degrees=position.azimuth_deg
+        )
+        ra, dec, distance = apparent.radec()
+        return Position(ra.hours * 15.0, dec.degrees).normalized()

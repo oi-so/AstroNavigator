@@ -4,7 +4,7 @@ from enum import Enum
 
 
 class SpectralType(Enum):
-    O = "O"
+    O = "O"  # noqa: E741
     B = "B"
     A = "A"
     F = "F"

@@ -1,4 +1,6 @@
 from astronavigator.event.event_bus import EventBus
+from astronavigator.rendering.projection.linear_projection import LinearProjection
+from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.scene.object_index import ObjectIndex
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.sky.magnitude import Magnitude
@@ -6,6 +8,10 @@ from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.position import Position
 from astronavigator.sky.sky_object import Star
 from astronavigator.scene.scene import Scene
+
+
+def create_controller(scene: Scene) -> SceneController:
+    return SceneController(scene, EventBus(), ProjectionManager(LinearProjection()))
 
 
 def create_star(
@@ -112,7 +118,7 @@ def test_add_object_updates_object_index():
     star2 = create_star("star2", "Betelgeuse")
 
     scene = Scene()
-    scene_controller = SceneController(scene, event_bus=EventBus())
+    scene_controller = create_controller(scene)
 
     scene_controller.add_object(star1)
     scene_controller.add_object(star2)
@@ -125,7 +131,7 @@ def test_remove_object_updates_object_index():
     star2 = create_star("star2", "Betelgeuse")
 
     scene = Scene()
-    scene_controller = SceneController(scene, event_bus=EventBus())
+    scene_controller = create_controller(scene)
 
     scene_controller.add_object(star1)
     scene_controller.add_object(star2)

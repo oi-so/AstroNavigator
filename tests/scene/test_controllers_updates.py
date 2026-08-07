@@ -2,6 +2,8 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from astronavigator.event.event_bus import EventBus
+from astronavigator.rendering.projection.linear_projection import LinearProjection
+from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
@@ -12,10 +14,14 @@ from astronavigator.sky.position import Position
 from astronavigator.sky.magnitude import Magnitude
 
 
+def create_controller(scene: Scene) -> SceneController:
+    return SceneController(scene, EventBus(), ProjectionManager(LinearProjection()))
+
+
 def test_set_time():
     scene = Scene()
 
-    controller = SceneController(scene, EventBus())
+    controller = create_controller(scene)
 
     new_time = Time(datetime(2024, 1, 1, 12, 0, 0, tzinfo=ZoneInfo("Asia/Tokyo")))
 
@@ -27,7 +33,7 @@ def test_set_time():
 def test_set_observer():
     scene = Scene()
 
-    controller = SceneController(scene, EventBus())
+    controller = create_controller(scene)
 
     new_observer = Observer(35.0, 139.0, 40, ZoneInfo("Asia/Tokyo"))
 
@@ -39,7 +45,7 @@ def test_set_observer():
 def test_select_object():
     scene = Scene()
 
-    controller = SceneController(scene, EventBus())
+    controller = create_controller(scene)
 
     new_sky_object = Star("test", "testObject", ObjectType.STAR, None, Position(0.0, 0.0), Magnitude(1.0))
 
@@ -51,7 +57,7 @@ def test_select_object():
 def test_clear_selection():
     scene = Scene()
 
-    controller = SceneController(scene, EventBus())
+    controller = create_controller(scene)
 
     new_sky_object = Star("test", "testObject", ObjectType.STAR, None, Position(0.0, 0.0), Magnitude(1.0))
 
@@ -66,7 +72,7 @@ def test_clear_selection():
 def test_add_and_remove_object():
     scene = Scene()
 
-    controller = SceneController(scene, EventBus())
+    controller = create_controller(scene)
 
     new_sky_object = Star("test", "testObject", ObjectType.STAR, None, Position(0.0, 0.0), Magnitude(1.0))
 
