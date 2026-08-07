@@ -10,7 +10,7 @@ from astronavigator.catalog.provider.local_file_provider import LocalFileProvide
 from astronavigator.gui.actions.main_actions import MainActions
 from astronavigator.input.input_controller import InputController
 from astronavigator.rendering.projection.linear_projection import LinearProjection  # noqa: F401
-from astronavigator.rendering.projection.horizontal_linear_projection import HorizontalLinearProjection as HorizontalProjection
+from astronavigator.rendering.projection.horizontal_linear_projection import HorizontalLinearProjection as HorizontalProjection  # noqa: F401
 from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene

@@ -91,7 +91,22 @@ GUI
 
 ---
 
-# 6. Telescope Support
+# 6. Current Implementation
+
+現在の実装は、Scene を中心にした 2D プラネタリウム表示を先行している。
+
+- Scene が時刻、観測地、SkyCamera、SkyObject、描画設定を保持する
+- SceneController が Scene 変更の公開インターフェースとなる
+- Renderer は Scene を読み取り、LayerManager 経由で各 Layer を描画する
+- SkyObject は天球上の表示対象を表す
+- ProjectionManager が現在の Projection を保持する
+- LinearProjection は赤経赤緯を直接2D表示する
+- HorizontalLinearProjection は赤経赤緯を方位高度へ変換して2D表示する
+- CoordinateGrid は座標系ごとのグリッド線を生成し、Projection が表示座標へ変換する
+
+---
+
+# 7. Telescope Support
 
 優先順位
 
@@ -103,7 +118,7 @@ GUI
 
 ---
 
-# 7. Design Philosophy
+# 8. Design Philosophy
 
 本ソフトウェアは
 
@@ -115,11 +130,12 @@ ISS追尾はソフトウェア全体の一機能として実装し、通常の�
 
 ---
 
-# 8. Open Source
+# 9. Open Source
 
 ソースコードは Git および GitHub で管理する。
 
 十分な完成度に達した段階で Public Repository として公開し、オープンソースソフトウェアとして開発を継続する。
+
 
 
 --- 
@@ -127,6 +143,23 @@ ISS追尾はソフトウェア全体の一機能として実装し、通常の�
 ---
 
 # 01. Requirements
+
+## 追記
+とりあえず早めに完成させることを目的とするため、最小限の機能を優先する。
+
+各機能は、全体の基盤だけを先に作るのではなく、
+ユーザーが実際に操作できる一連の機能単位で実装する。
+
+初期完成後に、精度、拡張性、操作性、性能を段階的に改善する。
+
+ただし、以下の設計原則は初期実装でも維持する。
+
+- Scene First
+- Event Driven
+- Interface First
+- Renderer Independent
+- Platform Independent
+
 
 ## 1. 基本方針
 
@@ -349,7 +382,7 @@ ISSだけではなく、TLEを持つ人工衛星全般を対象とする。
 
 ## 3. モジュール
 
-aplication
+application
 astronomy
 scene
 sky
@@ -358,7 +391,7 @@ layer
 mount
 tracking
 camera
-plate solve
+plate_solve
 rendering
 gui
 
@@ -370,7 +403,7 @@ GUI
 
 ↓
 
-Senceモジュール
+Sceneモジュール
 
 ↓
 
@@ -381,11 +414,11 @@ Senceモジュール
 外部ライブラリ
 (Skyfield、ASCOM、OpenCV等)
 
-## Senceモジュール
+## Sceneモジュール
 
-Senceモジュール はアプリケーション全体の状態を管理する中核モジュールである。
+Sceneモジュール はアプリケーション全体の状態を管理する中核モジュールである。
 
-Senceモジュール は以下のコンポーネントで構成される。
+Sceneモジュール は以下のコンポーネントで構成される。
 
 - Scene
 - SceneController
@@ -461,8 +494,25 @@ macOSおよびLinuxでは利用可能な機能のみを有効化し、未対応�
 
 4. 終了処理
 
+## 8. Rendering
 
-## 8. SceneController
+Renderer は Scene を読み取り、LayerManager が保持する Layer を順に描画する。
+
+Renderer は天文学計算や望遠鏡制御を担当しない。
+天体やグリッドの画面座標化は Projection へ委譲する。
+
+現在の投影方式は ProjectionManager が保持する。
+
+- LinearProjection
+  - 赤経赤緯を直接2D表示する
+- HorizontalLinearProjection
+  - Skyfield を使って赤経赤緯を方位高度へ変換し、2D表示する
+
+座標系グリッドは CoordinateGrid が座標系ごとに生成する。
+GridLayer はグリッド線を描画するだけで、座標変換は Projection に委譲する。
+
+
+## 9. SceneController
 1. メソッド一覧
 - set_time()
 - set_observer()
@@ -473,7 +523,7 @@ macOSおよびLinuxでは利用可能な機能のみを有効化し、未対応�
 - set_focus()
 - clear_focus()
 
-## 8. 拡張性
+## 10. 拡張性
 
 以下を追加できる構造とする。
 
@@ -483,6 +533,7 @@ macOSおよびLinuxでは利用可能な機能のみを有効化し、未対応�
 - 新しいカメラ
 - 新しい描画レイヤー
 - 新しい観測支援機能
+
 
 
 --- 
@@ -738,11 +789,24 @@ GUIでは特に以下を見つけやすい位置へ配置する。
 
 複数同時表示可能とする。
 
+現在の実装では SkyObject の基本位置は赤経赤緯の Position として扱う。
+地平座標表示が必要な場合は、Projection が観測時刻、観測地、SkyfieldContext を使って HorizontalPosition へ変換する。
+
+座標系グリッドは天体表示の投影方式とは独立して表示できる。
+たとえば赤経赤緯の LinearProjection でも方位高度グリッドを表示でき、HorizontalLinearProjection でも赤道座標グリッドを表示できる。
+
 ---
 
 ## 5. 投影法
 
-標準
+現在の実装
+
+- LinearProjection
+  - 赤経赤緯を直接2D表示する開発・確認用の線形投影
+- HorizontalLinearProjection
+  - 赤経赤緯を方位高度へ変換して2D表示する線形投影
+
+標準候補
 
 - ステレオ投影
 
@@ -754,6 +818,9 @@ GUIでは特に以下を見つけやすい位置へ配置する。
 - 魚眼投影
 
 ユーザーが切り替え可能とする。
+
+ProjectionManager が現在の Projection を保持する。
+Application の ProjectionManager に渡す Projection を変更することで投影方式を切り替えられる。
 
 ---
 
@@ -1019,5 +1086,6 @@ Scene は以下の要素から構成される。
 - Projection（投影法）
 - LayerManager（表示レイヤー）
 - SkyObjects（表示対象）
+- ObjectIndex
 
 Renderer は Scene を入力として描画を行う。
