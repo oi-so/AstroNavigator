@@ -1,0 +1,34 @@
+from __future__ import annotations
+
+from skyfield.api import Star, wgs84
+
+from astronavigator.sky.position import HorizontalPosition, Position
+from astronavigator.scene.time import Time
+from astronavigator.scene.observer import Observer
+from astronavigator.catalog.parser.skyfield_parser import SkyfieldContext
+
+
+class CoordinateTransformer:
+    @staticmethod
+    def equatorial_to_horizontal(
+        position: Position,
+        time: Time,
+        observer: Observer,
+        context: SkyfieldContext
+    ) -> HorizontalPosition:
+        earth = context.ephemeris["earth"]
+        topos = earth + wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
+
+        t = context.timescale.from_datetime(time.utc)
+
+        ra = position.ra_hours
+        dec = position.dec_deg
+
+        star = Star(
+            ra_hours=ra,
+            dec_degrees=dec
+        )
+
+        apparent = topos.at(t).observe(star).apparent()
+        alt, az, distance = apparent.altaz()
+        return HorizontalPosition(az.degrees, alt.degrees)

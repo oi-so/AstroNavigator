@@ -10,6 +10,11 @@ class Position:
     dec_deg: float  # Declination in degrees
 
 
+    @property
+    def ra_hours(self) -> float:
+        return self.ra_deg / 15.0
+
+
     def normalized(self) -> Position:
         return Position(self.ra_deg % 360, max(-90.0, min(90.0, self.dec_deg)))
     
@@ -36,3 +41,10 @@ class Position:
             return format_dec_dms(self.dec_deg)
         else:
             raise ValueError(f"Unsupported Declination format: {dec_format}")
+
+
+
+@dataclass(slots=True)
+class HorizontalPosition:
+    azimuth_deg: float
+    altitude_deg: float
