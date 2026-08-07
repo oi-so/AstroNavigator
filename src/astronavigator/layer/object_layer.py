@@ -26,6 +26,7 @@ class ObjectLayer(Layer):
         self.show_moon = True
         self.limit_magnitude = 6.0
 
+    @profile
     def render(self, context: RendererContext) -> None:
         if not self.visible:
             return

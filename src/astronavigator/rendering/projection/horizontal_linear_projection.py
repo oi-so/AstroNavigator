@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import math
 from typing import Iterable, Any
 from collections.abc import Generator
@@ -29,7 +29,7 @@ class HorizontalLinearProjectionContext:
     topos: Any
     skyfield_time: Any
     observer_position: Any
-
+    _position_cache: dict[Position, HorizontalPosition] = field(default_factory=dict)
 
 
 class HorizontalLinearProjection(Projection[HorizontalPosition, HorizontalLinearProjectionContext]):
@@ -171,4 +171,11 @@ class HorizontalLinearProjection(Projection[HorizontalPosition, HorizontalLinear
 
 
     def convert_position(self, position: Position, context: HorizontalLinearProjectionContext) -> HorizontalPosition:
-        return CoordinateTransformer.equatorial_to_horizontal(position, context.observer_position)
+        key = (position.ra_deg, position.dec_deg)
+        cached = context._position_cache.get(key)
+        if cached is not None:
+            return cached
+
+        converted = CoordinateTransformer.equatorial_to_horizontal(position, context.observer_position)
+        context._position_cache[key] = converted
+        return converted

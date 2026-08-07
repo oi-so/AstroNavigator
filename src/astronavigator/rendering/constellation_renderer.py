@@ -5,11 +5,12 @@ from PySide6.QtGui import QColor, QPainter, QPen
 from astronavigator.rendering.render_context import RendererContext
 
 class ConstellationRenderer:
+    @profile
     def render(self, context: RendererContext) -> None:
         self._draw_constellation_lines(context)
         self._draw_constellation_labels(context)
 
-
+    @profile
     def _draw_constellation_lines(self, context: RendererContext) -> None:
         painter = context.painter
         scene = context.scene
@@ -54,7 +55,7 @@ class ConstellationRenderer:
                 if p1 and p2:
                     painter.drawLine(p1, p2)
 
-
+    @profile
     def _draw_constellation_labels(self, context: RendererContext) -> None:
         painter = context.painter
         scene = context.scene
