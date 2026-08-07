@@ -25,3 +25,10 @@ CONSTELLATIONS = CatalogInfo(
     save_path=Path(Path.cwd() / "data" / "constellationship.json"),
     converter=ConstellationConverter(),
 )
+
+
+EPHEMERIS = CatalogInfo(
+    name="Ephemeris",
+    url="https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de440s.bsp",
+    save_path=Path(Path.cwd() / "data" / "de440s.bsp"),
+)

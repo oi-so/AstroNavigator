@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import TextIO
+from pathlib import Path
 
 from astronavigator.catalog.catalog import ConstellationCatalog
 from astronavigator.catalog.parser.catalog_parser import CatalogParser
@@ -11,8 +11,10 @@ from astronavigator.sky.position import Position
 
 
 class ConstellationJsonParser(CatalogParser[ConstellationCatalog]):
-    def parse(self, file: TextIO) -> ConstellationCatalog:
-        data = json.load(file)
+    def parse(self, path: Path) -> ConstellationCatalog:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        
         constellations = []
 
         for item in data:

@@ -12,6 +12,7 @@ from astronavigator.sky.constellation_line import Constellation
 from astronavigator.sky.sky_object import SkyObject
 from astronavigator.scene.time import Time
 from astronavigator.camera.sky_camera import SkyCamera
+from astronavigator.catalog.parser.skyfield_parser import SkyfieldContext
 
 
 @dataclass(slots=True)
@@ -30,5 +31,7 @@ class Scene:
 
     rendering_settings: RenderingSettings = field(default_factory=RenderingSettings)
     gui_settings: GuiSettings = field(default_factory=GuiSettings)
+
+    skyfield: SkyfieldContext | None = None
 
     mount: Mount | None = None

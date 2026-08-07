@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TextIO, TypeVar
+from pathlib import Path
+from typing import Generic, TypeVar
 
 
 T = TypeVar("T")
 
 class CatalogParser(ABC, Generic[T]):
     @abstractmethod
-    def parse(self, file: TextIO) -> T:
+    def parse(self, path: Path) -> T:
         """ファイルからCatalogを生成する。"""
         ...

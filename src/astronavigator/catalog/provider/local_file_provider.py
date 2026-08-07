@@ -19,5 +19,4 @@ class LocalFileProvider(CatalogProvider[T], Generic[T]):
         self._parser = parser
 
     def load(self) -> T:
-        with self._path.open("r", encoding="utf-8") as file:
-            return self._parser.parse(file)
+        return self._parser.parse(self._path)

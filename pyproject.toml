@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "astropy>=8.0.1",
+    "certifi>=2026.6.17",
     "numpy>=2.5.1",
     "pyserial>=3.5",
     "pyside6>=6.11.1",
