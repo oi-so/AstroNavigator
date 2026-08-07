@@ -4,6 +4,7 @@ from PySide6.QtCore import QPointF, QSize
 
 from astronavigator.catalog.catalog import Catalog
 from astronavigator.event.event_type import EventType
+from astronavigator.mount.mount import Mount
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
 from astronavigator.event.event_bus import EventBus
@@ -83,6 +84,19 @@ class SceneController:
     def add_constellation_catalog(self, catalog: ConstellationCatalog) -> None:
         self._scene.constellations.extend(catalog.constellations)
         self._event_bus.publish(EventType.SCENE_UPDATED, catalog)
+
+    def connect_mount(self, mount: Mount) -> None:
+        self._scene.mount = mount
+        mount.connect()
+        mount.set_tracking(True)
+        mount.update_status()
+        self._event_bus.publish(EventType.MOUNT_CONNECTED, mount)
+
+    def disconnect_mount(self) -> None:
+        if self._scene.mount:
+            self._scene.mount.disconnect()
+            self._scene.mount = None
+            self._event_bus.publish(EventType.MOUNT_DISCONNECTED, None)
 
 
     def _find_nearest_object(self, position: QPointF, viewport_size: QSize) -> SkyObject | None:

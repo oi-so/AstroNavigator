@@ -31,4 +31,4 @@ class Scene:
     rendering_settings: RenderingSettings = field(default_factory=RenderingSettings)
     gui_settings: GuiSettings = field(default_factory=GuiSettings)
 
-    mount: Mount = field(default_factory=Mount)
+    mount: Mount | None = None

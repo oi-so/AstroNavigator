@@ -25,7 +25,7 @@ class EZeus2_Direction(StrEnum):
 
 class EZeus2_Speed(Enum):
     STOP = 0
-    STACKING = 1
+    SIDEREAL = 1
     SLOW = 2
     MEDIUM = 3
     FAST = 4
@@ -40,7 +40,7 @@ class EZeus2StatusIndex(StrEnum):
     DEC_SPEED = "dec_speed"
 
 class EZeus2Protocol:
-    def __init__(self, port: str, baudrate: int = 9600, timeout: float = 1.0):
+    def __init__(self, port: str, baudrate: int = 9600, timeout: float = 0.5):
         self._port = port
         self._baundrate = baudrate
         self._timeout = timeout
@@ -243,3 +243,17 @@ class EZeus2Protocol:
     def get_version(self) -> str:
         resp = self._send("VR")
         return resp
+
+
+    def quick_check(self) -> str | None:
+        try:
+            with serial.Serial(self._port, self._baundrate, timeout=0.3) as ser:
+                ser.reset_input_buffer()
+                ser.write(b"VR\r")
+                resp = ser.readline().decode("ascii", errors="replace").strip()
+                if resp.startswith("VR"):
+                    return resp
+                else:
+                    return None
+        except Exception:
+            return None

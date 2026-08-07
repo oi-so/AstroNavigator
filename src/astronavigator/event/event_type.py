@@ -15,7 +15,11 @@ class EventType(Enum):
     LAYER_CHANGED = auto()
     
     CAMERA_CHANGED = auto()
-    MOUNT_CHANGED = auto()
+
+    MOUNT_CONNECTED = auto()
+    MOUNT_DISCONNECTED = auto()
+    MOUNT_STATE_CHANGED = auto()
+    
 
     CAMERA_MOVED = auto()
     CAMERA_ZOOMED = auto()
