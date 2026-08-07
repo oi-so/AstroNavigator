@@ -20,7 +20,7 @@
 
 ## 3. モジュール
 
-aplication
+application
 astronomy
 scene
 sky
@@ -29,7 +29,7 @@ layer
 mount
 tracking
 camera
-plate solve
+plate_solve
 rendering
 gui
 
@@ -41,7 +41,7 @@ GUI
 
 ↓
 
-Senceモジュール
+Sceneモジュール
 
 ↓
 
@@ -52,11 +52,11 @@ Senceモジュール
 外部ライブラリ
 (Skyfield、ASCOM、OpenCV等)
 
-## Senceモジュール
+## Sceneモジュール
 
-Senceモジュール はアプリケーション全体の状態を管理する中核モジュールである。
+Sceneモジュール はアプリケーション全体の状態を管理する中核モジュールである。
 
-Senceモジュール は以下のコンポーネントで構成される。
+Sceneモジュール は以下のコンポーネントで構成される。
 
 - Scene
 - SceneController
@@ -132,8 +132,25 @@ macOSおよびLinuxでは利用可能な機能のみを有効化し、未対応�
 
 4. 終了処理
 
+## 8. Rendering
 
-## 8. SceneController
+Renderer は Scene を読み取り、LayerManager が保持する Layer を順に描画する。
+
+Renderer は天文学計算や望遠鏡制御を担当しない。
+天体やグリッドの画面座標化は Projection へ委譲する。
+
+現在の投影方式は ProjectionManager が保持する。
+
+- LinearProjection
+  - 赤経赤緯を直接2D表示する
+- HorizontalLinearProjection
+  - Skyfield を使って赤経赤緯を方位高度へ変換し、2D表示する
+
+座標系グリッドは CoordinateGrid が座標系ごとに生成する。
+GridLayer はグリッド線を描画するだけで、座標変換は Projection に委譲する。
+
+
+## 9. SceneController
 1. メソッド一覧
 - set_time()
 - set_observer()
@@ -144,7 +161,7 @@ macOSおよびLinuxでは利用可能な機能のみを有効化し、未対応�
 - set_focus()
 - clear_focus()
 
-## 8. 拡張性
+## 10. 拡張性
 
 以下を追加できる構造とする。
 
