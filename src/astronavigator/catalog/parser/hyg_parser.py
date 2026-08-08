@@ -20,21 +20,8 @@ class HygParser(CatalogParser[Catalog]):
             catalog = Catalog(name="HYG")
 
             for row in reader:
-                # TODO:
-                # 現在は描画性能のため、4等級より暗い恒星は読み込まない。
-                #
-                # 将来的にはHYGカタログ全件を読み込み、ObjectIndexによる高速検索を実装する。
-                # Rendererはscene.objects全体を走査するのではなく、
-                # 画角・表示等級・表示範囲に応じてObjectIndexから描画対象のみ取得する。
-                #
-                # 高速化候補:
-                # - 等級順インデックス
-                # - RA/Decによる空間インデックス
-                # - 画角に応じたLOD(Level of Detail)
-                #
-                # これらの実装後、この等級による読み込み制限は削除する。
-                if self._parse_star(row).get_magnitude().value >= 4.0:
-                    continue
+                # if self._parse_star(row).get_magnitude().value >= 4.0:
+                #     continue
                 catalog.objects.append(self._parse_star(row))
     
         return catalog
