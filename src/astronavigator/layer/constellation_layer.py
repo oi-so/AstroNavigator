@@ -10,7 +10,7 @@ class ConstellationLayer(Layer):
 
         self.renderer = ConstellationRenderer()
 
-    # profile
+    # @profile
     def render(self, context: RendererContext) -> None:
         if not self.visible:
             return

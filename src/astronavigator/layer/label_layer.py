@@ -19,7 +19,7 @@ class LabelLayer(Layer):
         super().__init__(visible=visible, layer_type=LayerType.LABELS)
 
 
-    # profile
+    # @profile
     def render(self, context: RendererContext) -> None:
         if not self.visible:
             return

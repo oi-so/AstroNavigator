@@ -26,7 +26,7 @@ class ObjectLayer(Layer):
         self.show_moon = True
         self.limit_magnitude = 6.0
 
-    # profile
+    # @profile
     def render(self, context: RendererContext) -> None:
         if not self.visible:
             return
@@ -39,54 +39,59 @@ class ObjectLayer(Layer):
                     p = context.projection.project_object(obj, context.projection_context, context.viewport.size())
                     if p is None:
                         continue
-                    self._draw_object(obj, context)
+                    self._draw_object(obj, p, context)
 
         if self.show_deep_sky_objects:
             for obj in context.scene.object_index.find_by_type(ObjectType.DSO):
                 if obj.get_magnitude().is_visible(limit_magnitude):
-                    self._draw_object(obj, context)
+                    p = context.projection.project_object(obj, context.projection_context, context.viewport.size())
+                    if p is None:
+                        continue
+                    self._draw_object(obj, p, context)
 
         if self.show_asteroids:
             for obj in context.scene.object_index.find_by_type(ObjectType.ASTEROID):
                 if obj.get_magnitude().is_visible(limit_magnitude):
-                    self._draw_object(obj, context)
+                    p = context.projection.project_object(obj, context.projection_context, context.viewport.size())
+                    if p is None:
+                        continue
+                    self._draw_object(obj, p, context)
 
         if self.show_comets:
             for obj in context.scene.object_index.find_by_type(ObjectType.COMET):
                 if obj.get_magnitude().is_visible(limit_magnitude):
-                    self._draw_object(obj, context)
+                    p = context.projection.project_object(obj, context.projection_context, context.viewport.size())
+                    if p is None:
+                        continue
+                    self._draw_object(obj, p, context)
 
         if self.show_planets:
             for obj in context.scene.object_index.find_by_type(ObjectType.PLANET):
                 if obj.get_magnitude().is_visible(limit_magnitude):
-                    self._draw_object(obj, context)
+                    p = context.projection.project_object(obj, context.projection_context, context.viewport.size())
+                    if p is None:
+                        continue
+                    self._draw_object(obj, p, context)
 
         if self.show_moon:
             for obj in context.scene.object_index.find_by_type(ObjectType.MOON):
                 if obj.get_magnitude().is_visible(limit_magnitude):
-                    self._draw_object(obj, context)
+                    p = context.projection.project_object(obj, context.projection_context, context.viewport.size())
+                    if p is None:
+                        continue
+                    self._draw_object(obj, p, context)
 
         if self.show_satellites:
             for obj in context.scene.object_index.find_by_type(ObjectType.SATELLITE):
                 if obj.get_magnitude().is_visible(limit_magnitude):
-                    self._draw_object(obj, context)
+                    p = context.projection.project_object(obj, context.projection_context, context.viewport.size())
+                    if p is None:
+                        continue
+                    self._draw_object(obj, p, context)
 
 
 
-    def _draw_object(self, obj: SkyObject, context: RendererContext) -> None:
-        if not self._is_visible(context.scene, obj):
-            return
-        
-        point = context.projection.project_object(
-            obj,
-            context.projection_context,
-            context.viewport.size()
-        )
-
-        if point is None: 
-            return
-
-        
+    def _draw_object(self, obj: SkyObject, point: QPointF, context: RendererContext) -> None:
         match obj:
             case Star():
                 self._draw_star(context.painter, obj, context.scene, point)

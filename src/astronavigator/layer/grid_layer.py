@@ -21,7 +21,7 @@ class GridLayer(Layer):
         self.grid_manager.add_grid(EquatorialGrid())
         self.grid_manager.add_grid(HorizontalGrid())
 
-    # profile
+    # @profile
     def render(self, context: RendererContext) -> None:
         if not self.visible:
             return
