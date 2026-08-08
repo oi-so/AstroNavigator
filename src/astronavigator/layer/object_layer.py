@@ -26,7 +26,7 @@ class ObjectLayer(Layer):
         self.show_moon = True
         self.limit_magnitude = 6.0
 
-    @profile
+    # profile
     def render(self, context: RendererContext) -> None:
         if not self.visible:
             return
@@ -36,6 +36,9 @@ class ObjectLayer(Layer):
         if self.show_stars:
             for obj in context.scene.object_index.find_by_type(ObjectType.STAR):
                 if obj.get_magnitude().is_visible(limit_magnitude):
+                    p = context.projection.project_object(obj, context.projection_context, context.viewport.size())
+                    if p is None:
+                        continue
                     self._draw_object(obj, context)
 
         if self.show_deep_sky_objects:
