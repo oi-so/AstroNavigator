@@ -17,7 +17,7 @@ from astronavigator.sky.position import HorizontalPosition, Position
 from astronavigator.sky.sky_object import SkyObject
 
 
-NARROW_FOV = 100.0
+NARROW_FOV = 140.0
 WIDE_FOV = 180.0
 
 
