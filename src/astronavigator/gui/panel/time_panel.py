@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QFrame, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton
+from PySide6.QtWidgets import QDialog, QFrame, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton
 
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
+from astronavigator.gui.dialog.time_edit_dialog import TimeEditDialog
 from astronavigator.scene.time import Time
 
 
@@ -27,9 +28,11 @@ class TimePanel(QWidget):
         layout.addStretch()
 
         self._current_time_button = QPushButton("現在時刻")
+        self._pause_button = QPushButton("一時停止")
         self._edit_button = QPushButton("設定")
 
         self._current_time_button.clicked.connect(self._on_current_time_clicked)
+        self._pause_button.clicked.connect(self._on_pause_clicked)
         self._edit_button.clicked.connect(self._on_edit_clicked)
 
         line = QFrame()
@@ -38,6 +41,7 @@ class TimePanel(QWidget):
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self._current_time_button)
+        button_layout.addWidget(self._pause_button)
         button_layout.addWidget(self._edit_button)
 
         layout.addLayout(button_layout)
@@ -66,7 +70,20 @@ class TimePanel(QWidget):
 
 
     def _on_edit_clicked(self) -> None:
-        raise NotImplementedError("Time edit functionality is not implemented yet.")
+        current_time = self._application.scene.time
+        timezone = self._application.scene.observer.timezone
+        dialog = TimeEditDialog(current_time.to_local_time(timezone), timezone, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._application.scene_controller.set_time(dialog.datetime)
+            self._application.scene_controller.set_timezone(dialog.timezone)
 
     def _on_current_time_clicked(self) -> None:
-        raise NotImplementedError("Current time functionality is not implemented yet.")
+        self._application.scene_controller.reset_time_to_now()
+
+    def _on_pause_clicked(self) -> None:
+        current_time = self._application.scene.time
+        self._application.scene_controller.set_time_paused(not current_time.is_paused)
+        if current_time.is_paused:
+            self._pause_button.setText("再生")
+        else:
+            self._pause_button.setText("一時停止")

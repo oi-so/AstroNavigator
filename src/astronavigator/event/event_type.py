@@ -4,6 +4,7 @@ from enum import Enum, auto
 
 class EventType(Enum):
     TIME_CHANGED = auto()
+    TIMEZONE_CHANGED = auto()
     OBSERVER_CHANGED = auto()
 
     OBJECT_ADDED = auto()

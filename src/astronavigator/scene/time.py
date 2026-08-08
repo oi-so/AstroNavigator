@@ -52,3 +52,5 @@ class Time:
 
     def reset_to_now(self) -> None:
         self.utc = datetime.now(timezone.utc)
+        self.speed = 1.0
+        self.is_paused = False

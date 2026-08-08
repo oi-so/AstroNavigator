@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import time
+from PySide6.QtCore import QTimer
+
 
 from astronavigator.catalog.catalog_manager import CatalogManager
 from astronavigator.catalog.parser.constellation_parser import ConstellationJsonParser
@@ -33,6 +36,12 @@ class Application:
         self._load_constellations()
         self._load_skyfield()
 
+        self._last_update_time = time.monotonic()
+        self._update_timer = QTimer()
+        self._update_timer.setInterval(1000 // 60)  # 60 FPS
+        self._update_timer.timeout.connect(self._update)
+        self._update_timer.start()
+
 
     def _test(self):
         provider = DebugCatalogProvider()
@@ -58,6 +67,13 @@ class Application:
         self._catalog_manager.download_catalog(EPHEMERIS)
         provider = LocalFileProvider(path=EPHEMERIS.save_path, parser=SkyfieldParser())
         self._scene.skyfield = provider.load()
+
+    def _update(self):
+        current_time = time.monotonic()
+        delta_time = current_time - self._last_update_time
+        self._last_update_time = current_time
+
+        self._scene_controller.advance_time(delta_time)
 
     @property
     def scene(self) -> Scene:

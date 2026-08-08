@@ -1,4 +1,5 @@
 from __future__ import annotations
+from zoneinfo import ZoneInfo
 
 from PySide6.QtCore import QPoint, QPointF, QSize
 from datetime import datetime, timezone
@@ -27,9 +28,16 @@ class SceneController:
     def scene(self) -> Scene:
         return self._scene
 
-    def set_time(self, time: Time) -> None:
-        self._scene.time = time
-        self._event_bus.publish(EventType.TIME_CHANGED, time)
+    def set_time(self, value: datetime) -> None:
+        if value.tzinfo is None:
+            raise ValueError("The datetime value must be timezone-aware.")
+        current_time = self._scene.time
+        self._scene.time = Time(
+            utc=value.astimezone(timezone.utc),
+            speed=current_time.speed,
+            is_paused=current_time.is_paused
+        )
+        self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
 
     def advance_time(self, seconds: float) -> None:
         self._scene.time.advance(seconds)
@@ -47,8 +55,9 @@ class SceneController:
         self._scene.time.reset_to_now()
         self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
 
-    def set_datetime(self, value: datetime) -> None:
-        self.set_time(Time(utc=value.astimezone(timezone.utc), speed=self._scene.time.speed, is_paused=self._scene.time.is_paused))
+    def set_timezone(self, timezone: ZoneInfo) -> None:
+        self._scene.observer.timezone = timezone
+        self._event_bus.publish(EventType.TIMEZONE_CHANGED, timezone)
 
     def set_observer(self, observer: Observer) -> None:
         self._scene.observer = observer
