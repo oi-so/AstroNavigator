@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import math
 from typing import Any
 from collections.abc import Generator, Iterable
-from PySide6.QtCore import QPointF, QSize
+from PySide6.QtCore import QPointF, QSize, QPoint
 from skyfield.api import wgs84
 
 from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
@@ -85,27 +85,7 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         context: StereographicProjectionContext, 
         viewport_size: QSize
     ) -> Position:
-        width = viewport_size.width()
-        height = viewport_size.height()
-        center_x = width * 0.5
-        center_y = height * 0.5
-        scale = min(width, height) * 0.5 / math.tan(math.radians(context.fov_deg * 0.5))
-
-        x = (screen_position.x() - center_x) / scale
-        y = (center_y - screen_position.y()) / scale
-
-        r2 = x * x + y * y
-        denominator = 4.0 + r2
-
-        local_x = 4.0 * x / denominator
-        local_y = 4.0 * y / denominator
-        local_z = (4.0 - r2) / denominator
-
-        vector = (
-            context.right[0] * local_x + context.up[0] * local_y + context.forward[0] * local_z,
-            context.right[1] * local_x + context.up[1] * local_y + context.forward[1] * local_z,
-            context.right[2] * local_x + context.up[2] * local_y + context.forward[2] * local_z
-        )
+        vector = self._unproject_vector(screen_position, context, viewport_size)
 
         horizontal = self._vector_to_horizontal(vector, context)
         return CoordinateTransformer.horizontal_to_equatorial(horizontal, context.time, context.observer, context.skyfield)
@@ -131,6 +111,31 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         max_position = Position(context.center.ra_deg + delta_ra, max_dec).normalized()
 
         return min_position, max_position
+
+    def _unproject_vector(self, screen_position: QPointF, context: StereographicProjectionContext, viewport_size: QSize) -> tuple[float, float, float]:
+        width = viewport_size.width()
+        height = viewport_size.height()
+        center_x = width * 0.5
+        center_y = height * 0.5
+        scale = min(width, height) * 0.5 / math.tan(math.radians(context.fov_deg * 0.5))
+
+        x = (screen_position.x() - center_x) / scale
+        y = (center_y - screen_position.y()) / scale
+
+        r2 = x * x + y * y
+        denominator = 4.0 + r2
+
+        local_x = 4.0 * x / denominator
+        local_y = 4.0 * y / denominator
+        local_z = (4.0 - r2) / denominator
+
+        vector = (
+            context.right[0] * local_x + context.up[0] * local_y + context.forward[0] * local_z,
+            context.right[1] * local_x + context.up[1] * local_y + context.forward[1] * local_z,
+            context.right[2] * local_x + context.up[2] * local_y + context.forward[2] * local_z
+        )
+
+        return self._normalize(vector)
 
 
     def iter_grid_lines(
@@ -351,3 +356,47 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
             cos_dec * math.sin(ra),
             math.sin(dec),
         )
+
+
+    def calculate_dragged_center(self, previous_position: QPoint, current_position: QPoint, context: StereographicProjectionContext, viewport_size: QSize) -> Position:
+        previous_vector = self._unproject_vector(previous_position, context, viewport_size)
+        current_vector = self._unproject_vector(current_position, context, viewport_size)
+
+        # TODO: ドラッグ方向を変えたくなったらここの引数反対にする
+        rotation_axis = self._cross(current_vector, previous_vector)
+        axis_norm = self._norm(rotation_axis)
+
+        if axis_norm < 1e-12:
+            return context.center
+
+        rotation_axis = self._normalize(rotation_axis)
+        dot = max(-1.0, min(1.0, self._dot(previous_vector, current_vector)))
+
+        angle = math.acos(dot)
+
+        center_vector = self._position_to_vector(context.center, context)
+        rotated_center_vector = self._rotate_vector(center_vector, rotation_axis, angle)
+        horizontal = self._vector_to_horizontal(rotated_center_vector, context)
+
+        return CoordinateTransformer.horizontal_to_equatorial(horizontal, context.time, context.observer, context.skyfield)
+
+    @classmethod
+    def _rotate_vector(cls, vector: tuple[float, float, float], axis: tuple[float, float, float], angle: float) -> tuple[float, float, float]:
+        cos_angle = math.cos(angle)
+        sin_angle = math.sin(angle)
+
+        rotated_vector = (
+            (cos_angle + (1 - cos_angle) * axis[0] * axis[0]) * vector[0] +
+            ((1 - cos_angle) * axis[0] * axis[1] - axis[2] * sin_angle) * vector[1] +
+            ((1 - cos_angle) * axis[0] * axis[2] + axis[1] * sin_angle) * vector[2],
+
+            ((1 - cos_angle) * axis[1] * axis[0] + axis[2] * sin_angle) * vector[0] +
+            (cos_angle + (1 - cos_angle) * axis[1] * axis[1]) * vector[1] +
+            ((1 - cos_angle) * axis[1] * axis[2] - axis[0] * sin_angle) * vector[2],
+
+            ((1 - cos_angle) * axis[2] * axis[0] - axis[1] * sin_angle) * vector[0] +
+            ((1 - cos_angle) * axis[2] * axis[1] + axis[0] * sin_angle) * vector[1] +
+            (cos_angle + (1 - cos_angle) * axis[2] * axis[2]) * vector[2]
+        )
+
+        return cls._normalize(rotated_vector)

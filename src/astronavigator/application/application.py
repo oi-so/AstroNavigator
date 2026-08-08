@@ -9,9 +9,7 @@ from astronavigator.catalog.provider.debug_catalog_provider import DebugCatalogP
 from astronavigator.catalog.provider.local_file_provider import LocalFileProvider
 from astronavigator.gui.actions.main_actions import MainActions
 from astronavigator.input.input_controller import InputController
-from astronavigator.rendering.projection.linear_projection import LinearProjection  # noqa: F401
-from astronavigator.rendering.projection.horizontal_linear_projection import HorizontalLinearProjection as HorizontalProjection  # noqa: F401
-from astronavigator.rendering.projection.stereographic_projection import StereographicProjection  # noqa: F401
+from astronavigator.rendering.projection.stereographic_projection import StereographicProjection
 from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
@@ -25,8 +23,6 @@ class Application:
     def __init__(self):
         self._scene = Scene()
         self._event_bus = EventBus()
-        # self._projection_manager = ProjectionManager(LinearProjection())
-        # self._projection_manager = ProjectionManager(HorizontalProjection())
         self._projection_manager = ProjectionManager(StereographicProjection())
         self._scene_controller = SceneController(self._scene, self._event_bus, self._projection_manager)
         self._renderer = Renderer(projection_manager=self._projection_manager)

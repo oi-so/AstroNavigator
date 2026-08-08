@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Generator, Generic, Iterable, TypeVar
 
-from PySide6.QtCore import QPointF, QSize
+from PySide6.QtCore import QPoint, QPointF, QSize
 
 from astronavigator.scene.scene import Scene
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
@@ -187,3 +187,27 @@ class Projection(ABC, Generic[T, C]):
             Noneの場合、対応する天球上の座標はビューポート内に表示されない。If None, the corresponding celestial coordinate is not visible within the viewport.
         """
         return [self.project(position, context, viewport_size) for position in positions]
+
+
+    @abstractmethod
+    def calculate_dragged_center(self, previous_position: QPoint, current_position: QPoint, context: C, viewport_size: QSize) -> Position:
+        """
+        ドラッグ操作によって移動した中心座標を計算する。
+        Calculate the new center coordinates after a drag operation.
+
+        Parameters
+        ----------
+        previous_position : QPointF
+            ドラッグ開始時のスクリーン座標。Screen coordinates at the start of the drag.
+        current_position : QPointF
+            ドラッグ終了時のスクリーン座標。Screen coordinates at the end of the drag.
+        context : C
+            投影コンテキスト。Projection context.
+        viewport_size : QSize
+            ビューポートのサイズ。Viewport size.
+
+        Returns
+        -------
+        Position
+            ドラッグ操作によって移動した中心座標。The new center coordinates after the drag operation.
+        """

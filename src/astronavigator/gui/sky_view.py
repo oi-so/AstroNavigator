@@ -64,16 +64,16 @@ class SkyView(QWidget):
         if self._last_mouse_position is None:
             return
 
-        delta = event.pos() - self._last_mouse_position
+        previous_position = self._last_mouse_position
+        current_position = event.pos()
+        delta = current_position - previous_position
+
         if delta.manhattanLength() > DRAG_THRESHOLD_PX:
             self._dragging = True
 
-        self._last_mouse_position = event.pos()
-
+        self._last_mouse_position = current_position
         self._input_controller.handle_drag(
-            delta.x(),
-            delta.y(),
-            self.rect().size(),
+            previous_position, current_position, self.rect().size()
         )
 
         self.update()
