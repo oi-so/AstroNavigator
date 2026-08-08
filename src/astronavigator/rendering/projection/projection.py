@@ -163,3 +163,27 @@ class Projection(ABC, Generic[T, C]):
         T
             変換後の天球上の座標。The converted celestial coordinates.
         """
+
+
+
+    def project_many(self, positions, context: C, viewport_size: QSize) -> list[QPointF | None]:
+        """
+        複数の天球上の座標をスクリーン座標に投影する。
+        Project multiple celestial coordinates to screen coordinates.
+
+        Parameters
+        ----------
+        positions : Iterable[T]
+            投影する天球上の座標のイテラブル。An iterable of celestial coordinates to project.
+        context : C
+            投影コンテキスト。Projection context.
+        viewport_size : QSize
+            ビューポートのサイズ。Viewport size.
+
+        Returns
+        -------
+        list[QPointF | None]
+            スクリーン座標のリスト。A list of screen coordinates.
+            Noneの場合、対応する天球上の座標はビューポート内に表示されない。If None, the corresponding celestial coordinate is not visible within the viewport.
+        """
+        return [self.project(position, context, viewport_size) for position in positions]

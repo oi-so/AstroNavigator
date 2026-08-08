@@ -1,0 +1,306 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+import math
+from typing import Any
+from collections.abc import Generator, Iterable
+from PySide6.QtCore import QPointF, QSize
+from skyfield.api import wgs84
+
+from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
+from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
+from astronavigator.rendering.projection.projection import Projection
+from astronavigator.scene.observer import Observer
+from astronavigator.scene.scene import Scene
+from astronavigator.scene.time import Time
+from astronavigator.sky.position import HorizontalPosition, Position
+from astronavigator.sky.sky_object import SkyObject
+
+
+@dataclass(slots=True)
+class StereographicProjectionContext:
+    center: Position
+    center_horizontal: HorizontalPosition
+
+    forward: tuple[float, float, float]
+    right: tuple[float, float, float]
+    up: tuple[float, float, float]
+
+    fov_deg: float
+    rotation_deg: float
+
+    time: Time
+    observer: Observer
+    skyfield: Any
+
+    cos_half_fov: float
+
+    observer_position: Any
+
+
+
+class StereographicProjection(Projection[Position, StereographicProjectionContext]):
+    def project(
+        self, 
+        position: Position, 
+        context: StereographicProjectionContext, 
+        viewport_size: QSize
+    ) -> QPointF | None:
+        vector = self._position_to_vector(position, context)
+
+        x = self._dot(vector, context.right)
+        y = self._dot(vector, context.up)
+        z = self._dot(vector, context.forward)
+
+        if z < context.cos_half_fov:
+            return None
+
+        denominator = 1.0 + z
+        if denominator <= 1e-12:
+            return None
+
+        projected_x = 2.0 * x / denominator
+        projected_y = 2.0 * y / denominator
+
+        width = viewport_size.width()
+        height = viewport_size.height()
+
+        center_x = width * 0.5
+        center_y = height * 0.5
+
+        scale = min(width, height) * 0.5 / math.tan(math.radians(context.fov_deg * 0.5))
+
+        screen_x = center_x + projected_x * scale
+        screen_y = center_y - projected_y * scale
+
+        if screen_x < 0 or screen_x > width or screen_y < 0 or screen_y > height:
+            return None
+
+        return QPointF(screen_x, screen_y)
+
+    def unproject(
+        self, 
+        screen_position: QPointF, 
+        context: StereographicProjectionContext, 
+        viewport_size: QSize
+    ) -> Position:
+        width = viewport_size.width()
+        height = viewport_size.height()
+        center_x = width * 0.5
+        center_y = height * 0.5
+        scale = min(width, height) * 0.5 / math.tan(math.radians(context.fov_deg * 0.5))
+
+        x = (screen_position.x() - center_x) / scale
+        y = (center_y - screen_position.y()) / scale
+
+        r2 = x * x + y * y
+        denominator = 4.0 + r2
+
+        local_x = 4.0 * x / denominator
+        local_y = 4.0 * y / denominator
+        local_z = (4.0 - r2) / denominator
+
+        vector = (
+            context.right[0] * local_x + context.up[0] * local_y + context.forward[0] * local_z,
+            context.right[1] * local_x + context.up[1] * local_y + context.forward[1] * local_z,
+            context.right[2] * local_x + context.up[2] * local_y + context.forward[2] * local_z
+        )
+
+        horizontal = self._vector_to_horizontal(vector, context)
+        return CoordinateTransformer.horizontal_to_equatorial(horizontal, context.time, context.observer, context.skyfield)
+
+
+    def visible_bounds(self, context: StereographicProjectionContext, viewport_size: QSize) -> tuple[Position, Position]:
+        half_fov = context.fov_deg / 2.0
+
+        min_position = Position(
+            context.center.ra_deg - half_fov,
+            context.center.dec_deg - half_fov
+        ).normalized()
+
+        max_position = Position(
+            context.center.ra_deg + half_fov,
+            context.center.dec_deg + half_fov
+        ).normalized()
+
+        return min_position, max_position
+
+
+    def iter_grid_lines(
+        self, 
+        context: StereographicProjectionContext, 
+        viewport_size: QSize, 
+        interval: float
+    ) -> Generator[tuple[float, Iterable[Position]], None, None]:
+        min_position, max_position = self.visible_bounds(context, viewport_size)
+
+        start_ra = math.floor(min_position.ra_deg / interval) * interval
+        ra = start_ra
+
+        while ra <= max_position.ra_deg:
+            yield (ra, self._iter_ra_line(ra, min_position.dec_deg - interval, max_position.dec_deg + interval, interval))
+            ra += interval
+
+        start_dec = math.floor(min_position.dec_deg / interval) * interval
+        dec = start_dec
+
+        while dec <= max_position.dec_deg:
+            yield (dec, self._iter_dec_line(dec, min_position.ra_deg - interval, max_position.ra_deg + interval, interval))
+            dec += interval
+
+    def create_context(self, scene: Scene) -> StereographicProjectionContext:
+        camera = scene.sky_camera
+        center = camera.center
+
+        if scene.skyfield is None:
+            raise ValueError("Skyfield context is not available in the scene.")
+        
+        earth = scene.skyfield.ephemeris["earth"]
+
+        topos = earth + wgs84.latlon(scene.observer.latitude, scene.observer.longitude, scene.observer.elevation)
+        t = scene.skyfield.timescale.from_datetime(scene.time.utc)
+        observer_position = topos.at(t)
+
+        center_horizontal = CoordinateTransformer.equatorial_to_horizontal(center, observer_position)
+
+        forward = self._horizontal_to_vector(center_horizontal)
+        world_up = (0.0, 0.0, 1.0)
+
+        right = self._cross(forward, world_up)
+        right_norm = self._norm(right)
+
+        if right_norm < 1e-12:
+            right = (1.0, 0.0, 0.0)
+        else:
+            right = self._normalize(right)
+
+        up = self._cross(right, forward)
+        up = self._normalize(up)
+
+        rotation = math.radians(camera.rotation)
+
+        cos_r = math.cos(rotation)
+        sin_r = math.sin(rotation)
+
+        rotated_right = (
+            right[0] * cos_r - up[0] * sin_r,
+            right[1] * cos_r - up[1] * sin_r,
+            right[2] * cos_r - up[2] * sin_r
+        )
+
+        rotated_up = (
+            -right[0] * sin_r + up[0] * cos_r,
+            -right[1] * sin_r + up[1] * cos_r,
+            -right[2] * sin_r + up[2] * cos_r
+        )
+
+        right = rotated_right
+        up = rotated_up
+
+
+        return StereographicProjectionContext(
+            center=center,
+            center_horizontal=center_horizontal,
+            forward=forward,
+            right=right,
+            up=up,
+            fov_deg=camera.fov_deg,
+            rotation_deg=camera.rotation,
+            time=scene.time,
+            observer=scene.observer,
+            skyfield=scene.skyfield,
+            cos_half_fov=math.cos(math.radians(camera.fov_deg / 2.0)),
+            observer_position=observer_position
+        )
+
+    def project_object(self, obj: SkyObject, context: StereographicProjectionContext, viewport_size: QSize) -> QPointF | None:
+        return self.project(obj.get_position(), context, viewport_size)
+
+    def project_grid_position(self, position: Position | HorizontalPosition, coordinate_system: CoordinateSystem, context: StereographicProjectionContext, viewport_size: QSize) -> QPointF | None:
+        if coordinate_system == CoordinateSystem.EQUATORIAL:
+            if not isinstance(position, Position):
+                return None
+            return self.project(position, context, viewport_size)
+
+        if coordinate_system == CoordinateSystem.HORIZONTAL:
+            if not isinstance(position, HorizontalPosition):
+                return None
+            equatorial_position = CoordinateTransformer.horizontal_to_equatorial(position, context.time, context.observer, context.skyfield)
+            return self.project(equatorial_position, context, viewport_size)
+
+        return None
+
+    def convert_position(self, position: Position, context: StereographicProjectionContext) -> Position:
+        return position
+
+    @staticmethod
+    def _horizontal_to_vector(horizontal: HorizontalPosition) -> tuple[float, float, float]:
+        az_rad = math.radians(horizontal.azimuth_deg)
+        alt_rad = math.radians(horizontal.altitude_deg)
+
+        x = math.cos(alt_rad) * math.sin(az_rad)
+        y = math.cos(alt_rad) * math.cos(az_rad)
+        z = math.sin(alt_rad)
+
+        return (x, y, z)
+
+    @staticmethod
+    def _vector_to_horizontal(vector: tuple[float, float, float], context: StereographicProjectionContext) -> HorizontalPosition:
+        x, y, z = vector
+
+        altitude = math.degrees(math.asin(max(-1.0, min(1.0, z))))
+        azimuth = math.degrees(math.atan2(x, y)) % 360.0
+
+        return HorizontalPosition(azimuth, altitude)
+
+    @staticmethod
+    def _dot(v1: tuple[float, float, float], v2: tuple[float, float, float]) -> float:
+        return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]
+
+    @staticmethod
+    def _cross(v1: tuple[float, float, float], v2: tuple[float, float, float]) -> tuple[float, float, float]:
+        return (
+            v1[1] * v2[2] - v1[2] * v2[1],
+            v1[2] * v2[0] - v1[0] * v2[2],
+            v1[0] * v2[1] - v1[1] * v2[0]
+        )
+
+    @staticmethod
+    def _norm(v: tuple[float, float, float]) -> float:
+        return math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2)
+
+    @classmethod
+    def _normalize(cls, v: tuple[float, float, float]) -> tuple[float, float, float]:
+        norm = cls._norm(v)
+        if norm < 1e-12:
+            raise ValueError("Cannot normalize a zero-length vector.")
+        return (v[0] / norm, v[1] / norm, v[2] / norm)
+
+    @staticmethod
+    def _position_to_vector(position: Position, context: StereographicProjectionContext) -> tuple[float, float, float]:
+        horizontal = CoordinateTransformer.equatorial_to_horizontal(
+            position,
+            context.observer_position
+        )
+        return StereographicProjection._horizontal_to_vector(horizontal)
+
+    @staticmethod
+    def _iter_ra_line(ra: float, min_dec: float, max_dec: float, interval: float) -> Iterable[Position]:
+        dec = min_dec
+        while dec <= max_dec:
+            yield Position(ra, dec).normalized()
+            dec += interval
+
+    @staticmethod
+    def _iter_dec_line(dec: float, min_ra: float, max_ra: float, interval: float) -> Iterable[Position]:
+        ra = min_ra
+        while ra <= max_ra:
+            yield Position(ra, dec).normalized()
+            ra += interval
+
+    @staticmethod
+    def _get_observer_position(context: StereographicProjectionContext) -> Any:
+        earth = context.skyfield.ephemeris["earth"]
+        topos = earth + wgs84.latlon(context.observer.latitude, context.observer.longitude, context.observer.elevation)
+        t = context.skyfield.timescale.from_datetime(context.time.utc)
+        return topos.at(t)
