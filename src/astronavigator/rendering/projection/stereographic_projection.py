@@ -20,11 +20,14 @@ from astronavigator.sky.sky_object import SkyObject
 @dataclass(slots=True)
 class StereographicProjectionContext:
     center: Position
-    center_horizontal: HorizontalPosition
 
     forward: tuple[float, float, float]
     right: tuple[float, float, float]
     up: tuple[float, float, float]
+
+    horizontal_east: tuple[float, float, float]
+    horizontal_north: tuple[float, float, float]
+    horizontal_up: tuple[float, float, float]
 
     fov_deg: float
     rotation_deg: float
@@ -32,11 +35,9 @@ class StereographicProjectionContext:
     time: Time
     observer: Observer
     skyfield: Any
-
-    cos_half_fov: float
-
     observer_position: Any
 
+    cos_half_fov: float
 
 
 class StereographicProjection(Projection[Position, StereographicProjectionContext]):
@@ -155,15 +156,29 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         if scene.skyfield is None:
             raise ValueError("Skyfield context is not available in the scene.")
         
-        earth = scene.skyfield.ephemeris["earth"]
-
-        topos = earth + wgs84.latlon(scene.observer.latitude, scene.observer.longitude, scene.observer.elevation)
         t = scene.skyfield.timescale.from_datetime(scene.time.utc)
-        observer_position = topos.at(t)
+        lst_deg = (t.gast * 15.0 + scene.observer.longitude) % 360.0
+        latitude_rad = math.radians(scene.observer.latitude)
+        lst = math.radians(lst_deg)
 
-        center_horizontal = CoordinateTransformer.equatorial_to_horizontal(center, observer_position)
+        sin_lat = math.sin(latitude_rad)
+        cos_lat = math.cos(latitude_rad)
 
-        forward = self._horizontal_to_vector(center_horizontal)
+        sin_lst = math.sin(lst)
+        cos_lst = math.cos(lst)
+
+        horizontal_east = (-sin_lst, cos_lst, 0.0)
+        horizontal_north = (-sin_lat * cos_lst, -sin_lat * sin_lst, cos_lat)
+        horizontal_up = (cos_lat * cos_lst, cos_lat * sin_lst, sin_lat)
+
+        center_vector = self._position_to_equatorial_vector(center)
+        center_horizontal_vector = (
+            self._dot(center_vector, horizontal_east),
+            self._dot(center_vector, horizontal_north),
+            self._dot(center_vector, horizontal_up)
+        )
+
+        forward = self._normalize(center_horizontal_vector)
         world_up = (0.0, 0.0, 1.0)
 
         right = self._cross(forward, world_up)
@@ -194,23 +209,31 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
             -right[2] * sin_r + up[2] * cos_r
         )
 
-        right = rotated_right
-        up = rotated_up
+        earth = scene.skyfield.ephemeris["earth"]
+        topos = earth + wgs84.latlon(scene.observer.latitude, scene.observer.longitude, scene.observer.elevation)
+        observer_position = topos.at(t)
 
 
         return StereographicProjectionContext(
             center=center,
-            center_horizontal=center_horizontal,
+
             forward=forward,
-            right=right,
-            up=up,
+            right=rotated_right,
+            up=rotated_up,
+
+            horizontal_east=horizontal_east,
+            horizontal_north=horizontal_north,
+            horizontal_up=horizontal_up,
+
             fov_deg=camera.fov_deg,
             rotation_deg=camera.rotation,
+
             time=scene.time,
             observer=scene.observer,
             skyfield=scene.skyfield,
+            observer_position=observer_position,
+
             cos_half_fov=math.cos(math.radians(camera.fov_deg / 2.0)),
-            observer_position=observer_position
         )
 
     def project_object(self, obj: SkyObject, context: StereographicProjectionContext, viewport_size: QSize) -> QPointF | None:
@@ -278,11 +301,13 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
 
     @staticmethod
     def _position_to_vector(position: Position, context: StereographicProjectionContext) -> tuple[float, float, float]:
-        horizontal = CoordinateTransformer.equatorial_to_horizontal(
-            position,
-            context.observer_position
+        equatorial = StereographicProjection._position_to_equatorial_vector(position)
+
+        return (
+            StereographicProjection._dot(equatorial, context.horizontal_east),
+            StereographicProjection._dot(equatorial, context.horizontal_north),
+            StereographicProjection._dot(equatorial, context.horizontal_up)
         )
-        return StereographicProjection._horizontal_to_vector(horizontal)
 
     @staticmethod
     def _iter_ra_line(ra: float, min_dec: float, max_dec: float, interval: float) -> Iterable[Position]:
@@ -304,3 +329,19 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         topos = earth + wgs84.latlon(context.observer.latitude, context.observer.longitude, context.observer.elevation)
         t = context.skyfield.timescale.from_datetime(context.time.utc)
         return topos.at(t)
+
+
+    @staticmethod
+    def _position_to_equatorial_vector(
+        position: Position,
+    ) -> tuple[float, float, float]:
+        ra = math.radians(position.ra_deg)
+        dec = math.radians(position.dec_deg)
+
+        cos_dec = math.cos(dec)
+
+        return (
+            cos_dec * math.cos(ra),
+            cos_dec * math.sin(ra),
+            math.sin(dec),
+        )
