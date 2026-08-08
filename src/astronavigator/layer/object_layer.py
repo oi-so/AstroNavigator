@@ -9,6 +9,7 @@ from astronavigator.rendering.star_color import STAR_COLORS
 from astronavigator.rendering.star_size import calculate_star_radius
 from astronavigator.scene.scene import Scene
 from astronavigator.sky.object_type import ObjectType
+from astronavigator.sky.position import Position
 from astronavigator.sky.sky_object import Comet, Moon, Satellite, SkyObject, Star, DeepSkyObject, Asteroid, Planet
 from astronavigator.sky.magnitude import Magnitude
 from astronavigator.rendering.render_context import RendererContext
@@ -33,31 +34,33 @@ class ObjectLayer(Layer):
         limit_magnitude = calculate_limiting_magnitude(context.scene.rendering_settings.limiting_magnitude, context.scene.sky_camera.fov_deg)
         viewport_size = context.viewport.size()
 
+        min_position, max_position = context.projection.visible_bounds(context.projection_context, viewport_size)
+
         if self.show_stars:
-            self._render_type(ObjectType.STAR, limit_magnitude, viewport_size, context)
+            self._render_type(ObjectType.STAR, limit_magnitude, viewport_size, context, min_position, max_position)
 
         if self.show_deep_sky_objects:
-            self._render_type(ObjectType.DSO, limit_magnitude, viewport_size, context)
+            self._render_type(ObjectType.DSO, limit_magnitude, viewport_size, context, min_position, max_position)
 
         if self.show_asteroids:
-            self._render_type(ObjectType.ASTEROID, limit_magnitude, viewport_size, context)
+            self._render_type(ObjectType.ASTEROID, limit_magnitude, viewport_size, context, min_position, max_position)
 
         if self.show_comets:
-            self._render_type(ObjectType.COMET, limit_magnitude, viewport_size, context)
+            self._render_type(ObjectType.COMET, limit_magnitude, viewport_size, context, min_position, max_position)
 
         if self.show_planets:
-            self._render_type(ObjectType.PLANET, limit_magnitude, viewport_size, context)
+            self._render_type(ObjectType.PLANET, limit_magnitude, viewport_size, context, min_position, max_position)
 
         if self.show_moon:
-            self._render_type(ObjectType.MOON, limit_magnitude, viewport_size, context)
+            self._render_type(ObjectType.MOON, limit_magnitude, viewport_size, context, min_position, max_position)
 
         if self.show_satellites:
-            self._render_type(ObjectType.SATELLITE, limit_magnitude, viewport_size, context)
+            self._render_type(ObjectType.SATELLITE, limit_magnitude, viewport_size, context, min_position, max_position)
 
 
     # @profile
-    def _render_type(self, object_type: ObjectType, limit_magnitude: float, viewport_size: QSize, context: RendererContext) -> None:
-        for obj in context.scene.object_index.find_visible_by_type(object_type, limit_magnitude):
+    def _render_type(self, object_type: ObjectType, limit_magnitude: float, viewport_size: QSize, context: RendererContext, min_position: Position, max_position: Position) -> None:
+        for obj in context.scene.object_index.find_visible_by_type(object_type, limit_magnitude, min_position, max_position):
             point = context.projection.project_object(obj, context.projection_context, viewport_size)
             if point is None:
                 continue

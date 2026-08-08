@@ -113,16 +113,22 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
 
     def visible_bounds(self, context: StereographicProjectionContext, viewport_size: QSize) -> tuple[Position, Position]:
         half_fov = context.fov_deg / 2.0
+        center_dec = context.center.dec_deg
 
-        min_position = Position(
-            context.center.ra_deg - half_fov,
-            context.center.dec_deg - half_fov
-        ).normalized()
+        min_dec = max(-90.0, center_dec - half_fov)
+        max_dec = min(90.0, center_dec + half_fov)
 
-        max_position = Position(
-            context.center.ra_deg + half_fov,
-            context.center.dec_deg + half_fov
-        ).normalized()
+        if center_dec + half_fov >= 90.0 or center_dec - half_fov <= -90.0:
+            return Position(0.0, min_dec), Position(360.0, max_dec)
+
+        edge_dec_deg = min(max(abs(min_dec), abs(max_dec)), 89.0)
+        delta_ra = min(half_fov / math.cos(math.radians(edge_dec_deg)), 180.0)
+
+        if delta_ra >= 180.0:
+            return Position(0.0, min_dec), Position(360.0, max_dec)
+
+        min_position = Position(context.center.ra_deg - delta_ra, min_dec).normalized()
+        max_position = Position(context.center.ra_deg + delta_ra, max_dec).normalized()
 
         return min_position, max_position
 
