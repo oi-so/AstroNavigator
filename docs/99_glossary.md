@@ -241,6 +241,55 @@ Rendererは天文学や望遠鏡制御を知らない。
 - 正射投影
 - 魚眼投影
 
+現在の実装では Projection は SkyObject と CoordinateGrid の座標を画面座標へ変換する。
+投影方式が扱う座標系とグリッドが生成する座標系が異なる場合も、Projection が必要な座標変換を行う。
+
+---
+
+## ProjectionManager
+
+現在の Projection を保持するクラス。
+
+Renderer や SceneController は ProjectionManager から Projection と ProjectionContext を取得する。
+
+---
+
+## LinearProjection
+
+赤経赤緯を直接2D画面へ投影する線形投影。
+
+主に開発・確認用の単純な投影方式である。
+
+---
+
+## HorizontalLinearProjection
+
+赤経赤緯を方位高度へ変換してから2D画面へ投影する線形投影。
+
+観測地、時刻、SkyfieldContext を利用する。
+
+---
+
+## CoordinateGrid
+
+座標系ごとのグリッド線を生成する抽象。
+
+### 例
+
+- EquatorialGrid
+- HorizontalGrid
+
+CoordinateGrid はグリッド線上の座標列を生成する。
+画面座標への変換は Projection が担当する。
+
+---
+
+## GridSettings
+
+座標系グリッドの表示設定。
+
+座標系ごとの表示ON/OFFと色を保持する。
+
 ---
 
 ## Layer

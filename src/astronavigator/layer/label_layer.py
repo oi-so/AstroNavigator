@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QPointF, QRect
+from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor, QPainter, QPen
 
 from astronavigator.layer.layer import Layer, LayerType
 from astronavigator.rendering.limiting_magnitude import calculate_limiting_magnitude
+from astronavigator.rendering.render_context import RendererContext
 from astronavigator.rendering.rendering_settings import RenderingSettings
 from astronavigator.scene.scene import Scene
 from astronavigator.sky.sky_object import SkyObject
@@ -18,19 +19,26 @@ class LabelLayer(Layer):
         super().__init__(visible=visible, layer_type=LayerType.LABELS)
 
 
-    def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+    # @profile
+    def render(self, context: RendererContext) -> None:
         if not self.visible:
             return
 
-        self._draw_labels(painter, scene, viewport)
+        self._draw_labels(context)
 
 
-    def _draw_labels(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+    def _draw_labels(self, context: RendererContext) -> None:
+        painter = context.painter
+        scene = context.scene
+        viewport = context.viewport
+        projection = context.projection
+        projection_context = context.projection_context
+
         for obj in scene.objects:
             if not self._is_visible(scene, obj, scene.rendering_settings):
                 continue
 
-            point = scene.sky_camera.project(obj.get_position(), viewport.size())
+            point = projection.project_object(obj, projection_context, viewport.size())
 
             if point is None:
                 continue

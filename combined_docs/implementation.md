@@ -6,6 +6,9 @@
 2. `docs/implementation/04_camera_control.md`
 3. `docs/implementation/05_selection.md`
 4. `docs/implementation/06_catalog.md`
+5. `docs/implementation/07_object_index.md`
+6. `docs/implementation/08_rendering_settings.md`
+7. `docs/implementation/09_projection_grid_coordinates.md`
 
 ---
 
@@ -635,5 +638,310 @@ G --> H[Scene.objects]
 - `Scene` に大量の `SkyObject` を読み込める基盤が完成した。
 
 ## 10. 次に実装するもの
+ObjectIndex
 HYG Catalog
-ObjectTree
+
+
+--- 
+## ファイル名: `docs/implementation/07_object_index.md`
+---
+
+# ObjectIndex
+
+## 1. 目的
+
+Scene に存在する SkyObject へ高速にアクセスするための基盤を実装する。
+
+ObjectIndex は検索・取得専用のクラスとし、
+SkyObject の生成・削除や描画などの責務は持たない。
+
+Renderer、検索機能、Object Browser などは ObjectIndex を利用して SkyObject を取得する。
+
+Scene が保持する補助データ（ObjectIndexなど）は、必ず SceneController が同期を保証するようにする。
+
+---
+
+## 2. 前提
+
+- 03 First Rendering
+- 04 Camera Control
+- 05 Selection
+- 06 Catalog
+
+---
+
+## 3. 完成した機能
+
+- `ObjectIndex`
+- `Scene.object_index`
+- `SceneController.update_object_index()`
+- `ObjectIndex.update()`
+- `ObjectIndex.find_by_id()`
+- `ObjectIndex.find_by_name()`
+- `ObjectIndex.find_by_type()`
+- `ObjectIndex.find_nearest()`
+
+---
+
+## 4. 実装したクラス
+
+### `ObjectIndex`
+
+#### 役割
+
+Scene に存在する SkyObject へ高速にアクセスするためのインデックス。
+
+ObjectIndex は Scene の内容を元に構築され、
+SkyObject 自体は保持・管理しない。
+
+#### 追加
+
+- `update()`
+- `find_by_id()`
+- `find_by_name()`
+- `find_by_type()`
+- `find_nearest()`
+
+#### 責務
+
+- Scene の SkyObject を検索する
+- SkyObject を種類ごとに取得する
+- 名前・IDによる検索
+- 最も近い SkyObject の検索
+
+#### 責務ではないこと
+
+- SkyObject の生成
+- SkyObject の削除
+- Catalog の管理
+- GUI一覧表示
+- 描画
+- Scene の変更
+
+---
+
+### `Scene`
+
+#### 追加
+
+- `object_index`
+
+#### 役割
+
+Scene に登録された SkyObject の検索用インデックスを保持する。
+
+---
+
+### `SceneController`
+
+#### 追加
+
+- `update_object_index()`
+
+#### 役割
+
+Scene の SkyObject が変更された際に、
+ObjectIndex を更新する。
+
+---
+
+## 5. 処理の流れ
+
+### Catalog読み込み
+
+```mermaid
+flowchart TD
+
+A[CatalogManager]
+-->B[Catalog]
+-->C[SceneController]
+-->D[Scene.objects]
+-->E[ObjectIndex.update()]
+```
+
+### 名前検索
+
+```mermaid
+flowchart TD
+
+A[Search]
+-->B[ObjectIndex.find_by_name()]
+-->C[SkyObject]
+```
+
+### Renderer
+
+```mermaid
+flowchart TD
+
+A[Renderer]
+-->B[ObjectIndex]
+-->C[SkyObject]
+```
+
+---
+
+## 6. 設計判断
+
+### 採用した設計
+
+- ObjectIndex は検索専用クラスとする。
+- Scene が ObjectIndex を保持する。
+- SceneController が ObjectIndex を更新する。
+- ObjectIndex は Scene の SkyObject を元に構築する。
+
+### 採用しなかった設計
+
+- ObjectTree にする。
+- GUI が Catalog を直接検索する。
+- Renderer が SkyObject を線形探索する。
+- ObjectIndex が SkyObject を所有する。
+
+### 理由
+
+責務を分離し、
+検索方法を変更しても
+Renderer や GUI を変更しなくて済むようにするため。
+
+---
+
+## 7. 変更したファイル
+
+例
+
+- `scene/scene.py`
+- `scene/scene_controller.py`
+- `scene/object_index.py`
+- `rendering/renderer.py`
+- `sky/object_type.py`
+
+---
+
+## 8. TODO
+
+- 名前検索の高速化
+- ID検索の高速化
+- 空間インデックス
+- 検索候補
+- 部分一致検索
+- 複数カタログ対応
+
+---
+
+## 9. この実装で得られたこと
+
+- SkyObject の取得方法を統一できた。
+- 検索機能の基盤が完成した。
+- Renderer が検索方法を意識しなくてよくなった。
+- 将来的な高速化を ObjectIndex のみで実現できる構造になった。
+
+---
+
+## 10. 次に実装するもの
+
+- Rendering Settings
+  - 等級による表示制限
+  - 恒星サイズ
+  - 恒星色
+
+
+--- 
+## ファイル名: `docs/implementation/08_rendering_settings.md`
+---
+
+# 08. Rendering Settings
+
+## 1. 目的
+
+描画設定を Scene に集約し、Renderer と Layer が同じ設定を参照できるようにする。
+
+## 2. 完成した機能
+
+- RenderingSettings
+- 等級制限
+- GridSettings
+- 座標系グリッドごとの表示ON/OFF
+- 座標系グリッドごとの色設定
+
+## 3. 実装クラス
+
+- RenderingSettings
+- GridSettings
+- ColorSettings
+
+## 4. 処理
+
+```text
+Scene
+    ↓
+RenderingSettings
+    ↓
+Renderer
+    ↓
+Layer
+```
+
+## 5. 設計判断
+
+描画設定をCameraから分離した。
+
+GridSettings は RenderingSettings の一部として保持する。
+これにより、赤道座標グリッド、方位高度座標グリッド、将来の銀河座標グリッドを同じ仕組みでON/OFFできる。
+
+## 6. TODO
+
+- 恒星サイズ
+- 恒星色
+- 星雲の描画設定
+- ラベル設定
+
+
+
+--- 
+## ファイル名: `docs/implementation/09_projection_grid_coordinates.md`
+---
+
+# 09. Projection and Grid Coordinates
+
+## 1. 目的
+
+Projection を LinearProjection と HorizontalLinearProjection のどちらに切り替えても、座標系グリッドを描画できるようにする。
+
+## 2. 問題
+
+以前の GridLayer は、CoordinateGrid が返す座標型と Projection が受け取る座標型が常に一致すると仮定していた。
+
+そのため、Application の ProjectionManager を LinearProjection に変更した状態で HorizontalGrid を描画すると、HorizontalGrid が `visible_bounds()` の戻り値を HorizontalPosition として扱い、実際には Position が返ってクラッシュしていた。
+
+同じ構造のままでは、HorizontalLinearProjection で EquatorialGrid を描画する場合にも同種の問題が起きる。
+
+## 3. 修正方針
+
+GridLayer は座標変換を行わず、Projection へ委譲する。
+
+CoordinateGrid は自分の座標系のグリッド線だけを生成する。
+Projection はグリッド座標の座標系を受け取り、現在の投影方式に必要な座標へ変換してから画面座標へ投影する。
+
+## 4. 実装
+
+- `Projection.project_grid_position()` を追加した
+- `LinearProjection` は HorizontalPosition を赤経赤緯へ変換して描画できるようにした
+- `HorizontalLinearProjection` は Position を方位高度へ変換して描画できるようにした
+- `CoordinateTransformer.horizontal_to_equatorial()` を追加した
+- `EquatorialGrid` は SkyCamera の赤経赤緯中心と FOV から表示範囲を作るようにした
+- `HorizontalGrid` は SkyCamera の中心を方位高度へ変換し、地平座標上の表示範囲を作るようにした
+- `GridLayer` は EquatorialGrid と HorizontalGrid の両方を登録するようにした
+
+## 5. 設計判断
+
+Renderer と Layer は描画だけを担当する。
+
+座標系の相互変換は CoordinateTransformer と Projection に閉じ込めた。
+これにより、座標系グリッドは投影方式と独立して表示できる。
+
+## 6. 確認
+
+`tests/rendering/test_grid_layer_projection.py` を追加し、以下を確認した。
+
+- LinearProjection で GridLayer が例外なく描画される
+- HorizontalLinearProjection で GridLayer が例外なく描画される

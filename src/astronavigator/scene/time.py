@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 
@@ -30,3 +30,10 @@ class Time:
     def get_datetime_string(self, zone_info: ZoneInfo) -> str:
         local_time = self.to_local_time(zone_info)
         return local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+
+    def advance(self, seconds: float) -> None:
+        if self.is_paused:
+            return
+
+        self.utc += timedelta(seconds=seconds * self.speed)

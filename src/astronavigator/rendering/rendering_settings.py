@@ -3,19 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from PySide6.QtGui import QColor
 
+from astronavigator.rendering.grid.grid_settings import GridSettings
 from astronavigator.sky.coordinate_format import RightAscensionFormat
 
 @dataclass(slots=True)
 class ColorSettings:
     bg_color: QColor = field(default_factory=lambda: QColor("#0B0E14"))
-
-    # 座標系グリッド
-    ra_dec_grid_color: QColor = field(
-        default_factory=lambda: QColor(44, 59, 77, 100)
-    )
-    alt_az_grid_color: QColor = field(
-        default_factory=lambda: QColor(52, 73, 94, 100)
-    )
 
     # 座標系ラベル
     ra_dec_label_color: QColor = field(
@@ -49,7 +42,7 @@ class ColorSettings:
 
 @dataclass(slots=True)
 class RenderingSettings:
-    limiting_magnitude: float = 6.5
+    limiting_magnitude: float = 6.0
 
     show_labels: bool = True
     label_limiting_magnitude: float = 2.0
@@ -58,5 +51,6 @@ class RenderingSettings:
     ra_format: RightAscensionFormat = RightAscensionFormat.HMS
 
     color_settings: ColorSettings = field(default_factory=ColorSettings)
+    grid_settings: GridSettings = field(default_factory=lambda: GridSettings())
 
     selection_radius: int = 15

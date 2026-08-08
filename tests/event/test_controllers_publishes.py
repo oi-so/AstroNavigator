@@ -2,6 +2,8 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from astronavigator.event.event_bus import EventBus
+from astronavigator.rendering.projection.linear_projection import LinearProjection
+from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
@@ -13,11 +15,15 @@ from astronavigator.sky.position import Position
 from astronavigator.sky.magnitude import Magnitude
 
 
+def create_controller(scene: Scene, event_bus: EventBus) -> SceneController:
+    return SceneController(scene, event_bus, ProjectionManager(LinearProjection()))
+
+
 def test_set_time():
     scene = Scene()
 
     event_bus = EventBus()
-    controller = SceneController(scene, event_bus)
+    controller = create_controller(scene, event_bus)
 
     received_event = None
 
@@ -40,7 +46,7 @@ def test_set_observer():
     scene = Scene()
 
     event_bus = EventBus()
-    controller = SceneController(scene, event_bus)
+    controller = create_controller(scene, event_bus)
 
     received_event = None
 
@@ -63,7 +69,7 @@ def test_set_selection():
     scene = Scene()
 
     event_bus = EventBus()
-    controller = SceneController(scene, event_bus)
+    controller = create_controller(scene, event_bus)
 
     received_event = None
 
@@ -85,7 +91,7 @@ def test_clear_selection():
     scene = Scene()
 
     event_bus = EventBus()
-    controller = SceneController(scene, event_bus)
+    controller = create_controller(scene, event_bus)
 
     received_event = None
 
@@ -114,7 +120,7 @@ def test_set_focused_object():
     scene = Scene()
 
     event_bus = EventBus()
-    controller = SceneController(scene, event_bus)
+    controller = create_controller(scene, event_bus)
 
     received_event = None
 
@@ -136,7 +142,7 @@ def test_clear_focus():
     scene = Scene()
 
     event_bus = EventBus()
-    controller = SceneController(scene, event_bus)
+    controller = create_controller(scene, event_bus)
 
     received_event = None
 
@@ -164,7 +170,7 @@ def test_add_and_remove_object():
     scene = Scene()
 
     event_bus = EventBus()
-    controller = SceneController(scene, event_bus)
+    controller = create_controller(scene, event_bus)
 
     received_event = None
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from PySide6.QtCore import QPointF, QSize
+from PySide6.QtCore import QPointF, QSize, QPoint
 
 from astronavigator.input.input_action import InputAction
 from astronavigator.scene.scene_controller import SceneController
@@ -48,15 +48,8 @@ class InputController:
         self._scene_controller.zoom_camera(math.exp(-scale_delta * PINCH_SENSITIVITY))
 
     
-    def handle_drag(self, dx: int, dy: int, viewport_size: QSize) -> None:
-        camera = self._scene_controller.scene.sky_camera
-
-        deg_per_pixel = camera.fov_deg / viewport_size.width()
-
-        delta_ra = -dx * deg_per_pixel
-        delta_dec = dy * deg_per_pixel
-
-        self._scene_controller.move_camera(delta_ra, delta_dec)
+    def handle_drag(self, previous_position: QPoint, current_position: QPoint, viewport_size: QSize) -> None:
+        self._scene_controller.move_camera_by_drag(previous_position, current_position, viewport_size)
 
     
     def handle_click(self, position: QPointF, viewport_size: QSize) -> None:

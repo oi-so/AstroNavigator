@@ -702,6 +702,33 @@ Selectionとは独立する。
 
 ---
 
+## ObjectIndex
+
+Scene に存在する SkyObject へ高速にアクセスするためのインデックス。
+
+ObjectIndex は SkyObject 自体を保持するものではなく、
+Scene に登録された SkyObject を検索・列挙するための補助構造である。
+
+### 責務
+
+- IDによる検索
+- 名前による検索
+- 最近傍オブジェクトの検索
+- 表示範囲内オブジェクトの取得
+- ObjectTypeごとの列挙
+
+### 責務ではないもの
+
+- SkyObjectの生成
+- SkyObjectの削除
+- Catalogの管理
+- GUI一覧表示
+- 描画
+
+ObjectIndex は Scene と同期し、Renderer や検索機能から利用される。
+
+---
+
 # 2. Sky
 
 ## SkyObject
@@ -832,6 +859,55 @@ Rendererは天文学や望遠鏡制御を知らない。
 - ステレオ投影
 - 正射投影
 - 魚眼投影
+
+現在の実装では Projection は SkyObject と CoordinateGrid の座標を画面座標へ変換する。
+投影方式が扱う座標系とグリッドが生成する座標系が異なる場合も、Projection が必要な座標変換を行う。
+
+---
+
+## ProjectionManager
+
+現在の Projection を保持するクラス。
+
+Renderer や SceneController は ProjectionManager から Projection と ProjectionContext を取得する。
+
+---
+
+## LinearProjection
+
+赤経赤緯を直接2D画面へ投影する線形投影。
+
+主に開発・確認用の単純な投影方式である。
+
+---
+
+## HorizontalLinearProjection
+
+赤経赤緯を方位高度へ変換してから2D画面へ投影する線形投影。
+
+観測地、時刻、SkyfieldContext を利用する。
+
+---
+
+## CoordinateGrid
+
+座標系ごとのグリッド線を生成する抽象。
+
+### 例
+
+- EquatorialGrid
+- HorizontalGrid
+
+CoordinateGrid はグリッド線上の座標列を生成する。
+画面座標への変換は Projection が担当する。
+
+---
+
+## GridSettings
+
+座標系グリッドの表示設定。
+
+座標系ごとの表示ON/OFFと色を保持する。
 
 ---
 
@@ -1086,6 +1162,7 @@ OS依存コードは可能な限り限定する。
 
 本プロジェクトにおけるクラス名・変数名・関数名などの命名規則は
 「98_naming_convention.md」に従うものとする。
+
 
 
 --- 

@@ -11,25 +11,25 @@ from astronavigator.sky.object_type import ObjectType
 
 
 def create_test_stars() -> Sequence[SkyObject]:
-        stars = []
+    stars = []
 
-        index = 0
+    index = 0
 
-        for dec in range(-60, 61, 30):
-            for ra in range(0, 360, 30):
-                stars.append(
-                    Star(
-                        id=f"star_{index}",
-                        name=f"Star {index}",
-                        object_type=ObjectType.STAR,
-                        _position=Position(
-                            ra_deg=ra,
-                            dec_deg=dec,
-                        ),
-                        hip=None,
-                        _magnitude=Magnitude(random.randint(-1, 6)),
-                    )
+    for dec in range(-60, 61, 30):
+        for ra in range(0, 360, 30):
+            stars.append(
+                Star(
+                    id=f"star_{index}",
+                    name=f"Star {index}",
+                    object_type=ObjectType.STAR,
+                    _position=Position(
+                        ra_deg=ra,
+                        dec_deg=dec,
+                    ),
+                    hip=None,
+                    _magnitude=Magnitude(random.randint(-1, 6)),
                 )
-                index += 1
+            )
+            index += 1
 
-        return stars
+    return stars

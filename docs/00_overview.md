@@ -73,7 +73,22 @@ GUI
 
 ---
 
-# 6. Telescope Support
+# 6. Current Implementation
+
+現在の実装は、Scene を中心にした 2D プラネタリウム表示を先行している。
+
+- Scene が時刻、観測地、SkyCamera、SkyObject、描画設定を保持する
+- SceneController が Scene 変更の公開インターフェースとなる
+- Renderer は Scene を読み取り、LayerManager 経由で各 Layer を描画する
+- SkyObject は天球上の表示対象を表す
+- ProjectionManager が現在の Projection を保持する
+- LinearProjection は赤経赤緯を直接2D表示する
+- HorizontalLinearProjection は赤経赤緯を方位高度へ変換して2D表示する
+- CoordinateGrid は座標系ごとのグリッド線を生成し、Projection が表示座標へ変換する
+
+---
+
+# 7. Telescope Support
 
 優先順位
 
@@ -85,7 +100,7 @@ GUI
 
 ---
 
-# 7. Design Philosophy
+# 8. Design Philosophy
 
 本ソフトウェアは
 
@@ -97,7 +112,7 @@ ISS追尾はソフトウェア全体の一機能として実装し、通常の�
 
 ---
 
-# 8. Open Source
+# 9. Open Source
 
 ソースコードは Git および GitHub で管理する。
 

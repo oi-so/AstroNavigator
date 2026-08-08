@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QPointF, QRect, Qt
+from PySide6.QtCore import QPointF, Qt, QSize
 from PySide6.QtGui import QColor, QPainter, QPen
 
 from astronavigator.layer.layer import Layer, LayerType
@@ -9,8 +9,10 @@ from astronavigator.rendering.star_color import STAR_COLORS
 from astronavigator.rendering.star_size import calculate_star_radius
 from astronavigator.scene.scene import Scene
 from astronavigator.sky.object_type import ObjectType
+from astronavigator.sky.position import Position
 from astronavigator.sky.sky_object import Comet, Moon, Satellite, SkyObject, Star, DeepSkyObject, Asteroid, Planet
 from astronavigator.sky.magnitude import Magnitude
+from astronavigator.rendering.render_context import RendererContext
 
 class ObjectLayer(Layer):
     def __init__(self, visible: bool = True):
@@ -23,78 +25,71 @@ class ObjectLayer(Layer):
         self.show_comets = True
         self.show_asteroids = True
         self.show_moon = True
-        self.limit_magnitude = 6.0
 
-    def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
+    # @profile
+    def render(self, context: RendererContext) -> None:
         if not self.visible:
             return
 
-        self.limit_magnitude = calculate_limiting_magnitude(scene.rendering_settings.limiting_magnitude, scene.sky_camera.fov_deg)
+        limit_magnitude = calculate_limiting_magnitude(context.scene.rendering_settings.limiting_magnitude, context.scene.sky_camera.fov_deg)
+        viewport_size = context.viewport.size()
+
+        min_position, max_position = context.projection.visible_bounds(context.projection_context, viewport_size)
 
         if self.show_stars:
-            for obj in scene.object_index.find_by_type(ObjectType.STAR):
-                self._draw_object(obj, painter, scene, viewport)
+            self._render_type(ObjectType.STAR, limit_magnitude, viewport_size, context, min_position, max_position)
 
         if self.show_deep_sky_objects:
-                for obj in scene.object_index.find_by_type(ObjectType.DSO):
-                    self._draw_object(obj, painter, scene, viewport)
+            self._render_type(ObjectType.DSO, limit_magnitude, viewport_size, context, min_position, max_position)
 
         if self.show_asteroids:
-            for obj in scene.object_index.find_by_type(ObjectType.ASTEROID):
-                self._draw_object(obj, painter, scene, viewport)
+            self._render_type(ObjectType.ASTEROID, limit_magnitude, viewport_size, context, min_position, max_position)
 
         if self.show_comets:
-            for obj in scene.object_index.find_by_type(ObjectType.COMET):
-                self._draw_object(obj, painter, scene, viewport)
+            self._render_type(ObjectType.COMET, limit_magnitude, viewport_size, context, min_position, max_position)
 
         if self.show_planets:
-            for obj in scene.object_index.find_by_type(ObjectType.PLANET):
-                self._draw_object(obj, painter, scene, viewport)
+            self._render_type(ObjectType.PLANET, limit_magnitude, viewport_size, context, min_position, max_position)
 
         if self.show_moon:
-            for obj in scene.object_index.find_by_type(ObjectType.MOON):
-                self._draw_object(obj, painter, scene, viewport)
-                
+            self._render_type(ObjectType.MOON, limit_magnitude, viewport_size, context, min_position, max_position)
+
         if self.show_satellites:
-            for obj in scene.object_index.find_by_type(ObjectType.SATELLITE):
-                self._draw_object(obj, painter, scene, viewport)
+            self._render_type(ObjectType.SATELLITE, limit_magnitude, viewport_size, context, min_position, max_position)
 
 
+    # @profile
+    def _render_type(self, object_type: ObjectType, limit_magnitude: float, viewport_size: QSize, context: RendererContext, min_position: Position, max_position: Position) -> None:
+        for obj in context.scene.object_index.find_visible_by_type(object_type, limit_magnitude, min_position, max_position):
+            point = context.projection.project_object(obj, context.projection_context, viewport_size)
+            if point is None:
+                continue
 
-    def _draw_object(self, obj: SkyObject, painter: QPainter, scene: Scene, viewport: QRect) -> None:
-        if not self._is_visible(scene, obj):
-            return
-        
-        point = scene.sky_camera.project(
-                obj.get_position(), 
-                viewport.size()
-            )
+            self._draw_object(obj, point, context)
 
-        if point is None: 
-            return
 
-        
+    def _draw_object(self, obj: SkyObject, point: QPointF, context: RendererContext) -> None:
         match obj:
             case Star():
-                self._draw_star(painter, obj, scene, point)
+                self._draw_star(context.painter, obj, context.scene, point)
 
             case Moon():
-                self._draw_moon(painter, obj, scene, point)
+                self._draw_moon(context.painter, obj, context.scene, point)
 
             case Satellite():
-                self._draw_satellite(painter, obj, scene, point)
+                self._draw_satellite(context.painter, obj, context.scene, point)
             
             case Comet():
-                self._draw_comet(painter, obj, scene, point)
+                self._draw_comet(context.painter, obj, context.scene, point)
             
             case DeepSkyObject():
-                self._draw_deep_sky_object(painter, obj, scene, point)
+                self._draw_deep_sky_object(context.painter, obj, context.scene, point)
 
             case Planet():
                 raise NotImplementedError("Planet rendering is not implemented yet.")
 
             case Asteroid():
-                self._draw_star(painter, obj, scene, point)
+                self._draw_star(context.painter, obj, context.scene, point)
 
             case _:
                 raise TypeError(f"Unknown SkyObject type: {type(obj).__name__}")
@@ -124,11 +119,6 @@ class ObjectLayer(Layer):
         painter.setPen(Qt.GlobalColor.white)
         painter.setBrush(Qt.GlobalColor.white)
         painter.drawEllipse(point, 6, 6)
-
-    def _is_visible(self, scene: Scene, obj: SkyObject) -> bool:
-        return obj.get_magnitude().is_visible(self.limit_magnitude)
-
-
     
     def _get_star_radius(self, magnitude: Magnitude, camera_fov_deg: float) -> float:
         radius = calculate_star_radius(magnitude, camera_fov_deg)

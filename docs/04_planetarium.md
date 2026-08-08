@@ -65,11 +65,24 @@
 
 複数同時表示可能とする。
 
+現在の実装では SkyObject の基本位置は赤経赤緯の Position として扱う。
+地平座標表示が必要な場合は、Projection が観測時刻、観測地、SkyfieldContext を使って HorizontalPosition へ変換する。
+
+座標系グリッドは天体表示の投影方式とは独立して表示できる。
+たとえば赤経赤緯の LinearProjection でも方位高度グリッドを表示でき、HorizontalLinearProjection でも赤道座標グリッドを表示できる。
+
 ---
 
 ## 5. 投影法
 
-標準
+現在の実装
+
+- LinearProjection
+  - 赤経赤緯を直接2D表示する開発・確認用の線形投影
+- HorizontalLinearProjection
+  - 赤経赤緯を方位高度へ変換して2D表示する線形投影
+
+標準候補
 
 - ステレオ投影
 
@@ -81,6 +94,9 @@
 - 魚眼投影
 
 ユーザーが切り替え可能とする。
+
+ProjectionManager が現在の Projection を保持する。
+Application の ProjectionManager に渡す Projection を変更することで投影方式を切り替えられる。
 
 ---
 

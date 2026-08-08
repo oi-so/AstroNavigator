@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QWidget, QVBoxLayout, QHBoxLayout
-from PySide6.QtCore import QTimer
 
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType

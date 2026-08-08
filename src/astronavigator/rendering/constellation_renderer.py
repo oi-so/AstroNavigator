@@ -1,21 +1,25 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QRect
 from PySide6.QtGui import QColor, QPainter, QPen
 
-from astronavigator.scene.scene import Scene
+from astronavigator.rendering.render_context import RendererContext
 
 class ConstellationRenderer:
-    def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
-        self._draw_constellation_lines(painter, scene, viewport)
-        self._draw_constellation_labels(painter, scene, viewport)
+    # @profile
+    def render(self, context: RendererContext) -> None:
+        self._draw_constellation_lines(context)
+        self._draw_constellation_labels(context)
 
+    # @profile
+    def _draw_constellation_lines(self, context: RendererContext) -> None:
+        painter = context.painter
+        scene = context.scene
+        viewport = context.viewport
+        projection = context.projection
 
-    def _draw_constellation_lines(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         self._set_pen(painter, scene.rendering_settings.color_settings.constellation_line_color)
 
         constellations = scene.constellations
-        camera = scene.sky_camera
         for constellation in constellations:
             for line in constellation.lines:
 
@@ -25,22 +29,47 @@ class ConstellationRenderer:
                 if start_pos is None or end_pos is None:
                     continue
 
-                p1 = camera.project(start_pos.get_position(), viewport.size())
-                p2 = camera.project(end_pos.get_position(), viewport.size())
+                start_pos_converted = projection.convert_position(
+                    start_pos.get_position(),
+                    context.projection_context
+                )
+
+                end_pos_converted = projection.convert_position(
+                    end_pos.get_position(),
+                    context.projection_context
+                )
+
+
+                p1 = projection.project(
+                    start_pos_converted,
+                    context.projection_context,
+                    viewport.size()
+                )
+
+                p2 = projection.project(
+                    end_pos_converted,
+                    context.projection_context,
+                    viewport.size()
+                )
 
                 if p1 and p2:
                     painter.drawLine(p1, p2)
 
+    # @profile
+    def _draw_constellation_labels(self, context: RendererContext) -> None:
+        painter = context.painter
+        scene = context.scene
+        viewport = context.viewport
+        projection = context.projection
 
-    def _draw_constellation_labels(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         self._set_pen(painter, scene.rendering_settings.color_settings.constellation_label_color)
         constellations = scene.constellations
-        camera = scene.sky_camera
         for constellation in constellations:
             name = constellation.name
             label_position = constellation.label_position
 
-            p = camera.project(label_position, viewport.size())
+            label_position_converted = projection.convert_position(label_position, context.projection_context)
+            p = projection.project(label_position_converted, context.projection_context, viewport.size())
             if p:
                 painter.drawText(p, name)
 

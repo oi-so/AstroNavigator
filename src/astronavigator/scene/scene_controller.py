@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QPointF, QSize
+from PySide6.QtCore import QPoint, QPointF, QSize
 
 from astronavigator.catalog.catalog import Catalog
 from astronavigator.event.event_type import EventType
 from astronavigator.mount.mount import Mount
+from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
 from astronavigator.event.event_bus import EventBus
@@ -16,9 +17,10 @@ from astronavigator.catalog.catalog import ConstellationCatalog
 SELECTION_THRESHOLD = 20
 
 class SceneController:
-    def __init__(self, scene: Scene, event_bus: EventBus):
+    def __init__(self, scene: Scene, event_bus: EventBus, projection_manager: ProjectionManager) -> None:
         self._scene = scene
         self._event_bus = event_bus
+        self._projection_manager = projection_manager
 
     @property
     def scene(self) -> Scene:
@@ -77,6 +79,13 @@ class SceneController:
         self._scene.sky_camera.move(delta_ra, delta_dec)
         self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
 
+    def move_camera_by_drag(self, previous_position: QPoint, current_position: QPoint, viewport_size: QSize) -> None:
+        projection = self._projection_manager.projection
+        context = self._projection_manager.create_context(self._scene)
+        center = projection.calculate_dragged_center(previous_position, current_position, context, viewport_size)
+        self._scene.sky_camera.center = center
+        self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
+
     def zoom_camera(self, factor: float) -> None:
         self._scene.sky_camera.zoom(factor)
         self._event_bus.publish(EventType.CAMERA_ZOOMED, self._scene.sky_camera)
@@ -103,12 +112,14 @@ class SceneController:
         best_object = None
         best_distance2 = float("inf")
         camera = self._scene.sky_camera
+        projection = self._projection_manager.projection
+        projection_context = self._projection_manager.create_context(self._scene)
 
         for obj in self._scene.objects:
             if not obj.get_magnitude().is_visible(camera.limit_magnitude):
                 continue
 
-            point = camera.project(obj.get_position(), viewport_size)
+            point = projection.project_object(obj, projection_context, viewport_size)
             if point is None:
                 continue
 

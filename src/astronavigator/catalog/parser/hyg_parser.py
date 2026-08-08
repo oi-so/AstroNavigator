@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import csv
-from typing import TextIO
+from pathlib import Path
 
 from astronavigator.catalog.catalog import Catalog
 from astronavigator.catalog.parser.catalog_parser import CatalogParser
@@ -13,28 +13,16 @@ from astronavigator.sky.spectral_type import parse_spectral_type
 
 
 class HygParser(CatalogParser[Catalog]):
-    def parse(self, file: TextIO) -> Catalog:
-        reader = csv.DictReader(file)
+    def parse(self, path: Path) -> Catalog:
+        with path.open("r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
 
-        catalog = Catalog(name="HYG")
+            catalog = Catalog(name="HYG")
 
-        for row in reader:
-            # TODO:
-            # 現在は描画性能のため、4等級より暗い恒星は読み込まない。
-            #
-            # 将来的にはHYGカタログ全件を読み込み、ObjectIndexによる高速検索を実装する。
-            # Rendererはscene.objects全体を走査するのではなく、
-            # 画角・表示等級・表示範囲に応じてObjectIndexから描画対象のみ取得する。
-            #
-            # 高速化候補:
-            # - 等級順インデックス
-            # - RA/Decによる空間インデックス
-            # - 画角に応じたLOD(Level of Detail)
-            #
-            # これらの実装後、この等級による読み込み制限は削除する。
-            if self._parse_star(row).get_magnitude().value >= 4.0:
-                continue
-            catalog.objects.append(self._parse_star(row))
+            for row in reader:
+                # if self._parse_star(row).get_magnitude().value >= 4.0:
+                #     continue
+                catalog.objects.append(self._parse_star(row))
     
         return catalog
     

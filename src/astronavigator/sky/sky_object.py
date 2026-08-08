@@ -3,6 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from astronavigator.scene.observer import Observer
+from astronavigator.scene.time import Time
 from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.position import Position
 from astronavigator.sky.magnitude import Magnitude
@@ -17,11 +19,11 @@ class SkyObject(ABC):
     hip: int | None
 
     @abstractmethod
-    def get_position(self) -> Position:
+    def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         ...
 
     @abstractmethod
-    def get_magnitude(self) -> Magnitude:
+    def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
         ...
 
 
@@ -30,37 +32,37 @@ class Star(SkyObject):
     _position: Position
     _magnitude: Magnitude
     spectral_type: SpectralType = SpectralType.UNKNOWN
-    def get_position(self) -> Position:
+    def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         return self._position
     
-    def get_magnitude(self) -> Magnitude:
+    def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
         return self._magnitude
 
 @dataclass(slots=True)
 class Moon(SkyObject):
-    def get_position(self) -> Position:
+    def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         raise NotImplementedError("Moon position calculation is not implemented yet.")
 
-    def get_magnitude(self) -> Magnitude:
+    def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
         raise NotImplementedError("Moon magnitude calculation is not implemented yet.")
 
 
 @dataclass(slots=True)
 
 class Satellite(SkyObject):
-    def get_position(self) -> Position:
+    def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         raise NotImplementedError("Satellite position calculation is not implemented yet.")
 
-    def get_magnitude(self) -> Magnitude:
+    def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
         raise NotImplementedError("Satellite magnitude calculation is not implemented yet.")
 
 
 @dataclass(slots=True)
 class Comet(SkyObject):
-    def get_position(self) -> Position:
+    def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         raise NotImplementedError("Comet position calculation is not implemented yet.")
     
-    def get_magnitude(self) -> Magnitude:
+    def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
         raise NotImplementedError("Comet magnitude calculation is not implemented yet.")
 
 
@@ -68,26 +70,26 @@ class Comet(SkyObject):
 class DeepSkyObject(SkyObject):
     _position: Position
     _magnitude: Magnitude
-    def get_position(self) -> Position:
+    def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         return self._position
     
-    def get_magnitude(self) -> Magnitude:
+    def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
         return self._magnitude
 
 @dataclass(slots=True)
 class Asteroid(SkyObject):
     spectral_type: SpectralType = SpectralType.UNKNOWN
 
-    def get_position(self) -> Position:
+    def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         raise NotImplementedError("Asteroid position calculation is not implemented yet.")
 
-    def get_magnitude(self) -> Magnitude:
+    def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
         raise NotImplementedError("Asteroid magnitude calculation is not implemented yet.")
 
 @dataclass(slots=True)
 class Planet(SkyObject):
-    def get_position(self) -> Position:
+    def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         raise NotImplementedError("Planet position calculation is not implemented yet.")
 
-    def get_magnitude(self) -> Magnitude:
+    def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
         raise NotImplementedError("Planet magnitude calculation is not implemented yet.")
