@@ -430,7 +430,7 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         t = (fov_deg - NARROW_FOV) / (WIDE_FOV - NARROW_FOV)
         t = t * t * (3.0 - 2.0 * t)
 
-        return min_radius + (max_radius - min_radius) * t
+        return max_radius + (min_radius - max_radius) * t
 
 
     @staticmethod
