@@ -42,7 +42,7 @@ class ColorSettings:
 
 @dataclass(slots=True)
 class RenderingSettings:
-    limiting_magnitude: float = 6.5
+    limiting_magnitude: float = 6.0
 
     show_labels: bool = True
     label_limiting_magnitude: float = 2.0
