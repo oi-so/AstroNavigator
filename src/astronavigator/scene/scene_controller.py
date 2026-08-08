@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QPoint, QPointF, QSize
+from datetime import datetime, timezone
 
 from astronavigator.catalog.catalog import Catalog
 from astronavigator.event.event_type import EventType
@@ -29,6 +30,25 @@ class SceneController:
     def set_time(self, time: Time) -> None:
         self._scene.time = time
         self._event_bus.publish(EventType.TIME_CHANGED, time)
+
+    def advance_time(self, seconds: float) -> None:
+        self._scene.time.advance(seconds)
+        self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
+
+    def set_time_speed(self, speed: float) -> None:
+        self._scene.time.set_speed(speed)
+        self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
+
+    def set_time_paused(self, paused: bool) -> None:
+        self._scene.time.set_paused(paused)
+        self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
+
+    def reset_time_to_now(self) -> None:
+        self._scene.time.reset_to_now()
+        self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
+
+    def set_datetime(self, value: datetime) -> None:
+        self.set_time(Time(utc=value.astimezone(timezone.utc), speed=self._scene.time.speed, is_paused=self._scene.time.is_paused))
 
     def set_observer(self, observer: Observer) -> None:
         self._scene.observer = observer
