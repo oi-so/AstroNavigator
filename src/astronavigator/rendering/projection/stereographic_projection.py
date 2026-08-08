@@ -17,6 +17,10 @@ from astronavigator.sky.position import HorizontalPosition, Position
 from astronavigator.sky.sky_object import SkyObject
 
 
+NARROW_FOV = 100.0
+WIDE_FOV = 180.0
+
+
 @dataclass(slots=True)
 class StereographicProjectionContext:
     center: Position
@@ -38,6 +42,8 @@ class StereographicProjectionContext:
     observer_position: Any
 
     cos_half_fov: float
+
+    # display_radius: float
 
 
 class StereographicProjection(Projection[Position, StereographicProjectionContext]):
@@ -69,7 +75,10 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         center_x = width * 0.5
         center_y = height * 0.5
 
-        scale = min(width, height) * 0.5 / math.tan(math.radians(context.fov_deg * 0.5))
+        # scale = min(width, height) * 0.5 / math.tan(math.radians(context.fov_deg * 0.5))
+        display_radius = self.calculate_display_radius(context.fov_deg, viewport_size)
+        edge_radius = self._stereographic_edge_radius(context.fov_deg)
+        scale = display_radius / edge_radius
 
         screen_x = center_x + projected_x * scale
         screen_y = center_y - projected_y * scale
@@ -112,12 +121,15 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
 
         return min_position, max_position
 
-    def _unproject_vector(self, screen_position: QPointF, context: StereographicProjectionContext, viewport_size: QSize) -> tuple[float, float, float]:
+    def _unproject_vector(self, screen_position: QPointF | QPoint, context: StereographicProjectionContext, viewport_size: QSize) -> tuple[float, float, float]:
         width = viewport_size.width()
         height = viewport_size.height()
         center_x = width * 0.5
         center_y = height * 0.5
-        scale = min(width, height) * 0.5 / math.tan(math.radians(context.fov_deg * 0.5))
+        # scale = min(width, height) * 0.5 / math.tan(math.radians(context.fov_deg * 0.5))
+        display_radius = self.calculate_display_radius(context.fov_deg, viewport_size)
+        edge_radius = self._stereographic_edge_radius(context.fov_deg)
+        scale = display_radius / edge_radius
 
         x = (screen_position.x() - center_x) / scale
         y = (center_y - screen_position.y()) / scale
@@ -400,3 +412,28 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         )
 
         return cls._normalize(rotated_vector)
+
+
+    @staticmethod
+    def calculate_display_radius(fov_deg: float, viewport_size: QSize) -> float:
+        width = viewport_size.width()
+        height = viewport_size.height()
+
+        min_radius = min(width, height) * 0.5
+        max_radius = math.hypot(width * 0.5, height * 0.5)
+
+        if fov_deg <= NARROW_FOV:
+            return max_radius
+        if fov_deg >= WIDE_FOV:
+            return min_radius
+
+        t = (fov_deg - NARROW_FOV) / (WIDE_FOV - NARROW_FOV)
+        t = t * t * (3.0 - 2.0 * t)
+
+        return min_radius + (max_radius - min_radius) * t
+
+
+    @staticmethod
+    def _stereographic_edge_radius(fov_deg: float) -> float:
+        half_fov_rad = math.radians(fov_deg * 0.5)
+        return 2.0 * math.tan(half_fov_rad * 0.5)
