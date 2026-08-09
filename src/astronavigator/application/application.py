@@ -18,9 +18,10 @@ from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.event.event_bus import EventBus
-from astronavigator.sky.position import Position
 from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG
 
+
+FPS = 30
 
 class Application:
     def __init__(self):
@@ -38,7 +39,7 @@ class Application:
 
         self._last_update_time = time.monotonic()
         self._update_timer = QTimer()
-        self._update_timer.setInterval(1000 // 60)  # 60 FPS
+        self._update_timer.setInterval(1000 // FPS)
         self._update_timer.timeout.connect(self._update)
         self._update_timer.start()
 
@@ -47,7 +48,6 @@ class Application:
         provider = DebugCatalogProvider()
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
-        self._scene.sky_camera.center = Position(ra_deg=0, dec_deg=0)
 
     def _load_hyg(self):
         self._catalog_manager.download_catalog(HYG)
@@ -71,6 +71,7 @@ class Application:
     def _update(self):
         current_time = time.monotonic()
         delta_time = current_time - self._last_update_time
+        # print(f"[update] delta_time={delta_time:.4f}s")
         self._last_update_time = current_time
 
         self._scene_controller.advance_time(delta_time)

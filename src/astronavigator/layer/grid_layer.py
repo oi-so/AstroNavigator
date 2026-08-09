@@ -36,7 +36,7 @@ class GridLayer(Layer):
             for line in grid.iter_lines(context):
                 self._draw_line(context, grid.coordinate_system, line)
 
-
+    # @profile
     def _draw_line(self, context: RendererContext, coordinate_system: CoordinateSystem, positions: Iterable[T]) -> None:
         previous = None
 
