@@ -4,23 +4,28 @@ from PySide6.QtWidgets import QWidget
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QPainter, QWheelEvent, Qt, QNativeGestureEvent
 from PySide6.QtCore import QEvent, QPoint
 
+from astronavigator.event.event_bus import EventBus
 from astronavigator.input.input_controller import InputController
 from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
 from astronavigator.input.key_bindings import KEY_BINDINGS
+from astronavigator.event.event_type import EventType
 
 
 DRAG_THRESHOLD_PX = 2
 
 class SkyView(QWidget):
-    def __init__(self, scene: Scene, renderer: Renderer, input_controller: InputController, parent: QWidget | None = None) -> None:
+    def __init__(self, scene: Scene, renderer: Renderer, input_controller: InputController, event_bus: EventBus, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._scene = scene
         self._renderer = renderer
         self._input_controller = input_controller
+        self._event_bus = event_bus
         self._last_mouse_position: QPoint | None = None
         self._dragging = False
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+        self._event_bus.subscribe(EventType.TIME_CHANGED, self._on_time_changed)
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -88,3 +93,7 @@ class SkyView(QWidget):
 
         self.update()
         super().mouseReleaseEvent(event)
+
+
+    def _on_time_changed(self, event) -> None:
+        self.update()
