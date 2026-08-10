@@ -42,22 +42,30 @@ class TimePanel(QWidget):
         self._time_speed_slider.setRange(TIME_SPEED_SLIDER_MIN, TIME_SPEED_SLIDER_MAX)
         self._time_speed_slider.setValue(self._speed_to_slider(self._application.scene.time.speed))
 
+        speed_value_layout = QHBoxLayout()
+
         self._time_speed_value = QLabel("x -")
         self._time_speed_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        self._pause_button = QPushButton("停止")
+        self._pause_button.clicked.connect(self._on_pause_clicked)
         self._time_speed_slider.valueChanged.connect(self._on_time_speed_changed)
 
-        layout.addWidget(self._time_speed_slider)
-        layout.addWidget(self._time_speed_value)
+        self._constant_speed_button = QPushButton("等速")
+        self._constant_speed_button.clicked.connect(self._on_constant_speed_clicked)
 
+        speed_value_layout.addWidget(self._time_speed_value)
+        speed_value_layout.addWidget(self._constant_speed_button)
+        speed_value_layout.addWidget(self._pause_button)
+
+        layout.addWidget(self._time_speed_slider)
+        layout.addLayout(speed_value_layout)
         layout.addStretch()
 
         self._current_time_button = QPushButton("現在時刻")
-        self._pause_button = QPushButton("一時停止")
         self._edit_button = QPushButton("設定")
 
         self._current_time_button.clicked.connect(self._on_current_time_clicked)
-        self._pause_button.clicked.connect(self._on_pause_clicked)
         self._edit_button.clicked.connect(self._on_edit_clicked)
 
         line = QFrame()
@@ -66,7 +74,6 @@ class TimePanel(QWidget):
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self._current_time_button)
-        button_layout.addWidget(self._pause_button)
         button_layout.addWidget(self._edit_button)
 
         layout.addLayout(button_layout)
@@ -159,7 +166,7 @@ class TimePanel(QWidget):
         if time.is_paused:
             self._pause_button.setText("再生")
         else:
-            self._pause_button.setText("一時停止")
+            self._pause_button.setText("停止")
 
 
     def _on_time_speed_changed(self, value: int) -> None:
@@ -185,7 +192,7 @@ class TimePanel(QWidget):
         if current_time.is_paused:
             self._pause_button.setText("再生")
         else:
-            self._pause_button.setText("一時停止")
+            self._pause_button.setText("停止")
 
 
     def _slider_to_speed(self, value: int) -> float:
@@ -213,3 +220,6 @@ class TimePanel(QWidget):
             return f"{speed:.1f}"
 
         return f"{speed:.2f}"
+
+    def _on_constant_speed_clicked(self) -> None:
+        self._application.scene_controller.set_time_speed(1.0)
