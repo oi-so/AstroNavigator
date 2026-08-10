@@ -1,8 +1,9 @@
 from __future__ import annotations
-from zoneinfo import ZoneInfo
 
+import calendar
+from zoneinfo import ZoneInfo
 from PySide6.QtCore import QPoint, QPointF, QSize
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from astronavigator.catalog.catalog import Catalog
 from astronavigator.event.event_type import EventType
@@ -54,6 +55,22 @@ class SceneController:
     def reset_time_to_now(self) -> None:
         self._scene.time.reset_to_now()
         self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
+
+    def adjust_time(self, years: int = 0, months: int = 0, days: int = 0, hours: int = 0, minutes: int = 0, seconds: int = 0) -> None:
+        current_time = self._scene.time
+        timezone_ = self._scene.observer.timezone
+        local_time = current_time.to_local_time(timezone_)
+
+        total_months = local_time.year * 12 + (local_time.month - 1) + years * 12 + months
+        year = total_months // 12
+        month = total_months % 12 + 1
+
+        day = min(local_time.day + days, calendar.monthrange(year, month)[1])
+        adjusted_time = local_time.replace(year=year, month=month, day=day)
+
+        adjusted_time += timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+        self.set_time(adjusted_time.astimezone(adjusted_time.tzinfo))
+
 
     def set_timezone(self, timezone: ZoneInfo) -> None:
         self._scene.observer.timezone = timezone
