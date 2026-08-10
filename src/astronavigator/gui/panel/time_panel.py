@@ -1,4 +1,5 @@
 from __future__ import annotations
+import math
 
 from PySide6.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QSlider
 from PySide6.QtCore import Qt
@@ -8,6 +9,10 @@ from astronavigator.event.event_type import EventType
 from astronavigator.gui.dialog.time_edit_dialog import TimeEditDialog
 from astronavigator.scene.time import Time
 
+
+TIME_SPEED_SLIDER_MIN = -1000
+TIME_SPEED_SLIDER_MAX = 1000
+TIME_SPEED_EXPONENT = 200.0
 
 
 class TimePanel(QWidget):
@@ -34,12 +39,10 @@ class TimePanel(QWidget):
         layout.addWidget(QLabel("倍速"))
 
         self._time_speed_slider = QSlider(Qt.Orientation.Horizontal)
-        self._time_speed_slider.setRange(-100, 100)
-        self._time_speed_slider.setSingleStep(1)
-        self._time_speed_slider.setPageStep(10)
-        self._time_speed_slider.setValue(1)
+        self._time_speed_slider.setRange(TIME_SPEED_SLIDER_MIN, TIME_SPEED_SLIDER_MAX)
+        self._time_speed_slider.setValue(self._speed_to_slider(self._application.scene.time.speed))
 
-        self._time_speed_value = QLabel("x 1.00")
+        self._time_speed_value = QLabel("x -")
         self._time_speed_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._time_speed_slider.valueChanged.connect(self._on_time_speed_changed)
@@ -145,11 +148,13 @@ class TimePanel(QWidget):
         speed = time.speed
         self._time_speed_value.setText(f"x {speed:.2f}")
 
-        slider_value = max(self._time_speed_slider.minimum(), min(self._time_speed_slider.maximum(), round(speed)))
+        slider_value = self._speed_to_slider(speed)
 
         self._time_speed_slider.blockSignals(True)
         self._time_speed_slider.setValue(slider_value)
         self._time_speed_slider.blockSignals(False)
+
+        self._time_speed_value.setText(f"x {self._format_time_speed(speed)}")
 
         if time.is_paused:
             self._pause_button.setText("再生")
@@ -158,7 +163,9 @@ class TimePanel(QWidget):
 
 
     def _on_time_speed_changed(self, value: int) -> None:
-        self._application.scene_controller.set_time_speed(float(value))
+        speed = self._slider_to_speed(value)
+
+        self._application.scene_controller.set_time_speed(float(speed))
 
 
     def _on_edit_clicked(self) -> None:
@@ -179,3 +186,30 @@ class TimePanel(QWidget):
             self._pause_button.setText("再生")
         else:
             self._pause_button.setText("一時停止")
+
+
+    def _slider_to_speed(self, value: int) -> float:
+        if value == 0:
+            return 0.0
+
+        sign = 1.0 if value > 0 else -1.0
+        return sign * (10.0 ** (abs(value) / TIME_SPEED_EXPONENT) - 1.0)
+
+
+    def _speed_to_slider(self, speed: float) -> int:
+        if speed == 0:
+            return 0
+
+        sign = 1 if speed > 0 else -1
+        value = round(TIME_SPEED_EXPONENT * (math.log10(abs(speed) + 1.0)))
+
+        return sign * max(0, min(value, TIME_SPEED_SLIDER_MAX))
+
+    def _format_time_speed(self, speed: float) -> str:
+        if abs(speed) >= 100:
+            return f"{speed:.0f}"
+
+        if abs(speed) >= 10:
+            return f"{speed:.1f}"
+
+        return f"{speed:.2f}"
