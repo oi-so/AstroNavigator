@@ -10,20 +10,6 @@ from astronavigator.sky.coordinate_format import RightAscensionFormat
 class ColorSettings:
     bg_color: QColor = field(default_factory=lambda: QColor("#0B0E14"))
 
-    # 座標系ラベル
-    ra_dec_label_color: QColor = field(
-        default_factory=lambda: QColor(52, 152, 219, 200)
-    )
-
-    # 黄道
-    ecliptic_color: QColor = field(
-        default_factory=lambda: QColor(230, 126, 34, 220)
-    )
-    # 天の赤道
-    celestial_equator_color: QColor = field(
-        default_factory=lambda: QColor(26, 188, 156, 200)
-    )
-
     # 星座線
     constellation_line_color: QColor = field(
         default_factory=lambda: QColor(93, 173, 226, 180)
