@@ -263,18 +263,47 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         return self.project(obj.get_position(), context, viewport_size)
 
     def project_grid_position(self, position: Position | HorizontalPosition, coordinate_system: CoordinateSystem, context: StereographicProjectionContext, viewport_size: QSize) -> QPointF | None:
-        if coordinate_system == CoordinateSystem.EQUATORIAL:
-            if not isinstance(position, Position):
-                return None
+        if coordinate_system == CoordinateSystem.HORIZONTAL and isinstance(position, HorizontalPosition):
+            return self.project_horizontal(position, context, viewport_size)
+
+        if coordinate_system == CoordinateSystem.EQUATORIAL and isinstance(position, Position):
             return self.project(position, context, viewport_size)
 
-        if coordinate_system == CoordinateSystem.HORIZONTAL:
-            if not isinstance(position, HorizontalPosition):
-                return None
-            equatorial_position = CoordinateTransformer.horizontal_to_equatorial(position, context.time, context.observer, context.skyfield)
-            return self.project(equatorial_position, context, viewport_size)
-
         return None
+
+    def project_horizontal(self, position: HorizontalPosition, context: StereographicProjectionContext, viewport_size: QSize) -> QPointF | None:
+        horizontal = self._horizontal_to_vector(position)
+
+        x = self._dot(horizontal, context.right)
+        y = self._dot(horizontal, context.up)
+        z = self._dot(horizontal, context.forward)
+
+        if z < context.cos_half_fov:
+            return None
+
+        denominator = 1.0 + z
+        if denominator <= 1e-12:
+            return None
+
+        projected_x = 2.0 * x / denominator
+        projected_y = 2.0 * y / denominator
+        width = viewport_size.width()
+        height = viewport_size.height()
+
+        center_x = width * 0.5
+        center_y = height * 0.5
+
+        display_radius = self.calculate_display_radius(context.fov_deg, viewport_size)
+        edge_radius = self._stereographic_edge_radius(context.fov_deg)
+        scale = display_radius / edge_radius
+
+        screen_x = center_x + projected_x * scale
+        screen_y = center_y - projected_y * scale
+
+        if screen_x < 0 or screen_x > width or screen_y < 0 or screen_y > height:
+            return None
+
+        return QPointF(screen_x, screen_y)
 
     def convert_position(self, position: Position, context: StereographicProjectionContext) -> Position:
         return position

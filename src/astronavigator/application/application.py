@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import time
+from PySide6.QtCore import QTimer
+
 
 from astronavigator.catalog.catalog_manager import CatalogManager
 from astronavigator.catalog.parser.constellation_parser import ConstellationJsonParser
@@ -15,9 +18,10 @@ from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.event.event_bus import EventBus
-from astronavigator.sky.position import Position
 from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG
 
+
+FPS = 30
 
 class Application:
     def __init__(self):
@@ -33,12 +37,17 @@ class Application:
         self._load_constellations()
         self._load_skyfield()
 
+        self._last_update_time = time.monotonic()
+        self._update_timer = QTimer()
+        self._update_timer.setInterval(1000 // FPS)
+        self._update_timer.timeout.connect(self._update)
+        self._update_timer.start()
+
 
     def _test(self):
         provider = DebugCatalogProvider()
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
-        self._scene.sky_camera.center = Position(ra_deg=0, dec_deg=0)
 
     def _load_hyg(self):
         self._catalog_manager.download_catalog(HYG)
@@ -58,6 +67,14 @@ class Application:
         self._catalog_manager.download_catalog(EPHEMERIS)
         provider = LocalFileProvider(path=EPHEMERIS.save_path, parser=SkyfieldParser())
         self._scene.skyfield = provider.load()
+
+    def _update(self):
+        current_time = time.monotonic()
+        delta_time = current_time - self._last_update_time
+        # print(f"[update] delta_time={delta_time:.4f}s")
+        self._last_update_time = current_time
+
+        self._scene_controller.advance_time(delta_time)
 
     @property
     def scene(self) -> Scene:

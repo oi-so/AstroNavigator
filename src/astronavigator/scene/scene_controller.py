@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import calendar
+from zoneinfo import ZoneInfo
 from PySide6.QtCore import QPoint, QPointF, QSize
+from datetime import datetime, timezone, timedelta
 
 from astronavigator.catalog.catalog import Catalog
 from astronavigator.event.event_type import EventType
@@ -26,9 +29,52 @@ class SceneController:
     def scene(self) -> Scene:
         return self._scene
 
-    def set_time(self, time: Time) -> None:
-        self._scene.time = time
-        self._event_bus.publish(EventType.TIME_CHANGED, time)
+    def set_time(self, value: datetime) -> None:
+        if value.tzinfo is None:
+            raise ValueError("The datetime value must be timezone-aware.")
+        current_time = self._scene.time
+        self._scene.time = Time(
+            utc=value.astimezone(timezone.utc),
+            speed=current_time.speed,
+            is_paused=current_time.is_paused
+        )
+        self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
+
+    def advance_time(self, seconds: float) -> None:
+        self._scene.time.advance(seconds)
+        self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
+
+    def set_time_speed(self, speed: float) -> None:
+        self._scene.time.set_speed(speed)
+        self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
+
+    def set_time_paused(self, paused: bool) -> None:
+        self._scene.time.set_paused(paused)
+        self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
+
+    def reset_time_to_now(self) -> None:
+        self._scene.time.reset_to_now()
+        self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
+
+    def adjust_time(self, years: int = 0, months: int = 0, days: int = 0, hours: int = 0, minutes: int = 0, seconds: int = 0) -> None:
+        current_time = self._scene.time
+        timezone_ = self._scene.observer.timezone
+        local_time = current_time.to_local_time(timezone_)
+
+        total_months = local_time.year * 12 + (local_time.month - 1) + years * 12 + months
+        year = total_months // 12
+        month = total_months % 12 + 1
+
+        day = min(local_time.day, calendar.monthrange(year, month)[1])
+        adjusted_time = local_time.replace(year=year, month=month, day=day)
+
+        adjusted_time += timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+        self.set_time(adjusted_time.astimezone(adjusted_time.tzinfo))
+
+
+    def set_timezone(self, timezone: ZoneInfo) -> None:
+        self._scene.observer.timezone = timezone
+        self._event_bus.publish(EventType.TIMEZONE_CHANGED, timezone)
 
     def set_observer(self, observer: Observer) -> None:
         self._scene.observer = observer
