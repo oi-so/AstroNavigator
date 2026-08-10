@@ -65,7 +65,7 @@ class SceneController:
         year = total_months // 12
         month = total_months % 12 + 1
 
-        day = min(local_time.day + days, calendar.monthrange(year, month)[1])
+        day = min(local_time.day, calendar.monthrange(year, month)[1])
         adjusted_time = local_time.replace(year=year, month=month, day=day)
 
         adjusted_time += timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
