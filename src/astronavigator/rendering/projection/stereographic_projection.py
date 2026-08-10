@@ -187,17 +187,17 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
 
         horizontal_north = (
             float(equatorial_to_horizontal[0, 0]),
-            float(equatorial_to_horizontal[1, 0]),
-            float(equatorial_to_horizontal[2, 0])
+            float(equatorial_to_horizontal[0, 1]),
+            float(equatorial_to_horizontal[0, 2])
         )
         horizontal_east = (
-            float(equatorial_to_horizontal[0, 1]),
+            float(equatorial_to_horizontal[1, 0]),
             float(equatorial_to_horizontal[1, 1]),
-            float(equatorial_to_horizontal[2, 1])
+            float(equatorial_to_horizontal[1, 2])
         )
         horizontal_up = (
-            float(equatorial_to_horizontal[0, 2]),
-            float(equatorial_to_horizontal[1, 2]),
+            float(equatorial_to_horizontal[2, 0]),
+            float(equatorial_to_horizontal[2, 1]),
             float(equatorial_to_horizontal[2, 2])
         )
 
@@ -232,9 +232,9 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         )
 
         rotated_up = (
-            -right[0] * sin_r + up[0] * cos_r,
-            -right[1] * sin_r + up[1] * cos_r,
-            -right[2] * sin_r + up[2] * cos_r
+            right[0] * sin_r + up[0] * cos_r,
+            right[1] * sin_r + up[1] * cos_r,
+            right[2] * sin_r + up[2] * cos_r
         )
 
         earth = scene.skyfield.ephemeris["earth"]
