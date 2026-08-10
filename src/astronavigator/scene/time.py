@@ -10,6 +10,11 @@ class Time:
     speed: float = 1.0
     is_paused: bool = False
 
+    def __post_init__(self) -> None:
+        if self.utc.tzinfo is None:
+            raise ValueError("utc must be timezone-aware")
+        self.utc = self.utc.astimezone(timezone.utc)
+
     @classmethod
     def now(cls) -> "Time":
         return cls(utc=datetime.now(timezone.utc))
@@ -37,3 +42,15 @@ class Time:
             return
 
         self.utc += timedelta(seconds=seconds * self.speed)
+
+
+    def set_speed(self, speed: float) -> None:
+        self.speed = speed
+
+    def set_paused(self, paused: bool) -> None:
+        self.is_paused = paused
+
+    def reset_to_now(self) -> None:
+        self.utc = datetime.now(timezone.utc)
+        self.speed = 1.0
+        self.is_paused = False

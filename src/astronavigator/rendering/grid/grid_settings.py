@@ -11,13 +11,13 @@ class GridSettings:
     colors: dict[CoordinateSystem, QColor] = field(
         default_factory=lambda: {
             CoordinateSystem.EQUATORIAL:
-                QColor(44,59,77,100),
+                QColor(130, 200, 255, 50),  # スカイブルー
 
             CoordinateSystem.HORIZONTAL:
-                QColor(52,73,94,100),
+                QColor(150, 230, 150, 50),  # セージグリーン
 
             CoordinateSystem.GALACTIC:
-                QColor(150,100,200,100),
+                QColor(230, 170, 240, 50),
         }
     )
 

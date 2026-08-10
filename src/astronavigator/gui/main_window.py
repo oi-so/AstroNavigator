@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
 
 
     def _create_widgets(self):
-        self._sky_view = SkyView(self._application.scene, self._application.renderer, self._application.input_controller, self)
+        self._sky_view = SkyView(self._application.scene, self._application.renderer, self._application.input_controller, self._application.event_bus)
 
     def _create_docks(self):
         self._selection_dock = self._create_dock("Selection", SelectionPanel(self._application))
