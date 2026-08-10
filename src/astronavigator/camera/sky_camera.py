@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum, auto
 
 
 from astronavigator.sky.position import Position
+
+
+class CameraReferenceFrame(Enum):
+    EQUATORAL = auto()
+    HORIZONTAL = auto()
+    AUTO = auto()
 
 
 @dataclass(slots=True)
@@ -12,6 +19,7 @@ class SkyCamera:
     fov_deg: float
     rotation: float
     limit_magnitude: float = 6.0  # Default limit magnitude for visibility
+    reference_frame: CameraReferenceFrame = CameraReferenceFrame.AUTO
 
 
     @classmethod

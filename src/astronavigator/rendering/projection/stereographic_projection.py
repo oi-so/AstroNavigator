@@ -17,6 +17,8 @@ from astronavigator.sky.position import HorizontalPosition, Position
 from astronavigator.sky.sky_object import SkyObject
 
 
+Vector3 = tuple[float, float, float]
+
 NARROW_FOV = 140.0
 WIDE_FOV = 180.0
 
@@ -25,13 +27,13 @@ WIDE_FOV = 180.0
 class StereographicProjectionContext:
     center: Position
 
-    forward: tuple[float, float, float]
-    right: tuple[float, float, float]
-    up: tuple[float, float, float]
+    forward: Vector3
+    right: Vector3
+    up: Vector3
 
-    horizontal_east: tuple[float, float, float]
-    horizontal_north: tuple[float, float, float]
-    horizontal_up: tuple[float, float, float]
+    horizontal_east: Vector3
+    horizontal_north: Vector3
+    horizontal_up: Vector3
 
     fov_deg: float
     rotation_deg: float
@@ -95,9 +97,7 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         viewport_size: QSize
     ) -> Position:
         vector = self._unproject_vector(screen_position, context, viewport_size)
-
-        horizontal = self._vector_to_horizontal(vector, context)
-        return CoordinateTransformer.horizontal_to_equatorial(horizontal, context.time, context.observer, context.skyfield)
+        return self._horizontal_vector_to_position(vector, context)
 
 
     def visible_bounds(self, context: StereographicProjectionContext, viewport_size: QSize) -> tuple[Position, Position]:
@@ -180,25 +180,30 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
             raise ValueError("Skyfield context is not available in the scene.")
         
         t = scene.skyfield.timescale.from_datetime(scene.time.utc)
-        lst_deg = (t.gast * 15.0 + scene.observer.longitude) % 360.0
-        latitude_rad = math.radians(scene.observer.latitude)
-        lst = math.radians(lst_deg)
 
-        sin_lat = math.sin(latitude_rad)
-        cos_lat = math.cos(latitude_rad)
+        geographic_position = wgs84.latlon(scene.observer.latitude, scene.observer.longitude, scene.observer.elevation)
 
-        sin_lst = math.sin(lst)
-        cos_lst = math.cos(lst)
+        equatorial_to_horizontal = geographic_position.rotation_at(t)
 
-        horizontal_east = (-sin_lst, cos_lst, 0.0)
-        horizontal_north = (-sin_lat * cos_lst, -sin_lat * sin_lst, cos_lat)
-        horizontal_up = (cos_lat * cos_lst, cos_lat * sin_lst, sin_lat)
+        horizontal_north = (
+            float(equatorial_to_horizontal[0, 0]),
+            float(equatorial_to_horizontal[0, 1]),
+            float(equatorial_to_horizontal[0, 2])
+        )
+        horizontal_east = (
+            float(equatorial_to_horizontal[1, 0]),
+            float(equatorial_to_horizontal[1, 1]),
+            float(equatorial_to_horizontal[1, 2])
+        )
+        horizontal_up = (
+            float(equatorial_to_horizontal[2, 0]),
+            float(equatorial_to_horizontal[2, 1]),
+            float(equatorial_to_horizontal[2, 2])
+        )
 
-        center_vector = self._position_to_equatorial_vector(center)
-        center_horizontal_vector = (
-            self._dot(center_vector, horizontal_east),
-            self._dot(center_vector, horizontal_north),
-            self._dot(center_vector, horizontal_up)
+        center_equatorial_vector = self._position_to_equatorial_vector(center)
+        center_horizontal_vector = self._equatorial_vector_to_horizontal(
+            center_equatorial_vector, horizontal_east, horizontal_north, horizontal_up
         )
 
         forward = self._normalize(center_horizontal_vector)
@@ -227,13 +232,13 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         )
 
         rotated_up = (
-            -right[0] * sin_r + up[0] * cos_r,
-            -right[1] * sin_r + up[1] * cos_r,
-            -right[2] * sin_r + up[2] * cos_r
+            right[0] * sin_r + up[0] * cos_r,
+            right[1] * sin_r + up[1] * cos_r,
+            right[2] * sin_r + up[2] * cos_r
         )
 
         earth = scene.skyfield.ephemeris["earth"]
-        topos = earth + wgs84.latlon(scene.observer.latitude, scene.observer.longitude, scene.observer.elevation)
+        topos = earth + geographic_position
         observer_position = topos.at(t)
 
 
@@ -417,9 +422,7 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
 
         center_vector = self._position_to_vector(context.center, context)
         rotated_center_vector = self._rotate_vector(center_vector, rotation_axis, angle)
-        horizontal = self._vector_to_horizontal(rotated_center_vector, context)
-
-        return CoordinateTransformer.horizontal_to_equatorial(horizontal, context.time, context.observer, context.skyfield)
+        return self._horizontal_vector_to_position(rotated_center_vector, context)
 
     @classmethod
     def _rotate_vector(cls, vector: tuple[float, float, float], axis: tuple[float, float, float], angle: float) -> tuple[float, float, float]:
@@ -466,3 +469,28 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
     def _stereographic_edge_radius(fov_deg: float) -> float:
         half_fov_rad = math.radians(fov_deg * 0.5)
         return 2.0 * math.tan(half_fov_rad * 0.5)
+
+
+    @staticmethod
+    def _horizontal_vector_to_position(vector: tuple[float, float, float], context: StereographicProjectionContext) -> Position:
+        east, north, up = vector
+
+        equatorial = (
+            east * context.horizontal_east[0] + north * context.horizontal_north[0] + up * context.horizontal_up[0],
+            east * context.horizontal_east[1] + north * context.horizontal_north[1] + up * context.horizontal_up[1],
+            east * context.horizontal_east[2] + north * context.horizontal_north[2] + up * context.horizontal_up[2]
+        )
+
+        ra_deg = math.degrees(math.atan2(equatorial[1], equatorial[0])) % 360.0
+        dec_deg = math.degrees(math.asin(max(-1.0, min(1.0, equatorial[2]))))
+
+        return Position(ra_deg, dec_deg)
+
+
+    @classmethod
+    def _equatorial_vector_to_horizontal(cls, equatorial: Vector3, horizontal_east: Vector3, horizontal_north: Vector3, horizontal_up: Vector3) -> Vector3:
+        east = cls._dot(equatorial, horizontal_east)
+        north = cls._dot(equatorial, horizontal_north)
+        up = cls._dot(equatorial, horizontal_up)
+
+        return (east, north, up)
