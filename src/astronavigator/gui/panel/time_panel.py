@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QDialog, QFrame, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QSlider
+from PySide6.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QSlider
 from PySide6.QtCore import Qt
 
 from astronavigator.application.application import Application
@@ -18,12 +18,18 @@ class TimePanel(QWidget):
 
         layout = QVBoxLayout(self)
 
-        self._year = self._create_time_field(layout, "年", lambda delta: self._adjust_time(years=delta))
-        self._month = self._create_time_field(layout, "月", lambda delta: self._adjust_time(months=delta))
-        self._day = self._create_time_field(layout, "日", lambda delta: self._adjust_time(days=delta))
-        self._hour = self._create_time_field(layout, "時", lambda delta: self._adjust_time(hours=delta))
-        self._minute = self._create_time_field(layout, "分", lambda delta: self._adjust_time(minutes=delta))
-        self._second = self._create_time_field(layout, "秒", lambda delta: self._adjust_time(seconds=delta))
+        time_grid = QGridLayout()
+        time_grid.setHorizontalSpacing(8)
+        time_grid.setVerticalSpacing(2)
+
+        self._year = self._create_time_field(time_grid, 0, 0, "年", lambda delta: self._adjust_time(years=delta))
+        self._month = self._create_time_field(time_grid, 0, 1, "月", lambda delta: self._adjust_time(months=delta))
+        self._day = self._create_time_field(time_grid, 0, 2, "日", lambda delta: self._adjust_time(days=delta))
+        self._hour = self._create_time_field(time_grid, 1, 0, "時", lambda delta: self._adjust_time(hours=delta))
+        self._minute = self._create_time_field(time_grid, 1, 1, "分", lambda delta: self._adjust_time(minutes=delta))
+        self._second = self._create_time_field(time_grid, 1, 2, "秒", lambda delta: self._adjust_time(seconds=delta))
+
+        layout.addLayout(time_grid)
 
         layout.addWidget(QLabel("倍速"))
 
@@ -72,27 +78,38 @@ class TimePanel(QWidget):
         layout.addWidget(value_label)
 
 
-    def _create_time_field(self, layout: QVBoxLayout, label_text: str, callback) -> QLabel:
-        layout.addWidget(QLabel(label_text))
-        value_label = QLabel("-")
-        value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    def _create_time_field(self, layout: QGridLayout, row: int, col: int, label: str, callback) -> QLabel:
+        container = QWidget()
+        field_layout = QVBoxLayout(container)
+        value_layout = QHBoxLayout()
+
+        field_layout.setContentsMargins(2, 2, 2, 2)
+        field_layout.setSpacing(2)
 
         up_button = QPushButton("▲")
+        value_label = QLabel("-")
+        name_label = QLabel(label)
         down_button = QPushButton("▼")
-        up_button.setFixedWidth(40)
-        down_button.setFixedWidth(40)
+
+        value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        up_button.setFixedWidth(24)
+        down_button.setFixedWidth(24)
 
         up_button.clicked.connect(lambda: callback(1))
         down_button.clicked.connect(lambda: callback(-1))
 
-        button_layout = QHBoxLayout()
-        button_layout.setSpacing(0)
+        value_layout.setSpacing(0)
 
-        button_layout.addWidget(up_button)
-        button_layout.addWidget(value_label)
-        button_layout.addWidget(down_button)
+        value_layout.addWidget(value_label)
+        value_layout.addWidget(name_label)
 
-        layout.addLayout(button_layout)
+        field_layout.addWidget(up_button)
+        field_layout.addLayout(value_layout)
+        field_layout.addWidget(down_button)
+
+        layout.addWidget(container, row, col)
 
         return value_label
 
