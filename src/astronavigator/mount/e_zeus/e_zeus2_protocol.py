@@ -135,7 +135,7 @@ class EZeus2Protocol:
             cmd = f"DV{axis.value}{direction.value}{speed.value}{steps:08X}"
 
         resp = self._send(cmd)
-        self._check_ack(resp)
+        self._raise_for_error(resp, cmd)
         return resp
 
 
@@ -264,3 +264,17 @@ class EZeus2Protocol:
                 return None
         except Exception:
             return None
+
+
+    def _raise_for_error(self, resp: str, cmd: str) -> None:
+        error = self._check_ack(resp)
+
+        if error == EZeus2Error.ERROR:
+            raise RuntimeError(
+                f"E-ZEUS2 rejected command: {cmd!r}, response: {resp!r}"
+            )
+
+        if error == EZeus2Error.UNKNOWN_COMMAND:
+            raise RuntimeError(
+                f"E-ZEUS2 does not recognize command: {cmd!r}, response: {resp!r}"
+            )

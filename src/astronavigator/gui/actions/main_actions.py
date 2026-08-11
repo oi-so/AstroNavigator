@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QMessageBox
 from astronavigator.event.event_type import EventType
 from astronavigator.gui.dialog.mount_selection_dialog import MountSelectionDialog
 from astronavigator.mount.mount import Mount
+from astronavigator.sky.coordinate_format import DeclinationFormat, RightAscensionFormat
 
 if TYPE_CHECKING:
     from astronavigator.application.application import Application
@@ -92,9 +93,24 @@ class MainActions(QObject):
 
 
     def _sync_mount(self):
-        if self._application.scene.selection.selected and self._application.scene.mount:
-            position = self._application.scene.selection.selected.get_position()
-            self._application.scene.mount.sync(position)
+        selected = self._application.scene.selection.selected
+        mount = self._application.scene.mount
+
+        if selected is None:
+            QMessageBox.warning(None, "同期エラー", "同期する対象が選択されていません。")
+            return
+
+        if mount is None:
+            QMessageBox.warning(None, "同期エラー", "マウントが接続されていません。")
+            return
+
+        try:
+            position = selected.get_position()
+            mount.sync(position)
+
+            QMessageBox.information(None, "同期完了", f"{selected.name} の位置をマウントに同期しました。\n赤経: {position.get_ra(RightAscensionFormat.HMS)}, 赤緯: {position.get_dec(DeclinationFormat.DMS)}")
+        except Exception as e:
+            QMessageBox.critical(None, "同期エラー", f"マウントの同期に失敗しました: {e}")
 
     def start_mount_tracking(self):
         if self._application.scene.mount:
