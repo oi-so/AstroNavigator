@@ -24,6 +24,10 @@ class ColorSettings:
         default_factory=lambda: QColor(0, 255, 204, 255)
     )
 
+    mount_marker_color: QColor = field(
+        default_factory=lambda: QColor(255, 170, 0, 255)
+    )
+
 
 
 @dataclass(slots=True)
@@ -40,3 +44,4 @@ class RenderingSettings:
     grid_settings: GridSettings = field(default_factory=lambda: GridSettings())
 
     selection_radius: int = 15
+    mount_marker_radius: int = 20

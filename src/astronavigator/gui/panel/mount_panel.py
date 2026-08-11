@@ -91,7 +91,7 @@ class MountPanel(QWidget):
             self._connection_value.setText(mount.driver_name if mount.driver_name else "-")
 
             try:
-                position = mount.position
+                position = self._application.scene.mount_position
                 self._ra_value.setText(str(position.get_ra(settings.ra_format)) if position else "-")
                 self._dec_value.setText(str(position.get_dec(settings.dec_format)) if position else "-")
 
