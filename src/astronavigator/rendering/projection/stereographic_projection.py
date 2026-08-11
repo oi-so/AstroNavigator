@@ -325,7 +325,7 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         return (x, y, z)
 
     @staticmethod
-    def _vector_to_horizontal(vector: tuple[float, float, float], context: StereographicProjectionContext) -> HorizontalPosition:
+    def _vector_to_horizontal(vector: tuple[float, float, float]) -> HorizontalPosition:
         x, y, z = vector
 
         altitude = math.degrees(math.asin(max(-1.0, min(1.0, z))))
@@ -494,3 +494,8 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         up = cls._dot(equatorial, horizontal_up)
 
         return (east, north, up)
+
+
+
+    def get_center_horizontal_position(self, context: StereographicProjectionContext) -> HorizontalPosition:
+        return self._vector_to_horizontal(context.forward)

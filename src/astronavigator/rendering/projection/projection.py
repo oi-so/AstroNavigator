@@ -211,3 +211,21 @@ class Projection(ABC, Generic[T, C]):
         Position
             ドラッグ操作によって移動した中心座標。The new center coordinates after the drag operation.
         """
+
+
+    @abstractmethod
+    def get_center_horizontal_position(self, context: C) -> HorizontalPosition:
+        """
+        現在の投影コンテキストに基づいて、中心の水平座標を取得する。
+        Get the current center horizontal coordinates based on the projection context.
+
+        Parameters
+        ----------
+        context : C
+            投影コンテキスト。Projection context.
+
+        Returns
+        -------
+        HorizontalPosition
+            中心の水平座標。The current center horizontal coordinates.
+        """
