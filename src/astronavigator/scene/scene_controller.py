@@ -12,6 +12,7 @@ from astronavigator.rendering.projection.projection_manager import ProjectionMan
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
 from astronavigator.event.event_bus import EventBus
+from astronavigator.sky.position import Position
 from astronavigator.sky.sky_object import SkyObject
 from astronavigator.scene.time import Time
 from astronavigator.catalog.catalog import ConstellationCatalog
@@ -151,7 +152,30 @@ class SceneController:
         if self._scene.mount:
             self._scene.mount.disconnect()
             self._scene.mount = None
+            self._scene.mount_position = None
             self._event_bus.publish(EventType.MOUNT_DISCONNECTED, None)
+
+    def refresh_mount_state(self) -> Position | None:
+        mount = self._scene.mount
+        if mount is None:
+            self._scene.mount_position = None
+            return None
+
+        mount.update_status()
+        position = mount.position
+
+        self._scene.mount_position = position
+        self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
+        return position
+
+    def sync_mount(self, position: Position) -> None:
+        mount = self._scene.mount
+        if mount is None:
+            raise RuntimeError("Mount is not connected")
+
+        mount.sync(position)
+        self._scene.mount_position = position
+        self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
 
 
     def _find_nearest_object(self, position: QPointF, viewport_size: QSize) -> SkyObject | None:

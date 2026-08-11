@@ -9,6 +9,7 @@ from astronavigator.scene.object_index import ObjectIndex
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.selection import Selection
 from astronavigator.sky.constellation_line import Constellation
+from astronavigator.sky.position import Position
 from astronavigator.sky.sky_object import SkyObject
 from astronavigator.scene.time import Time
 from astronavigator.camera.sky_camera import SkyCamera
@@ -35,3 +36,4 @@ class Scene:
     skyfield: SkyfieldContext | None = None
 
     mount: Mount | None = None
+    mount_position: Position | None = None
