@@ -53,6 +53,7 @@ class MountPanel(QWidget):
 
 
     def _on_update_mount_state(self, event) -> None:
+        self._update_mount(event.payload)
         self._update_buttons()
 
 
@@ -88,11 +89,25 @@ class MountPanel(QWidget):
 
             self._state_value.setText(mount.state.value)
             self._connection_value.setText(mount.driver_name if mount.driver_name else "-")
-            self._ra_value.setText(str(mount.position.get_ra(settings.ra_format)) if mount.position else "-")
-            self._dec_value.setText(str(mount.position.get_dec(settings.dec_format)) if mount.position else "-")
+
+            try:
+                position = mount.position
+                self._ra_value.setText(str(position.get_ra(settings.ra_format)) if position else "-")
+                self._dec_value.setText(str(position.get_dec(settings.dec_format)) if position else "-")
+
+                self._ra_value.setToolTip("")
+                self._dec_value.setToolTip("")
+
+            except Exception as e:
+                self._ra_value.setText("取得失敗")
+                self._dec_value.setText("取得失敗")
+                self._ra_value.setToolTip(str(e))
+                self._dec_value.setToolTip(str(e))
 
             self._stop_button.setEnabled(mount.state == ConnectionState.CONNECTED)
             self._connect_button.setText("切断" if mount.state == ConnectionState.CONNECTED else "接続")
+
+            self._update_buttons()
 
 
     def _on_connect_clicked(self) -> None:
