@@ -132,7 +132,7 @@ class EZeus2Protocol:
         if steps is None:
             cmd = f"DV{axis.value}{direction.value}{speed.value}"
         else:
-            cmd = f"DV{axis.value}{direction.value}{speed.value}{steps:08X}"
+            cmd = f"DV{axis.value}{direction.value}{speed.value}#{steps:08X}"
 
         resp = self._send(cmd)
         self._raise_for_error(resp, cmd)
