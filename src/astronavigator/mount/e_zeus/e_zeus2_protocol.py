@@ -247,13 +247,20 @@ class EZeus2Protocol:
 
     def quick_check(self) -> str | None:
         try:
-            with serial.Serial(self._port, self._baundrate, timeout=0.3) as ser:
+            with serial.Serial(self._port, self._baundrate, timeout=1) as ser:
+                time.sleep(0.2)
+
                 ser.reset_input_buffer()
                 ser.write(b"VR\r")
-                resp = ser.readline().decode("ascii", errors="replace").strip()
-                if resp.startswith("VR"):
+
+                resp = ser.readline().decode(
+                    "ascii",
+                    errors="replace",
+                ).strip()
+
+                if resp.startswith("E-ZEUS2"):
                     return resp
-                else:
-                    return None
+
+                return None
         except Exception:
             return None
