@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QFrame, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton
+from PySide6.QtWidgets import QFrame, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFormLayout
 
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
@@ -20,12 +20,23 @@ class ObserverPanel(QWidget):
         self._timezone_value = QLabel("-")
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(4)
 
-        self._add_field(layout, "緯度", self._latitude_value)
-        self._add_field(layout, "経度", self._longitude_value)
-        self._add_field(layout, "高度", self._elevation_value)
-        self._add_field(layout, "タイムゾーン", self._timezone_value)
+        form_layout = QFormLayout()
+        form_layout.setContentsMargins(0, 0, 0, 0)
+        form_layout.setHorizontalSpacing(8)
+        form_layout.setVerticalSpacing(4)
+        form_layout.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+        )
 
+        form_layout.addRow("緯度", self._latitude_value)
+        form_layout.addRow("経度", self._longitude_value)
+        form_layout.addRow("高度", self._elevation_value)
+        form_layout.addRow("タイムゾーン", self._timezone_value)
+
+        layout.addLayout(form_layout)
         layout.addStretch()
 
         self._current_location_button = QPushButton("現在地")
@@ -47,11 +58,6 @@ class ObserverPanel(QWidget):
 
         self._application.event_bus.subscribe(EventType.OBSERVER_CHANGED, self._on_observer_changed)
         self._update_observer(self._application.scene.observer)
-
-
-    def _add_field(self, layout: QVBoxLayout, label_text: str, value_label: QLabel) -> None:
-        layout.addWidget(QLabel(label_text))
-        layout.addWidget(value_label)
 
     def _on_observer_changed(self, event) -> None:
         self._update_observer(event.payload)
