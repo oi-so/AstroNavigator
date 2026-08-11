@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QFrame, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton
+from PySide6.QtWidgets import QFrame, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFormLayout
 
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
@@ -20,12 +20,21 @@ class MountPanel(QWidget):
         self._dec_value = QLabel("-")
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(4)
 
-        self._add_field(layout, "状態", self._state_value)
-        self._add_field(layout, "ドライバ", self._connection_value)
-        self._add_field(layout, "RA", self._ra_value)
-        self._add_field(layout, "DEC", self._dec_value)
+        form_layout = QFormLayout()
+        form_layout.setContentsMargins(0, 0, 0, 0)
+        form_layout.setHorizontalSpacing(8)
+        form_layout.setVerticalSpacing(4)
+        form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
 
+        form_layout.addRow("状態", self._state_value)
+        form_layout.addRow("ドライバ", self._connection_value)
+        form_layout.addRow("RA", self._ra_value)
+        form_layout.addRow("DEC", self._dec_value)
+
+        layout.addLayout(form_layout)
         layout.addStretch()
 
         self._connect_button = QPushButton("接続")
@@ -64,11 +73,6 @@ class MountPanel(QWidget):
                 self._stop_button.setText("停止")
             else:
                 self._stop_button.setText("追尾")
-
-
-    def _add_field(self, layout: QVBoxLayout, label_text: str, value_label: QLabel) -> None:
-        layout.addWidget(QLabel(label_text))
-        layout.addWidget(value_label)
 
     def _on_mount_connected(self, event) -> None:
         self._update_mount(event.payload)
