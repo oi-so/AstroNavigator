@@ -9,13 +9,14 @@ from astronavigator.rendering.render_context import RendererContext
 
 GROUND_COLOR = QColor(20, 20, 20)
 
-MINIMUM_GROUND_ALPHA = 150
+NORMAL_GROUND_ALPHA = 200
+MINIMUM_GROUND_ALPHA = 30
 
 GROUND_OPACITY_TRANSITION_START = 0.70
 GROUND_OPACITY_TRANSITION_END = 0.95
 
-GROUND_OPAQUE_FOV = 10.0
-GROUND_TRANSPARENT_FOV = 40.0
+GROUND_TRANSPARENT_FOV = 10.0
+GROUND_NORMAL_FOV = 40.0
 
 
 
@@ -60,10 +61,10 @@ class HorizonLayer(Layer):
     @classmethod
     def _calculate_ground_alpha(cls, ground_ratio: float, fov_deg: float) -> int:
         converted_ratio = cls._smoothstep(GROUND_OPACITY_TRANSITION_START, GROUND_OPACITY_TRANSITION_END, ground_ratio)
-        zoom_transition = 1.0 - cls._smoothstep(GROUND_TRANSPARENT_FOV, GROUND_OPAQUE_FOV, fov_deg)
+        zoom_transition = 1.0 - cls._smoothstep(GROUND_TRANSPARENT_FOV, GROUND_NORMAL_FOV, fov_deg)
 
         transition = max(converted_ratio, zoom_transition)
-        return int(MINIMUM_GROUND_ALPHA + (255 - MINIMUM_GROUND_ALPHA) * transition)
+        return int(NORMAL_GROUND_ALPHA + (MINIMUM_GROUND_ALPHA - NORMAL_GROUND_ALPHA) * transition)
 
 
     def _calculate_ground_ratio(self, context: RendererContext) -> float:
