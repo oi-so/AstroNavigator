@@ -5,9 +5,9 @@ import math
 from typing import Any
 from collections.abc import Generator, Iterable
 from PySide6.QtCore import QPointF, QSize, QPoint
+from PySide6.QtGui import QPainterPath
 from skyfield.api import wgs84
 
-from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.projection.projection import Projection
 from astronavigator.scene.observer import Observer
@@ -325,7 +325,7 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         return (x, y, z)
 
     @staticmethod
-    def _vector_to_horizontal(vector: tuple[float, float, float], context: StereographicProjectionContext) -> HorizontalPosition:
+    def _vector_to_horizontal(vector: tuple[float, float, float]) -> HorizontalPosition:
         x, y, z = vector
 
         altitude = math.degrees(math.asin(max(-1.0, min(1.0, z))))
@@ -494,3 +494,75 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         up = cls._dot(equatorial, horizontal_up)
 
         return (east, north, up)
+
+
+    def get_center_horizontal_position(self, context: StereographicProjectionContext) -> HorizontalPosition:
+        return self._vector_to_horizontal(context.forward)
+
+    def create_below_horizon_path(self, context: StereographicProjectionContext, viewport_size: QSize) -> QPainterPath:
+        width = float(viewport_size.width())
+        height = float(viewport_size.height())
+
+        center_x = width * 0.5
+        center_y = height * 0.5
+
+        display_radius = self.calculate_display_radius(context.fov_deg, viewport_size)
+        viewport_path = QPainterPath()
+        viewport_path.addRect(0.0, 0.0, width, height)
+
+        fov_path = QPainterPath()
+        fov_path.addEllipse(QPointF(center_x, center_y), display_radius, display_radius)
+
+        visible_path = viewport_path.intersected(fov_path)
+
+        a = context.right[2]
+        b = context.up[2]
+        c = context.forward[2]
+
+        epsilon = 1e-8
+
+        if abs(c) < epsilon:
+            normal_x = a
+            normal_y = -b
+
+            normal_length = math.hypot(normal_x, normal_y)
+            normal_x /= normal_length
+            normal_y /= normal_length
+
+            tangent_x = -normal_y
+            tangent_y = normal_x
+
+            extend = math.hypot(width, height) * 4.0
+
+            p1 = QPointF(center_x + tangent_x * extend, center_y + tangent_y * extend)
+            p2 = QPointF(center_x - tangent_x * extend, center_y - tangent_y * extend)
+            p3 = QPointF(p2.x() + normal_x * extend * 2.0, p2.y() + normal_y * extend * 2.0)
+            p4 = QPointF(p1.x() + normal_x * extend * 2.0, p1.y() + normal_y * extend * 2.0)
+
+            ground_path = QPainterPath()
+            ground_path.moveTo(p1)
+            ground_path.lineTo(p2)
+            ground_path.lineTo(p3)
+            ground_path.lineTo(p4)
+            ground_path.closeSubpath()
+
+            return visible_path.intersected(ground_path)
+
+        edge_radius = self._stereographic_edge_radius(context.fov_deg)
+        scale = display_radius / edge_radius
+
+        horizon_center_x = 2.0 * a / c
+        horizon_center_y = 2.0 * b / c
+        horizon_radius = 2.0 / abs(c)
+
+        screen_center_x = center_x + horizon_center_x * scale
+        screen_center_y = center_y - horizon_center_y * scale
+        screen_radius = horizon_radius * scale
+
+        horizon_circle = QPainterPath()
+        horizon_circle.addEllipse(QPointF(screen_center_x, screen_center_y), screen_radius, screen_radius)
+
+        if c < 0.0:
+            return visible_path.intersected(horizon_circle)
+
+        return visible_path.subtracted(horizon_circle)

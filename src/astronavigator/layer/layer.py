@@ -13,6 +13,7 @@ class LayerType(Enum):
     LABELS = auto()
 
     OBJECTS = auto()
+    HORIZON = auto()
     SELECTION = auto()
 
     MILKY_WAY = auto()

@@ -6,6 +6,7 @@ from PySide6.QtGui import QPainter, Qt
 
 from astronavigator.layer.constellation_layer import ConstellationLayer
 from astronavigator.layer.grid_layer import GridLayer
+from astronavigator.layer.horizontal_layer import HorizonLayer
 from astronavigator.layer.label_layer import LabelLayer
 from astronavigator.layer.layer_manager import LayerManager
 from astronavigator.layer.mount_layer import MountLayer
@@ -29,6 +30,7 @@ class Renderer(Generic[P, C]):
         self.layer_manager.add_layer(ConstellationLayer())
         self.layer_manager.add_layer(ObjectLayer())
         self.layer_manager.add_layer(LabelLayer())
+        self.layer_manager.add_layer(HorizonLayer())
         self.layer_manager.add_layer(MountLayer())
         self.layer_manager.add_layer(SelectionLayer())
 
