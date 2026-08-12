@@ -95,8 +95,9 @@ G --> H[Scene.objects]
 - scene/scene_controller.py
 
 ## 8. TODO
-- ネットワーク更新日時の管理
-- キャッシュ
+- ネットワーク更新日時と有効期限の管理
+- 更新失敗時に最後の正常データを残す処理
+- 人工衛星用の手動更新と最低更新間隔
 - `Catalog` の有効・無効
 - `Catalog` ごとの Layer
 - `Catalog` の読み込み進捗表示

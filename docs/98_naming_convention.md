@@ -158,7 +158,7 @@ RenderEngine
 
 CatalogProvider
 
-TLEProvider
+OmmProvider
 
 ImageProvider
 
@@ -451,6 +451,10 @@ LST
 FOV
 
 ISS
+
+GP
+
+OMM
 
 TLE
 
