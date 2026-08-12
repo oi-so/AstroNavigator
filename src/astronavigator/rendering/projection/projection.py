@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Generator, Generic, Iterable, TypeVar
 
 from PySide6.QtCore import QPoint, QPointF, QSize
+from PySide6.QtGui import QPainterPath
 
 from astronavigator.scene.scene import Scene
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
@@ -228,4 +229,24 @@ class Projection(ABC, Generic[T, C]):
         -------
         HorizontalPosition
             中心の水平座標。The current center horizontal coordinates.
+        """
+
+
+    @abstractmethod
+    def create_below_horizon_path(self, context: C, viewport_size: QSize) -> QPainterPath:
+        """
+        水平線の下にある領域のパスを作成する。
+        Create a path for the area below the horizon.
+
+        Parameters
+        ----------
+        context : C
+            投影コンテキスト。Projection context.
+        viewport_size : QSize
+            ビューポートのサイズ。Viewport size.
+
+        Returns
+        -------
+        QPainterPath
+            水平線の下にある領域のパス。The path for the area below the horizon.
         """
