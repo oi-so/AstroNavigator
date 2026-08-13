@@ -70,7 +70,7 @@ class EZeus2(Mount):
     def is_tracking(self) -> bool:
         status = self._protocol.get_status()
         self._apply_status(status)
-        return status[EZeus2StatusIndex.RA_STATUS] == "I" and status[EZeus2StatusIndex.RA_STATUS] == EZeus2_Speed.SIDEREAL.value
+        return status[EZeus2StatusIndex.RA_STATUS] == "I" and status[EZeus2StatusIndex.RA_SPEED] == EZeus2_Speed.SIDEREAL.value
 
     @property
     def driver_name(self) -> str:
@@ -131,12 +131,12 @@ class EZeus2(Mount):
         self._settings.reference_time_utc = None
         self._settings.pier_side = PierSide.UNKNOWN
 
-        self._status = ConnectionState.DISCONNECTED
+        self._state = ConnectionState.DISCONNECTED
 
     def get_position(self) -> Position:
         ra_steps, dec_steps = self._protocol.get_position()
         axis_position = self._steps_to_axis_position(ra_steps, dec_steps)
-        return self._axis_to_sky_position(axis_position, self.pier_side, datetime.now(timezone.utc))
+        return self._axis_to_sky_position(axis_position, datetime.now(timezone.utc))
 
 
     def _step_difference(self, new_steps: int, reference_steps: int) -> int:
@@ -173,8 +173,8 @@ class EZeus2(Mount):
         return delta
 
 
-    def sync(self, position: Position, *, pier_side: PierSide) -> None:
-        if pier_side == PierSide.UNKNOWN:
+    def sync(self, position: Position, *, pier_side: PierSide | None = None) -> None:
+        if pier_side == PierSide.UNKNOWN or pier_side is None:
             raise ValueError("Cannot sync with unknown pier side")
 
         now = datetime.now(timezone.utc)
@@ -184,7 +184,7 @@ class EZeus2(Mount):
         self._settings.reference_steps = self._protocol.get_position()
         self._settings.reference_axis_position = reference_axis_position
         self._settings.pier_side = pier_side
-        self._pending_pier_side = None
+        self._clear_pending_pier_change()
 
 
     def _convert_speed(self, speed: float) -> EZeus2_Speed:
@@ -253,28 +253,29 @@ class EZeus2(Mount):
         target_axis_position = self._sky_to_axis_position(position, target_pier_side, now)
         target_ra_steps, target_dec_steps = self._axis_position_to_steps(target_axis_position)
         current_ra_steps, current_dec_steps = self._protocol.get_position()
+
         delta_ra_steps = self._step_difference(target_ra_steps, current_ra_steps)
         delta_dec_steps = self._step_difference(target_dec_steps, current_dec_steps)
 
-        if delta_ra_steps != 0:
-            ra_direction = self._step_delta_to_direction(Axis.RA, delta_ra_steps)
-            self._protocol.drive(EZeus2_RA_DEC.RA, ra_direction, EZeus2_Speed.FAST, abs(delta_ra_steps))
-        if delta_dec_steps != 0:
-            dec_direction = self._step_delta_to_direction(Axis.DEC, delta_dec_steps)
-            self._protocol.drive(EZeus2_RA_DEC.DEC, dec_direction, EZeus2_Speed.FAST, abs(delta_dec_steps))
-
         pier_side_change = target_pier_side != self.pier_side
+
         if pier_side_change:
             self._pending_pier_side = target_pier_side
-            self._pending_target_steps = (target_ra_steps, target_dec_steps)
+            self._pending_target_steps = (
+                target_ra_steps,
+                target_dec_steps,
+            )
             self._pending_slew_observed = False
+
         try:
             if delta_ra_steps != 0:
-                ra_direction = self._step_delta_to_direction(Axis.RA, delta_ra_steps)
+                ra_direction = self._step_delta_to_direction(Axis.RA, delta_ra_steps,)
                 self._protocol.drive(EZeus2_RA_DEC.RA, ra_direction, EZeus2_Speed.FAST, abs(delta_ra_steps))
+
             if delta_dec_steps != 0:
                 dec_direction = self._step_delta_to_direction(Axis.DEC, delta_dec_steps)
                 self._protocol.drive(EZeus2_RA_DEC.DEC, dec_direction, EZeus2_Speed.FAST, abs(delta_dec_steps))
+
         except Exception:
             if pier_side_change:
                 self._clear_pending_pier_change()
@@ -414,7 +415,7 @@ class EZeus2(Mount):
             dec_axis_deg=self._normalize_signed_angle(dec_axis_deg)
         )
 
-    def _axis_to_sky_position(self, axis_position: MountAxisPosition, pier_side: PierSide, now: datetime) -> Position:
+    def _axis_to_sky_position(self, axis_position: MountAxisPosition, now: datetime) -> Position:
         sidereal_elapsed_deg = self._sidereal_elapsed_deg(now)
         ra_deg = axis_position.ra_axis_deg + sidereal_elapsed_deg
         dec_deg = axis_position.dec_axis_deg
@@ -470,3 +471,17 @@ class EZeus2(Mount):
     def update_status(self) -> None:
         status = self._protocol.get_status()
         self._apply_status(status)
+
+    @property
+    def requires_pier_side_for_sync(self) -> bool:
+        return True
+
+    @property
+    def is_synced(self) -> bool:
+        settings = self._settings
+        return (
+            settings.reference_steps is not None and
+            settings.reference_axis_position is not None and
+            settings.reference_time_utc is not None and
+            settings.pier_side != PierSide.UNKNOWN
+        )

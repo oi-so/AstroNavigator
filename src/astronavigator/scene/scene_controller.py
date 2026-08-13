@@ -162,8 +162,12 @@ class SceneController:
             return None
 
         mount.update_status()
-        position = mount.position
+        if not mount.is_synced:
+            self._scene.mount_position = None
+            self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
+            return None
 
+        position = mount.position
         self._scene.mount_position = position
         self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
         return position

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from astronavigator.mount.mount import Axis, ConnectionState, Mount, MountDevice
+from astronavigator.mount.slew_path import PierSide
 from astronavigator.sky.position import Position
 
 
@@ -57,11 +58,11 @@ class SimulatorMount(Mount):
     def set_tracking(self, tracking: bool) -> None:
         self._is_tracking = tracking
 
-    def sync(self, position: Position) -> None:
+    def sync(self, position: Position, *, pier_side: PierSide | None = None) -> None:
         """指定した位置に同期（現在位置を上書き）"""
         self._position = position
 
-    def slew_to(self, position: Position) -> None:
+    def slew_to(self, position: Position, *, pier_side: PierSide | None = None) -> None:
         """指定位置へ導入（シミュレーターなので即座に移動完了）"""
         self._position = position
 

@@ -65,13 +65,20 @@ class Mount(ABC):
         ...
 
     @property
-    @abstractmethod
     def pier_side(self) -> PierSide:
         ...
 
     @property
     def can_set_pier_side(self) -> bool:
         return False
+
+    @property
+    def requires_pier_side_for_sync(self) -> bool:
+        return False
+
+    @property
+    def is_synced(self) -> bool:
+        return True
 
 
     @abstractmethod
