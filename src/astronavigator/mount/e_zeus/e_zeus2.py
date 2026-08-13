@@ -16,9 +16,6 @@ from astronavigator.mount.slew_path import PierSide, MountAxisPosition
 SIDEREAL_DAY_SECONDS = 86164.0905
 PIER_SIDE_STEP_TOLERANCE = 2
 
-STEP_COUNTER_MODULO = 1 << 32
-STEP_COUNTER_HALF = 1 << 31
-
 
 # TODO:
 # - 子午線反転
@@ -139,9 +136,10 @@ class EZeus2(Mount):
         return self._axis_to_sky_position(axis_position, datetime.now(timezone.utc))
 
 
-    def _step_difference(self, new_steps: int, reference_steps: int) -> int:
-        delta = (new_steps - reference_steps + STEP_COUNTER_HALF) % STEP_COUNTER_MODULO - STEP_COUNTER_HALF
-        return delta
+    def _step_difference(self, new_steps: int, reference_steps: int, steps_per_rev: int) -> int:
+        half_revolution = steps_per_rev / 2.0
+        delta = (new_steps - reference_steps + half_revolution) % steps_per_rev - half_revolution
+        return round(delta)
 
     def _steps_to_axis_position(self, ra_steps: int, dec_steps: int) -> MountAxisPosition:
         settings = self._settings
@@ -156,11 +154,11 @@ class EZeus2(Mount):
 
         reference_ra_steps, reference_dec_steps = reference_steps
 
-        delta_ra_steps = self._step_difference(ra_steps, reference_ra_steps)
-        delta_dec_steps = self._step_difference(dec_steps, reference_dec_steps)
+        delta_ra_steps = self._step_difference(ra_steps, reference_ra_steps, ra_steps_per_rev)
+        delta_dec_steps = self._step_difference(dec_steps, reference_dec_steps, dec_steps_per_rev)
 
-        delta_ra_deg = (delta_ra_steps / ra_steps_per_rev) * 360.0 / settings.ra_coordinate_sign
-        delta_dec_deg = (delta_dec_steps / dec_steps_per_rev) * 360.0 / settings.dec_coordinate_sign
+        delta_ra_deg = (delta_ra_steps / ra_steps_per_rev) * 360.0 * settings.ra_coordinate_sign
+        delta_dec_deg = (delta_dec_steps / dec_steps_per_rev) * 360.0 * settings.dec_coordinate_sign
 
         return MountAxisPosition(
             ra_axis_deg=self._normalize_angle(reference_axis_position.ra_axis_deg + delta_ra_deg),
@@ -254,8 +252,14 @@ class EZeus2(Mount):
         target_ra_steps, target_dec_steps = self._axis_position_to_steps(target_axis_position)
         current_ra_steps, current_dec_steps = self._protocol.get_position()
 
-        delta_ra_steps = self._step_difference(target_ra_steps, current_ra_steps)
-        delta_dec_steps = self._step_difference(target_dec_steps, current_dec_steps)
+        ra_steps_per_rev = self._settings.ra_steps_per_rev
+        dec_steps_per_rev = self._settings.dec_steps_per_rev
+
+        if ra_steps_per_rev is None or dec_steps_per_rev is None:
+            raise RuntimeError("Steps per revolution not set")
+
+        delta_ra_steps = self._step_difference(target_ra_steps, current_ra_steps, ra_steps_per_rev)
+        delta_dec_steps = self._step_difference(target_dec_steps, current_dec_steps, dec_steps_per_rev)
 
         pier_side_change = target_pier_side != self.pier_side
 
@@ -300,10 +304,10 @@ class EZeus2(Mount):
         delta_ra_deg = self._angle_difference(axis_position.ra_axis_deg, reference_axis_position.ra_axis_deg)
         delta_dec_deg = self._angle_difference(axis_position.dec_axis_deg, reference_axis_position.dec_axis_deg)
 
-        delta_ra_steps = int(round((delta_ra_deg / 360.0) * ra_steps_per_rev * settings.ra_coordinate_sign))
-        delta_dec_steps = int(round((delta_dec_deg / 360.0) * dec_steps_per_rev * settings.dec_coordinate_sign))
+        delta_ra_steps = round((delta_ra_deg / 360.0) * ra_steps_per_rev / settings.ra_coordinate_sign)
+        delta_dec_steps = round((delta_dec_deg / 360.0) * dec_steps_per_rev / settings.dec_coordinate_sign)
 
-        return (reference_ra_steps + delta_ra_steps) % STEP_COUNTER_MODULO, (reference_dec_steps + delta_dec_steps) % STEP_COUNTER_MODULO
+        return (reference_ra_steps + delta_ra_steps) % ra_steps_per_rev, (reference_dec_steps + delta_dec_steps) % dec_steps_per_rev
 
     def home(self) -> None:
         raise NotImplementedError("Home operation is not supported for E-ZEUS2 mount")
@@ -458,8 +462,15 @@ class EZeus2(Mount):
 
         current_ra_steps, current_dec_steps = self._protocol.get_position()
         target_ra_steps, target_dec_steps = self._pending_target_steps
-        ra_error = abs(self._step_difference(current_ra_steps, target_ra_steps))
-        dec_error = abs(self._step_difference(current_dec_steps, target_dec_steps))
+
+        ra_steps_per_rev = self._settings.ra_steps_per_rev
+        dec_steps_per_rev = self._settings.dec_steps_per_rev
+
+        if ra_steps_per_rev is None or dec_steps_per_rev is None:
+            raise RuntimeError("Steps per revolution not set")
+        
+        ra_error = abs(self._step_difference(current_ra_steps, target_ra_steps, ra_steps_per_rev))
+        dec_error = abs(self._step_difference(current_dec_steps, target_dec_steps, dec_steps_per_rev))
         reached_target = ra_error <= PIER_SIDE_STEP_TOLERANCE and dec_error <= PIER_SIDE_STEP_TOLERANCE
 
         if reached_target:
