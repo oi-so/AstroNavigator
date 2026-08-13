@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from serial.tools import list_ports
 
 
+from astronavigator.mount.slew_path import PierSide
 from astronavigator.sky.position import Position
 
 
@@ -63,6 +64,16 @@ class Mount(ABC):
     def is_slewing(self) -> bool:
         ...
 
+    @property
+    @abstractmethod
+    def pier_side(self) -> PierSide:
+        ...
+
+    @property
+    def can_set_pier_side(self) -> bool:
+        return False
+
+
     @abstractmethod
     def set_tracking(self, tracking: bool) -> None:
         ...
@@ -88,8 +99,9 @@ class Mount(ABC):
 
 
     @abstractmethod
-    def slew_to(self, position: Position) -> None:
+    def slew_to(self, position: Position, *, pier_side: PierSide | None = None) -> None:
         ...
+
 
     @abstractmethod
     def stop(self) -> None:
@@ -97,8 +109,23 @@ class Mount(ABC):
 
 
     @abstractmethod
-    def sync(self, position: Position) -> None:
+    def sync(self, position: Position, *, pier_side: PierSide) -> None:
         ...
+
+    def flip_meridian(self) -> None:
+        if not self.can_set_pier_side:
+            raise NotImplementedError("This mount does not support setting pier side.")
+        current_position = self.position
+        current_side = self.pier_side
+
+        if current_side == PierSide.EAST:
+            new_side = PierSide.WEST
+        elif current_side == PierSide.WEST:
+            new_side = PierSide.EAST
+        else:
+            raise RuntimeError("Current pier side is unknown, cannot flip.")
+
+        self.slew_to(current_position, pier_side=new_side)
 
 
     @classmethod
