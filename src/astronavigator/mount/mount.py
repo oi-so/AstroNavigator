@@ -116,7 +116,7 @@ class Mount(ABC):
 
 
     @abstractmethod
-    def sync(self, position: Position, *, pier_side: PierSide) -> None:
+    def sync(self, position: Position, *, pier_side: PierSide | None = None) -> None:
         ...
 
     def flip_meridian(self) -> None:

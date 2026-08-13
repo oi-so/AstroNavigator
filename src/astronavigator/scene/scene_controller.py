@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 from astronavigator.catalog.catalog import Catalog
 from astronavigator.event.event_type import EventType
 from astronavigator.mount.mount import Mount
+from astronavigator.mount.slew_path import PierSide
 from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
@@ -172,12 +173,12 @@ class SceneController:
         self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
         return position
 
-    def sync_mount(self, position: Position) -> None:
+    def sync_mount(self, position: Position, *, pier_side: PierSide | None = None) -> None:
         mount = self._scene.mount
         if mount is None:
             raise RuntimeError("Mount is not connected")
 
-        mount.sync(position)
+        mount.sync(position, pier_side=pier_side)
         self._scene.mount_position = position
         self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
 
