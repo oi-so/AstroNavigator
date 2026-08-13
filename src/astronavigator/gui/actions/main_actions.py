@@ -96,7 +96,10 @@ class MainActions(QObject):
     def _goto_mount(self):
         if self._application.scene.selection.selected and self._application.scene.mount:
             position = self._application.scene.selection.selected.get_position()
-            self._application.scene.mount.slew_to(position)
+            try:
+                self._application.scene.mount.slew_to(position)
+            except RuntimeError as e:
+                QMessageBox.critical(None, "導入エラー", f"位置合わせをしてください: {e}")
 
 
     def _sync_mount(self):

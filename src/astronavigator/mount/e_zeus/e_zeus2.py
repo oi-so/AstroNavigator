@@ -42,7 +42,7 @@ class EZeus2MountSettings:
     ra_coordinate_sign: int = -1
     dec_coordinate_sign: int = 1
 
-    ra_forward_step_sign: int = -1
+    ra_forward_step_sign: int = 1
     dec_forward_step_sign: int = 1
 
 
