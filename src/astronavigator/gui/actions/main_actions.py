@@ -93,7 +93,7 @@ class MainActions(QObject):
 
     def _goto_mount(self):
         if self._application.scene.selection.selected and self._application.scene.mount:
-            position = self._application.scene.selection.selected.get_position()
+            position = self._application.scene.selection.selected.get_position(time=self._application.scene.time, observer=self._application.scene.observer)
             self._application.scene.mount.slew_to(position)
 
 
@@ -110,7 +110,7 @@ class MainActions(QObject):
             return
 
         try:
-            position = selected.get_position()
+            position = selected.get_position(time=self._application.scene.time, observer=self._application.scene.observer)
             self._application.scene_controller.sync_mount(position)
 
             QMessageBox.information(None, "同期完了", f"{selected.name} の位置をマウントに同期しました。\n赤経: {position.get_ra(RightAscensionFormat.HMS)}, 赤緯: {position.get_dec(DeclinationFormat.DMS)}")

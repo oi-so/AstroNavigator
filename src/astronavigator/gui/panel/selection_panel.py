@@ -123,7 +123,7 @@ class SelectionPanel(QWidget):
             self._dec_value.setText("-")
             self._magnitude_value.setText("-")
         else:
-            position = sky_object.get_position()
+            position = sky_object.get_position(time=self._application.scene.time, observer=self._application.scene.observer)
             settings = self._application.scene.gui_settings
 
             self._name_value.setText(sky_object.name)

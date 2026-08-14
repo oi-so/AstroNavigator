@@ -60,18 +60,30 @@ class ObjectLayer(Layer):
 
     # @profile
     def _render_type(self, object_type: ObjectType, limit_magnitude: float, viewport_size: QSize, context: RendererContext, min_position: Position, max_position: Position) -> None:
-        for obj in context.scene.object_index.find_visible_by_type(object_type, limit_magnitude, min_position, max_position):
-            point = context.projection.project_object(obj, context.projection_context, viewport_size)
-            if point is None:
-                continue
+        fixed_objects = context.scene.object_index.find_visible_by_type(object_type, limit_magnitude, min_position, max_position)
+        for obj in fixed_objects:
+            self._render_object(obj, limit_magnitude, viewport_size, context)
 
-            self._draw_object(obj, point, context)
+        dynamic_objects = context.scene.object_index.find_dynamic_by_type(object_type)
+        for obj in dynamic_objects:
+            self._render_object(obj, limit_magnitude, viewport_size, context)
+
+    def _render_object(self, obj: SkyObject, limit_magnitude: float, viewport_size: QSize, context: RendererContext) -> None:
+        magnitude = obj.get_magnitude(context.scene.time, context.scene.observer)
+        if not magnitude.is_visible(limit_magnitude):
+            return
+
+        point = context.projection.project_object(obj, context.projection_context, viewport_size)
+        if point is None:
+            return
+
+        self._draw_object(obj, point, context, magnitude)
 
 
-    def _draw_object(self, obj: SkyObject, point: QPointF, context: RendererContext) -> None:
+    def _draw_object(self, obj: SkyObject, point: QPointF, context: RendererContext, magnitude: Magnitude) -> None:
         match obj:
             case Star():
-                self._draw_star(context.painter, obj, context.scene, point)
+                self._draw_star(context.painter, obj, context.scene, point, magnitude)
 
             case Moon():
                 self._draw_moon(context.painter, obj, context.scene, point)
@@ -89,15 +101,15 @@ class ObjectLayer(Layer):
                 raise NotImplementedError("Planet rendering is not implemented yet.")
 
             case Asteroid():
-                self._draw_star(context.painter, obj, context.scene, point)
+                self._draw_star(context.painter, obj, context.scene, point, magnitude)
 
             case _:
                 raise TypeError(f"Unknown SkyObject type: {type(obj).__name__}")
 
-    def _draw_star(self, painter: QPainter, star: Star | Asteroid, scene: Scene, point: QPointF) -> None:
+    def _draw_star(self, painter: QPainter, star: Star | Asteroid, scene: Scene, point: QPointF, magnitude: Magnitude) -> None:
         painter.setPen(STAR_COLORS[star.spectral_type])
         painter.setBrush(STAR_COLORS[star.spectral_type])
-        radius = self._get_star_radius(star.get_magnitude(), scene.sky_camera.fov_deg)
+        radius = self._get_star_radius(magnitude, scene.sky_camera.fov_deg)
         painter.drawEllipse(point, radius, radius)
 
     def _draw_moon(self, painter: QPainter, moon: Moon, scene: Scene, point: QPointF) -> None:

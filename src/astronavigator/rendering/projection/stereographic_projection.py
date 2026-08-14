@@ -265,7 +265,8 @@ class StereographicProjection(Projection[Position, StereographicProjectionContex
         )
 
     def project_object(self, obj: SkyObject, context: StereographicProjectionContext, viewport_size: QSize) -> QPointF | None:
-        return self.project(obj.get_position(), context, viewport_size)
+        position = obj.get_position(context.time, context.observer)
+        return self.project(position, context, viewport_size)
 
     def project_grid_position(self, position: Position | HorizontalPosition, coordinate_system: CoordinateSystem, context: StereographicProjectionContext, viewport_size: QSize) -> QPointF | None:
         if coordinate_system == CoordinateSystem.HORIZONTAL and isinstance(position, HorizontalPosition):

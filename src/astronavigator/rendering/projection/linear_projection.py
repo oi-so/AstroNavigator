@@ -130,7 +130,7 @@ class LinearProjection(Projection[Position, LinearProjectionContext]):
 
 
     def project_object(self, obj: SkyObject, context: LinearProjectionContext, viewport_size: QSize) -> QPointF | None:
-        position = obj.get_position()
+        position = obj.get_position(context.time, context.observer)
         return self.project(position, context, viewport_size)
 
     def project_grid_position(
