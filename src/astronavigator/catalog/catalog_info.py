@@ -42,3 +42,21 @@ ISS_OMM = CatalogInfo(
     save_path=Path(Path.cwd() / "data" / "iss_omm.csv"),
     max_age=timedelta(hours=12),
 )
+
+OPENNGC_NGC = CatalogInfo(
+    name="OpenNGC NGC/IC",    
+    url=(
+        "https://raw.githubusercontent.com/mattiaverga/OpenNGC/v20260501/database_files/NGC.csv"
+    ),
+    save_path=Path.cwd() / "data" / "openngc" / "NGC.csv",
+)
+
+OPENNGC_ADDENDUM = CatalogInfo(
+    name="OpenNGC Addendum",
+    url=(
+        "https://raw.githubusercontent.com/mattiaverga/OpenNGC/v20260501/database_files/addendum.csv"
+    ),
+    save_path=(
+        Path.cwd() / "data" / "openngc" / "addendum.csv"
+    ),
+)

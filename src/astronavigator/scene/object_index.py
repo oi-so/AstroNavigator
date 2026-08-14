@@ -13,6 +13,13 @@ DEC_BIN_SIZE_DEC = 2.0
 DEC_BIN_COUNT = math.ceil(180.0 / DEC_BIN_SIZE_DEC)
 
 
+def normalize_object_name(value: str) -> str:
+    return "".join(
+        char for char in value.casefold() if char.isalnum()
+    )
+
+
+
 class ObjectIndex:
     def __init__(self) -> None:
         self._objects: list[SkyObject] = []
@@ -52,8 +59,10 @@ class ObjectIndex:
             else:
                 self._fixed_type_index.setdefault(obj.object_type, []).append(obj)
 
-            if obj.name:
-                self._name_index[obj.name] = obj
+            for name in (obj.name, *obj.aliases):
+                normalized_name = normalize_object_name(name)
+                if normalized_name:
+                    self._name_index.setdefault(normalized_name, obj)
 
             self._type_index.setdefault(obj.object_type, []).append(obj)
 
@@ -64,7 +73,7 @@ class ObjectIndex:
         return self._id_index.get(id)
 
     def find_by_name(self, name: str) -> SkyObject | None:
-        return self._name_index.get(name)
+        return self._name_index.get(normalize_object_name(name))
 
     def find_by_type(self, object_type: ObjectType) -> list[SkyObject]:
         return self._type_index.get(object_type, [])

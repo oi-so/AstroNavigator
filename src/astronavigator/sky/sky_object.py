@@ -12,6 +12,7 @@ from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.position import Position
 from astronavigator.sky.magnitude import Magnitude
 from astronavigator.sky.spectral_type import SpectralType
+from astronavigator.sky.dso_type import DeepSkyObjectType
 
 
 @dataclass(slots=True)
@@ -20,6 +21,8 @@ class SkyObject(ABC):
     name: str
     object_type: ObjectType
     hip: int | None
+
+    aliases: tuple[str, ...] = field(default_factory=tuple, kw_only=True)
 
     is_dynamic: ClassVar[bool] = False
 
@@ -93,6 +96,12 @@ class Comet(SkyObject):
 class DeepSkyObject(SkyObject):
     _position: Position
     _magnitude: Magnitude
+
+    dso_type: DeepSkyObjectType = DeepSkyObjectType.OTHER
+    major_axis_arcmin: float | None = None # 主軸（分）
+    minor_axis_arcmin: float | None = None # 従軸（分）
+    position_angle_deg: float | None = None # 位置角（度）
+
     def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         return self._position
     
