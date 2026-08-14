@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import ClassVar, Any
-from skyfield.api import wgs84
+from skyfield.api import wgs84, EarthSatellite
 from skyfield.magnitudelib import planetary_magnitude
 
 from astronavigator.scene.observer import Observer
@@ -45,13 +45,37 @@ class Star(SkyObject):
 
 @dataclass(slots=True)
 class Satellite(SkyObject):
+    model: EarthSatellite
+    timescale: Any
+
     is_dynamic: ClassVar[bool] = True
 
+    _cache_key: tuple[object, ...] | None = field(default=None, init=False, repr=False)
+    _cached_position: Position | None = field(default=None, init=False, repr=False)
+
     def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
-        raise NotImplementedError("Satellite position calculation is not implemented yet.")
+        if time is None or observer is None:
+            raise ValueError("Time and observer must be provided for Satellite position calculation.")
+
+        time_bucket = int(time.utc.timestamp() * 20.0) # 0.05sごとにキャッシュ
+        cache_key = (time_bucket, observer.latitude, observer.longitude, observer.elevation)
+
+        if cache_key == self._cache_key and self._cached_position is not None:
+            return self._cached_position
+
+        skyfield_time = self.timescale.from_datetime(time.utc)
+        observing_site = wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
+        topocentric = (self.model - observing_site).at(skyfield_time)
+        ra, dec, _ = topocentric.radec()
+
+        position = Position(float(ra.degrees), float(dec.degrees)).normalized()
+
+        self._cache_key = cache_key
+        self._cached_position = position
+        return position
 
     def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
-        raise NotImplementedError("Satellite magnitude calculation is not implemented yet.")
+        return Magnitude(0.0)  # TODO: ISSの等級計算
 
 
 @dataclass(slots=True)
