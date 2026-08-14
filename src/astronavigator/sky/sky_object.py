@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import ClassVar
+from dataclasses import dataclass, field
+from typing import ClassVar, Any
+from skyfield.api import wgs84
+from skyfield.magnitudelib import planetary_magnitude
 
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.time import Time
@@ -40,17 +42,6 @@ class Star(SkyObject):
     
     def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
         return self._magnitude
-
-@dataclass(slots=True)
-class Moon(SkyObject):
-    is_dynamic: ClassVar[bool] = True
-
-    def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
-        raise NotImplementedError("Moon position calculation is not implemented yet.")
-
-    def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
-        raise NotImplementedError("Moon magnitude calculation is not implemented yet.")
-
 
 @dataclass(slots=True)
 class Satellite(SkyObject):
@@ -95,12 +86,62 @@ class Asteroid(SkyObject):
     def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
         raise NotImplementedError("Asteroid magnitude calculation is not implemented yet.")
 
+
 @dataclass(slots=True)
-class Planet(SkyObject):
+class SolarSystemBody(SkyObject):
+    ephemeris: Any
+    timescale: Any
+    target_name: str
+
     is_dynamic: ClassVar[bool] = True
 
-    def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
-        raise NotImplementedError("Planet position calculation is not implemented yet.")
+    _cache_key: tuple[object, ...] | None = field(default=None, init=False, repr=False)
+    _cached_apparent: Any = field(default=None, init=False, repr=False)
 
+    def _get_apparent(self, time: Time, observer: Observer) -> Any:
+        cache_key = (
+            time.utc.replace(microsecond=0), observer.latitude, observer.longitude, observer.elevation
+        )
+
+        if cache_key == self._cache_key:
+            return self._cached_apparent
+
+        skyfield_time = self.timescale.from_datetime(time.utc)
+        geographic_position = wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
+
+        earth = self.ephemeris["earth"]
+        target = self.ephemeris[self.target_name]
+        topocentric_observer = earth + geographic_position
+
+        apparent = topocentric_observer.at(skyfield_time).observe(target).apparent()
+
+        self._cache_key = cache_key
+        self._cached_apparent = apparent
+        return apparent
+
+    def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
+        if time is None or observer is None:
+            raise ValueError("Time and observer must be provided for SolarSystemBody position calculation.")
+        apparent = self._get_apparent(time, observer)
+        ra, dec, _ = apparent.radec()
+        return Position(float(ra.degrees), float(dec.degrees))
+
+@dataclass(slots=True)
+class Sun(SolarSystemBody):
     def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
-        raise NotImplementedError("Planet magnitude calculation is not implemented yet.")
+        return Magnitude(-26.74)
+
+@dataclass(slots=True)
+class Moon(SolarSystemBody):
+    def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
+        # TODO: 月の等級計算
+        return Magnitude(-12.7)
+
+@dataclass(slots=True)
+class Planet(SolarSystemBody):
+    def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
+        if time is None or observer is None:
+            raise ValueError("Time and observer must be provided for Planet magnitude calculation.")
+
+        apparent = self._get_apparent(time, observer)
+        return Magnitude(float(planetary_magnitude(apparent)))

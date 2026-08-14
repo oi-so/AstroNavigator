@@ -4,6 +4,7 @@ from enum import Enum, auto
 class ObjectType(Enum):
     STAR = auto()
 
+    SUN = auto()
     PLANET = auto()
     MOON = auto()
 
@@ -13,6 +14,3 @@ class ObjectType(Enum):
     ASTEROID = auto()
 
     SATELLITE = auto()
-    
-    MOUNT = auto()
-    CAMERA_FOV = auto()
