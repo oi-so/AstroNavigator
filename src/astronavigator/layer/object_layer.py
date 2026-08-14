@@ -10,9 +10,21 @@ from astronavigator.rendering.star_size import calculate_star_radius
 from astronavigator.scene.scene import Scene
 from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.position import Position
-from astronavigator.sky.sky_object import Comet, Moon, Satellite, SkyObject, Star, DeepSkyObject, Asteroid, Planet
+from astronavigator.sky.sky_object import Comet, Moon, Satellite, SkyObject, Star, DeepSkyObject, Asteroid, Planet, Sun
 from astronavigator.sky.magnitude import Magnitude
 from astronavigator.rendering.render_context import RendererContext
+
+
+PLANET_COLORS = {
+    "solar_system:mercury": QColor(190, 190, 190),
+    "solar_system:venus": QColor(255, 220, 150),
+    "solar_system:mars": QColor(230, 110, 70),
+    "solar_system:jupiter": QColor(225, 190, 150),
+    "solar_system:saturn": QColor(235, 210, 150),
+    "solar_system:uranus": QColor(150, 220, 230),
+    "solar_system:neptune": QColor(100, 140, 240),
+}
+
 
 class ObjectLayer(Layer):
     def __init__(self, visible: bool = True):
@@ -25,6 +37,7 @@ class ObjectLayer(Layer):
         self.show_comets = True
         self.show_asteroids = True
         self.show_moon = True
+        self.show_sun = True
 
     # @profile
     def render(self, context: RendererContext) -> None:
@@ -53,6 +66,9 @@ class ObjectLayer(Layer):
 
         if self.show_moon:
             self._render_type(ObjectType.MOON, limit_magnitude, viewport_size, context, min_position, max_position)
+
+        if self.show_sun:
+            self._render_type(ObjectType.SUN, limit_magnitude, viewport_size, context, min_position, max_position)
 
         if self.show_satellites:
             self._render_type(ObjectType.SATELLITE, limit_magnitude, viewport_size, context, min_position, max_position)
@@ -98,10 +114,13 @@ class ObjectLayer(Layer):
                 self._draw_deep_sky_object(context.painter, obj, context.scene, point)
 
             case Planet():
-                raise NotImplementedError("Planet rendering is not implemented yet.")
+                self._draw_planet(context.painter, obj, point)
 
             case Asteroid():
                 self._draw_star(context.painter, obj, context.scene, point, magnitude)
+
+            case Sun():
+                self._draw_sun(context.painter, point)
 
             case _:
                 raise TypeError(f"Unknown SkyObject type: {type(obj).__name__}")
@@ -112,10 +131,22 @@ class ObjectLayer(Layer):
         radius = self._get_star_radius(magnitude, scene.sky_camera.fov_deg)
         painter.drawEllipse(point, radius, radius)
 
+    def _draw_sun(self, painter: QPainter, point: QPointF) -> None:
+        color = QColor(255, 220, 80)
+        painter.setPen(color)
+        painter.setBrush(color)
+        painter.drawEllipse(point, 10, 10)
+
+    def _draw_planet(self, painter: QPainter, planet: Planet, point: QPointF) -> None:
+        color = PLANET_COLORS.get(planet.id, QColor(230, 230, 230))
+        painter.setPen(color)
+        painter.setBrush(color)
+        painter.drawEllipse(point, 4.0, 4.0)
+
     def _draw_moon(self, painter: QPainter, moon: Moon, scene: Scene, point: QPointF) -> None:
         painter.setPen(Qt.GlobalColor.white)
         painter.setBrush(Qt.GlobalColor.white)
-        painter.drawEllipse(point, 5, 5)
+        painter.drawEllipse(point, 10, 10)
     
     def _draw_satellite(self, painter: QPainter, satellite: Satellite, scene: Scene, point: QPointF) -> None:
         painter.setPen(Qt.GlobalColor.white)

@@ -10,6 +10,7 @@ from astronavigator.catalog.parser.hyg_parser import HygParser
 from astronavigator.catalog.parser.skyfield_parser import SkyfieldParser
 from astronavigator.catalog.provider.debug_catalog_provider import DebugCatalogProvider
 from astronavigator.catalog.provider.local_file_provider import LocalFileProvider
+from astronavigator.catalog.provider.solar_system_provider import SolarSystemProvider
 from astronavigator.gui.actions.main_actions import MainActions
 from astronavigator.input.input_controller import InputController
 from astronavigator.rendering.projection.stereographic_projection import StereographicProjection
@@ -36,6 +37,7 @@ class Application:
         self._load_hyg()
         self._load_constellations()
         self._load_skyfield()
+        self._load_solar_system()
 
         self._last_update_time = time.monotonic()
         self._update_timer = QTimer()
@@ -67,6 +69,14 @@ class Application:
         self._catalog_manager.download_catalog(EPHEMERIS)
         provider = LocalFileProvider(path=EPHEMERIS.save_path, parser=SkyfieldParser())
         self._scene.skyfield = provider.load()
+
+    def _load_solar_system(self):
+        context = self._scene.skyfield
+        if context is None:
+            raise RuntimeError("Skyfield context is not loaded yet.")
+        provider = SolarSystemProvider(context)
+        catalog = provider.load()
+        self._scene_controller.add_catalog(catalog)
 
     def _update(self):
         current_time = time.monotonic()
