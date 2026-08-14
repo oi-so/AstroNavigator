@@ -115,6 +115,9 @@ class NGCParser(CatalogParser[Catalog]):
         aliases.update(self._catalog_aliases("NGC", row.get("NGC")))
         aliases.update(self._catalog_aliases("IC", row.get("IC")))
 
+        aliases.update(self._split_values(row.get("Identifiers")))
+        aliases.update(self._split_values(row.get("Common names")))
+
         return {alias for alias in aliases if alias is not None}
 
     def _catalog_aliases(self, prefix: str, value: str | None) -> list[str]:
