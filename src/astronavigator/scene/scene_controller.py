@@ -185,8 +185,9 @@ class SceneController:
         projection = self._projection_manager.projection
         projection_context = self._projection_manager.create_context(self._scene)
 
+        # TODO: O(N)かかるため必要だったら、ObjectIndexを使って高速化する
         for obj in self._scene.objects:
-            if not obj.get_magnitude().is_visible(camera.limit_magnitude):
+            if not obj.get_magnitude(self._scene.time, self._scene.observer).is_visible(camera.limit_magnitude):
                 continue
 
             point = projection.project_object(obj, projection_context, viewport_size)

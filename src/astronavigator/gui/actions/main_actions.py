@@ -93,7 +93,15 @@ class MainActions(QObject):
 
     def _goto_mount(self):
         if self._application.scene.selection.selected and self._application.scene.mount:
-            position = self._application.scene.selection.selected.get_position(time=self._application.scene.time, observer=self._application.scene.observer)
+            scene = self._application.scene
+            selected = scene.selection.selected
+            mount = scene.mount
+            if selected is None or mount is None:
+                msg = "導入する対象が選択されていません。" if selected is None else "マウントが接続されていません。"
+                QMessageBox.warning(None, "導入エラー", msg)
+                return
+
+            position = selected.get_position(time=scene.time, observer=scene.observer)
             self._application.scene.mount.slew_to(position)
 
 
@@ -101,12 +109,9 @@ class MainActions(QObject):
         selected = self._application.scene.selection.selected
         mount = self._application.scene.mount
 
-        if selected is None:
-            QMessageBox.warning(None, "同期エラー", "同期する対象が選択されていません。")
-            return
-
-        if mount is None:
-            QMessageBox.warning(None, "同期エラー", "マウントが接続されていません。")
+        if selected is None or mount is None:
+            msg = "同期する対象が選択されていません。" if selected is None else "マウントが接続されていません。"
+            QMessageBox.warning(None, "同期エラー", msg)
             return
 
         try:

@@ -29,14 +29,15 @@ class ConstellationRenderer:
                 if start_pos is None or end_pos is None:
                     continue
 
+                start_position = start_pos.get_position(scene.time, scene.observer)
+                end_position = end_pos.get_position(scene.time, scene.observer)
+
                 start_pos_converted = projection.convert_position(
-                    start_pos.get_position(),
-                    context.projection_context
+                    start_position, context.projection_context
                 )
 
                 end_pos_converted = projection.convert_position(
-                    end_pos.get_position(),
-                    context.projection_context
+                    end_position, context.projection_context
                 )
 
 
