@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QPointF, Qt, QSize
+from PySide6.QtCore import QPointF, QRectF, Qt, QSize
 from PySide6.QtGui import QColor, QPainter, QPen
 
 from astronavigator.layer.layer import Layer, LayerType
@@ -13,6 +13,7 @@ from astronavigator.sky.position import Position
 from astronavigator.sky.sky_object import Comet, Moon, Satellite, SkyObject, Star, DeepSkyObject, Asteroid, Planet, Sun
 from astronavigator.sky.magnitude import Magnitude
 from astronavigator.rendering.render_context import RendererContext
+from astronavigator.sky.dso_type import DeepSkyObjectType
 
 
 PLANET_COLORS = {
@@ -159,9 +160,62 @@ class ObjectLayer(Layer):
         painter.drawEllipse(point, 4, 4)
 
     def _draw_deep_sky_object(self, painter: QPainter, deep_sky_object: DeepSkyObject, scene: Scene, point: QPointF) -> None:
-        painter.setPen(Qt.GlobalColor.white)
-        painter.setBrush(Qt.GlobalColor.white)
-        painter.drawEllipse(point, 6, 6)
+        color = QColor(100, 180, 255)
+
+        pen = QPen(color)
+        pen.setWidthF(1.2)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+
+        dso_type = deep_sky_object.dso_type
+        galaxy_types = {
+            DeepSkyObjectType.GALAXY,
+            DeepSkyObjectType.GALAXY_PAIR,
+            DeepSkyObjectType.GALAXY_TRIPLET,
+            DeepSkyObjectType.GALAXY_GROUP,
+        }
+
+        nebula_types = {
+            DeepSkyObjectType.PLANETARY_NEBULA,
+            DeepSkyObjectType.HII_REGION,
+            DeepSkyObjectType.DARK_NEBULA,
+            DeepSkyObjectType.EMISSION_NEBULA,
+            DeepSkyObjectType.REFLECTION_NEBULA,
+            DeepSkyObjectType.NEBULA,
+            DeepSkyObjectType.SUPERNOVA_REMNANT,
+            DeepSkyObjectType.CLUSTER_AND_NEBULA,
+        }
+
+        if dso_type in galaxy_types:
+            painter.drawEllipse(point, 6.0, 3.5)
+            pen.setStyle(Qt.PenStyle.DotLine)
+            painter.setPen(pen)
+            painter.drawEllipse(point, 5.0, 5.0)
+            
+        elif dso_type == DeepSkyObjectType.GLOBULAR_CLUSTER:
+            painter.drawEllipse(point, 5.0, 5.0)
+            painter.drawLine(
+                QPointF(point.x() - 5.0, point.y()),
+                QPointF(point.x() + 5.0, point.y()),
+            )
+            painter.drawLine(
+                QPointF(point.x(), point.y() - 5.0),
+                QPointF(point.x(), point.y() + 5.0),
+            )
+
+        elif dso_type in nebula_types:
+            painter.drawRect(
+                QRectF(
+                    point.x() - 4.0,
+                    point.y() - 4.0,
+                    8.0,
+                    8.0,
+                )
+            )
+
+        else:
+            painter.drawEllipse(point, 3.0, 3.0)
+
     
     def _get_star_radius(self, magnitude: Magnitude, camera_fov_deg: float) -> float:
         radius = calculate_star_radius(magnitude, camera_fov_deg)
