@@ -1,17 +1,17 @@
 from astronavigator.event.event_bus import EventBus
-from astronavigator.rendering.projection.linear_projection import LinearProjection
+from astronavigator.rendering.projection.stereographic_projection import StereographicProjection
 from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.scene.object_index import ObjectIndex
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.sky.magnitude import Magnitude
 from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.position import Position
-from astronavigator.sky.sky_object import Star
+from astronavigator.sky.sky_object import Planet, Star
 from astronavigator.scene.scene import Scene
 
 
 def create_controller(scene: Scene) -> SceneController:
-    return SceneController(scene, EventBus(), ProjectionManager(LinearProjection()))
+    return SceneController(scene, EventBus(), ProjectionManager(StereographicProjection()))
 
 
 def create_star(
@@ -140,3 +140,30 @@ def test_remove_object_updates_object_index():
 
     assert scene.object_index.find_by_id("star1") is None
     assert scene.object_index.find_by_id("star2") is star2
+
+
+
+def test_dynamic_object_is_not_added_to_spatial_index():
+    planet = Planet(
+        id="planet:mars",
+        name="Mars",
+        object_type=ObjectType.PLANET,
+        hip=None,
+    )
+
+    index = ObjectIndex()
+    index.update([planet])
+
+    # 通常の検索には含まれる
+    assert index.find_by_id("planet:mars") is planet
+    assert index.find_by_type(ObjectType.PLANET) == [planet]
+
+    # 動的天体として分類される
+    assert index.find_dynamic_by_type(ObjectType.PLANET) == [planet]
+    assert index.find_fixed_by_type(ObjectType.PLANET) == []
+
+    # get_position()やget_magnitude()を呼ばず、空リストになる
+    assert index.find_visible_by_type(
+        ObjectType.PLANET,
+        limit_magnitude=10.0,
+    ) == []

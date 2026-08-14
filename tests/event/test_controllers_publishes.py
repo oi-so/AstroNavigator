@@ -2,7 +2,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from astronavigator.event.event_bus import EventBus
-from astronavigator.rendering.projection.linear_projection import LinearProjection
+from astronavigator.rendering.projection.stereographic_projection import StereographicProjection
 from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
@@ -16,7 +16,7 @@ from astronavigator.sky.magnitude import Magnitude
 
 
 def create_controller(scene: Scene, event_bus: EventBus) -> SceneController:
-    return SceneController(scene, event_bus, ProjectionManager(LinearProjection()))
+    return SceneController(scene, event_bus, ProjectionManager(StereographicProjection()))
 
 
 def test_set_time():
@@ -33,7 +33,7 @@ def test_set_time():
 
     event_bus.subscribe(EventType.TIME_CHANGED, callback)
 
-    new_time = Time(datetime(2024, 1, 1, 12, 0, 0, tzinfo=ZoneInfo("Asia/Tokyo")))
+    new_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=ZoneInfo("Asia/Tokyo"))
 
     controller.set_time(new_time)
 
