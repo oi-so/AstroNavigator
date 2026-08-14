@@ -48,7 +48,7 @@ class NGCParser(CatalogParser[Catalog]):
         catalog = Catalog(name=f"OpenNGC {path.stem}")
 
         with path.open(mode="r", encoding="utf-8-sig", newline="") as f:
-            reader = csv.DictReader(f)
+            reader = csv.DictReader(f, delimiter=";")
             for row in reader:
                 obj = self._parse_object(row)
 
@@ -84,7 +84,7 @@ class NGCParser(CatalogParser[Catalog]):
             id=f"openngc:{raw_name}",
             name=display_name,
             aliases=tuple(sorted(aliases)),
-            object_type=self._parse_type(raw_type),
+            object_type=ObjectType.DSO,
             hip=None,
             _position=Position(
                 ra_deg=self._parse_ra(ra_text),

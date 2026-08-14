@@ -188,6 +188,8 @@ class ObjectLayer(Layer):
 
         if dso_type in galaxy_types:
             painter.drawEllipse(point, 6.0, 3.5)
+
+        elif dso_type == DeepSkyObjectType.OPEN_CLUSTER:
             pen.setStyle(Qt.PenStyle.DotLine)
             painter.setPen(pen)
             painter.drawEllipse(point, 5.0, 5.0)
