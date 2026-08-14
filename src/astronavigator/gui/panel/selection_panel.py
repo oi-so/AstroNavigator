@@ -103,7 +103,6 @@ class SelectionPanel(QWidget):
             enabled = False
         self._goto_button.setEnabled(enabled)
         self._sync_button.setEnabled(enabled)
-        self._center_button.setEnabled(enabled)
 
 
     def _add_field(self, layout: QVBoxLayout, label_text: str, value_label: QLabel) -> None:

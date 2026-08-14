@@ -41,7 +41,7 @@ class MainActions(QObject):
         self.disconnect_mount_action.triggered.connect(self._disconnect_mount)
         self.goto_mount_action.triggered.connect(self._goto_mount)
         self.sync_mount_action.triggered.connect(self._sync_mount)
-        self.center_mount_action.triggered.connect(self._center_mount)
+        self.center_mount_action.triggered.connect(self._center_on_selected)
         self.abort_slew_action.triggered.connect(self._abort_slew)
         self.stop_mount_action.triggered.connect(self._stop_mount)
         self.now_action.triggered.connect(self._set_now)
@@ -126,8 +126,12 @@ class MainActions(QObject):
         if self._application.scene.mount:
             self._application.scene.mount.set_tracking(True)
 
-    def _center_mount(self):
-        raise NotImplementedError("Center mount action not implemented yet.")
+    def _center_on_selected(self):
+        selected = self._application.scene.selection.selected
+        if selected is None:
+            QMessageBox.warning(None, "中央エラー", "中央にする対象が選択されていません。")
+            return
+        self._application.scene_controller.center_camera_on_object(selected)
 
 
     def _set_now(self):

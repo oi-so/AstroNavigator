@@ -205,3 +205,8 @@ class SceneController:
         if best_distance2 > SELECTION_THRESHOLD ** 2:
             return None
         return best_object
+
+    def center_camera_on_object(self, sky_object: SkyObject) -> None:
+        position = sky_object.get_position(self._scene.time, self._scene.observer)
+        self._scene.sky_camera.center = position
+        self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
