@@ -20,10 +20,10 @@ class HygParser(CatalogParser[Catalog]):
             catalog = Catalog(name="HYG")
 
             for row in reader:
-                # if self._parse_star(row).get_magnitude().value >= 4.0:
-                #     continue
+                if row["id"] == "0":
+                    continue  # 太陽をスキップ
                 catalog.objects.append(self._parse_star(row))
-    
+
         return catalog
     
 
