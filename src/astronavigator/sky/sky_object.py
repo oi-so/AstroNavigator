@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import ClassVar
 
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.time import Time
@@ -17,6 +18,8 @@ class SkyObject(ABC):
     name: str
     object_type: ObjectType
     hip: int | None
+
+    is_dynamic: ClassVar[bool] = False
 
     @abstractmethod
     def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
@@ -40,6 +43,8 @@ class Star(SkyObject):
 
 @dataclass(slots=True)
 class Moon(SkyObject):
+    is_dynamic: ClassVar[bool] = True
+
     def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         raise NotImplementedError("Moon position calculation is not implemented yet.")
 
@@ -48,8 +53,9 @@ class Moon(SkyObject):
 
 
 @dataclass(slots=True)
-
 class Satellite(SkyObject):
+    is_dynamic: ClassVar[bool] = True
+
     def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         raise NotImplementedError("Satellite position calculation is not implemented yet.")
 
@@ -59,6 +65,8 @@ class Satellite(SkyObject):
 
 @dataclass(slots=True)
 class Comet(SkyObject):
+    is_dynamic: ClassVar[bool] = True
+
     def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         raise NotImplementedError("Comet position calculation is not implemented yet.")
     
@@ -78,6 +86,7 @@ class DeepSkyObject(SkyObject):
 
 @dataclass(slots=True)
 class Asteroid(SkyObject):
+    is_dynamic: ClassVar[bool] = True
     spectral_type: SpectralType = SpectralType.UNKNOWN
 
     def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
@@ -88,6 +97,8 @@ class Asteroid(SkyObject):
 
 @dataclass(slots=True)
 class Planet(SkyObject):
+    is_dynamic: ClassVar[bool] = True
+
     def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         raise NotImplementedError("Planet position calculation is not implemented yet.")
 
