@@ -146,7 +146,7 @@ class HorizontalLinearProjection(Projection[HorizontalPosition, HorizontalLinear
 
 
     def project_object(self, obj: SkyObject, context: HorizontalLinearProjectionContext, viewport_size: QSize) -> QPointF | None:
-        position = CoordinateTransformer.equatorial_to_horizontal(obj.get_position(), context.observer_position)
+        position = CoordinateTransformer.equatorial_to_horizontal(obj.get_position(context.time, context.observer), context.observer_position)
         return self.project(position, context, viewport_size)
 
     def project_grid_position(

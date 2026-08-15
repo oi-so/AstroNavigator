@@ -185,8 +185,9 @@ class SceneController:
         projection = self._projection_manager.projection
         projection_context = self._projection_manager.create_context(self._scene)
 
+        # TODO: O(N)かかるため必要だったら、ObjectIndexを使って高速化する
         for obj in self._scene.objects:
-            if not obj.get_magnitude().is_visible(camera.limit_magnitude):
+            if not obj.get_magnitude(self._scene.time, self._scene.observer).is_visible(camera.limit_magnitude):
                 continue
 
             point = projection.project_object(obj, projection_context, viewport_size)
@@ -204,3 +205,8 @@ class SceneController:
         if best_distance2 > SELECTION_THRESHOLD ** 2:
             return None
         return best_object
+
+    def center_camera_on_object(self, sky_object: SkyObject) -> None:
+        position = sky_object.get_position(self._scene.time, self._scene.observer)
+        self._scene.sky_camera.center = position
+        self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)

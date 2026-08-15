@@ -51,15 +51,20 @@ class SelectionPanel(QWidget):
 
         layout.addLayout(button_layout)
 
-        self._application.event_bus.subscribe(EventType.SELECTION_CHANGED, self._on_selection_changed)
+        event_bus = self._application.event_bus
+
+        event_bus.subscribe(EventType.SELECTION_CHANGED, self._on_selection_changed)
         self._update_selection(self._application.scene.selection.selected)
 
-        self._application.event_bus.subscribe(EventType.MOUNT_CONNECTED, self._on_mount_connected)
-        self._application.event_bus.subscribe(EventType.MOUNT_DISCONNECTED, self._on_mount_disconnected)
+        event_bus.subscribe(EventType.MOUNT_CONNECTED, self._on_mount_connected)
+        event_bus.subscribe(EventType.MOUNT_DISCONNECTED, self._on_mount_disconnected)
 
-        self._application.event_bus.subscribe(EventType.MOUNT_CONNECTED, self._on_mount_state_changed)
-        self._application.event_bus.subscribe(EventType.MOUNT_DISCONNECTED, self._on_mount_state_changed)
-        self._application.event_bus.subscribe(EventType.MOUNT_STATE_CHANGED, self._on_mount_state_changed)
+        event_bus.subscribe(EventType.MOUNT_CONNECTED, self._on_mount_state_changed)
+        event_bus.subscribe(EventType.MOUNT_DISCONNECTED, self._on_mount_state_changed)
+        event_bus.subscribe(EventType.MOUNT_STATE_CHANGED, self._on_mount_state_changed)
+
+        event_bus.subscribe(EventType.TIME_CHANGED, self._on_object_context_changed)
+        event_bus.subscribe(EventType.OBSERVER_CHANGED, self._on_object_context_changed)
 
         self._change_mount_buttons_enabled(self._application.scene.mount.is_connected if self._application.scene.mount else False)
 
@@ -86,12 +91,18 @@ class SelectionPanel(QWidget):
     def _on_mount_state_changed(self, event) -> None:
         self._update_goto_button()
 
+    def _on_object_context_changed(self, event) -> None:
+        selected = self._application.scene.selection.selected
+        if selected is None or not selected.is_dynamic:
+            return
+        self._update_selection(selected)
+
+
     def _change_mount_buttons_enabled(self, enabled: bool) -> None:
         if self._application.scene.selection.selected is None:
             enabled = False
         self._goto_button.setEnabled(enabled)
         self._sync_button.setEnabled(enabled)
-        self._center_button.setEnabled(enabled)
 
 
     def _add_field(self, layout: QVBoxLayout, label_text: str, value_label: QLabel) -> None:
@@ -123,13 +134,15 @@ class SelectionPanel(QWidget):
             self._dec_value.setText("-")
             self._magnitude_value.setText("-")
         else:
-            position = sky_object.get_position()
-            settings = self._application.scene.gui_settings
+            scene = self._application.scene
+            settings = scene.gui_settings
+            position = sky_object.get_position(time=scene.time, observer=scene.observer)
+            magnitude = sky_object.get_magnitude(time=scene.time, observer=scene.observer)
 
             self._name_value.setText(sky_object.name)
             self._type_value.setText(sky_object.object_type.name)
             self._ra_value.setText(position.get_ra(settings.ra_format))
             self._dec_value.setText(position.get_dec(settings.dec_format))
-            self._magnitude_value.setText(f"{sky_object.get_magnitude():.2f}")
+            self._magnitude_value.setText(f"{magnitude:.2f}")
 
             self._change_mount_buttons_enabled(self._application.scene.mount.is_connected if self._application.scene.mount else False)

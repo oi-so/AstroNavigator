@@ -41,7 +41,7 @@ class MainActions(QObject):
         self.disconnect_mount_action.triggered.connect(self._disconnect_mount)
         self.goto_mount_action.triggered.connect(self._goto_mount)
         self.sync_mount_action.triggered.connect(self._sync_mount)
-        self.center_mount_action.triggered.connect(self._center_mount)
+        self.center_mount_action.triggered.connect(self._center_on_selected)
         self.abort_slew_action.triggered.connect(self._abort_slew)
         self.stop_mount_action.triggered.connect(self._stop_mount)
         self.now_action.triggered.connect(self._set_now)
@@ -93,7 +93,15 @@ class MainActions(QObject):
 
     def _goto_mount(self):
         if self._application.scene.selection.selected and self._application.scene.mount:
-            position = self._application.scene.selection.selected.get_position()
+            scene = self._application.scene
+            selected = scene.selection.selected
+            mount = scene.mount
+            if selected is None or mount is None:
+                msg = "導入する対象が選択されていません。" if selected is None else "マウントが接続されていません。"
+                QMessageBox.warning(None, "導入エラー", msg)
+                return
+
+            position = selected.get_position(time=scene.time, observer=scene.observer)
             self._application.scene.mount.slew_to(position)
 
 
@@ -101,16 +109,13 @@ class MainActions(QObject):
         selected = self._application.scene.selection.selected
         mount = self._application.scene.mount
 
-        if selected is None:
-            QMessageBox.warning(None, "同期エラー", "同期する対象が選択されていません。")
-            return
-
-        if mount is None:
-            QMessageBox.warning(None, "同期エラー", "マウントが接続されていません。")
+        if selected is None or mount is None:
+            msg = "同期する対象が選択されていません。" if selected is None else "マウントが接続されていません。"
+            QMessageBox.warning(None, "同期エラー", msg)
             return
 
         try:
-            position = selected.get_position()
+            position = selected.get_position(time=self._application.scene.time, observer=self._application.scene.observer)
             self._application.scene_controller.sync_mount(position)
 
             QMessageBox.information(None, "同期完了", f"{selected.name} の位置をマウントに同期しました。\n赤経: {position.get_ra(RightAscensionFormat.HMS)}, 赤緯: {position.get_dec(DeclinationFormat.DMS)}")
@@ -121,8 +126,12 @@ class MainActions(QObject):
         if self._application.scene.mount:
             self._application.scene.mount.set_tracking(True)
 
-    def _center_mount(self):
-        raise NotImplementedError("Center mount action not implemented yet.")
+    def _center_on_selected(self):
+        selected = self._application.scene.selection.selected
+        if selected is None:
+            QMessageBox.warning(None, "中央エラー", "中央にする対象が選択されていません。")
+            return
+        self._application.scene_controller.center_camera_on_object(selected)
 
 
     def _set_now(self):
