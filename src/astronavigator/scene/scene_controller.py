@@ -139,6 +139,7 @@ class SceneController:
 
     def add_constellation_catalog(self, catalog: ConstellationCatalog) -> None:
         self._scene.constellations.extend(catalog.constellations)
+        self._scene.constellation_index.update(self._scene.constellations)
         self._event_bus.publish(EventType.SCENE_UPDATED, catalog)
 
     def connect_mount(self, mount: Mount) -> None:
@@ -208,5 +209,9 @@ class SceneController:
 
     def center_camera_on_object(self, sky_object: SkyObject) -> None:
         position = sky_object.get_position(self._scene.time, self._scene.observer)
+        self.center_camera_on_position(position)
+
+
+    def center_camera_on_position(self, position: Position) -> None:
         self._scene.sky_camera.center = position
         self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)

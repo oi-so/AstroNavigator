@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from astronavigator.gui.gui_settings import GuiSettings
 from astronavigator.mount.mount import Mount
 from astronavigator.rendering.rendering_settings import RenderingSettings
+from astronavigator.scene.constellation_index import ConstellationIndex
 from astronavigator.scene.focus import Focus
 from astronavigator.scene.object_index import ObjectIndex
 from astronavigator.scene.observer import Observer
@@ -24,6 +25,7 @@ class Scene:
     objects: list[SkyObject] = field(default_factory=list)
     object_index: ObjectIndex = field(default_factory=ObjectIndex)
     constellations: list[Constellation] = field(default_factory=list)
+    constellation_index: ConstellationIndex = field(default_factory=ConstellationIndex)
 
     selection: Selection = field(default_factory=Selection)
     focus: Focus = field(default_factory=Focus)

@@ -6,11 +6,27 @@ from PySide6.QtWidgets import QLabel, QLineEdit, QListWidget, QListWidgetItem, Q
 from astronavigator.application.application import Application
 from astronavigator.event.event import Event
 from astronavigator.event.event_type import EventType
+from astronavigator.sky.constellation_line import Constellation
+from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.sky_object import SkyObject
 
 
 SEARCH_DELAY_MS = 120
 SEARCH_RESULT_LIMIT = 50
+CONSTELLATION_SEARCH_RESULT_LIMIT = 10
+
+OBJECT_TYPE_LABELS: dict[ObjectType, str] = {
+    ObjectType.STAR: "恒星",
+    ObjectType.SUN: "太陽",
+    ObjectType.PLANET: "惑星",
+    ObjectType.MOON: "月",
+    ObjectType.DSO: "深宇宙天体",
+    ObjectType.COMET: "彗星",
+    ObjectType.ASTEROID: "小惑星",
+    ObjectType.SATELLITE: "人工衛星",
+}
+
+SearchTarget = SkyObject | Constellation
 
 
 class SearchPanel(QWidget):
@@ -18,7 +34,7 @@ class SearchPanel(QWidget):
         super().__init__()
 
         self._application = application
-        self._results: list[SkyObject] = []
+        self._results: list[SearchTarget] = []
 
         self._search_input = QLineEdit()
         self._search_input.setPlaceholderText("Search for celestial objects...")
@@ -69,12 +85,16 @@ class SearchPanel(QWidget):
             self._clear_results("検索語を入力してください")
             return
 
-        self._results = self._application.scene.object_index.find_by_query(query, limit=SEARCH_RESULT_LIMIT)
+        scene = self._application.scene
+        constellation_results = scene.constellation_index.find_by_query(query, limit=CONSTELLATION_SEARCH_RESULT_LIMIT)
+        remaining_limit = SEARCH_RESULT_LIMIT - len(constellation_results)
+        object_results = scene.object_index.find_by_query(query, limit=remaining_limit)
+        
+        self._results = [*constellation_results, *object_results]
         self._results_list.clear()
 
-        for sky_object in self._results:
-            item = QListWidgetItem(f"{sky_object.name} ({sky_object.object_type.value})")
-            self._results_list.addItem(item)
+        for target in self._results:
+            self._results_list.addItem(QListWidgetItem(self._get_result_text(target)))
 
         if not self._results:
             self._status_label.setText("検索結果が見つかりません")
@@ -86,6 +106,15 @@ class SearchPanel(QWidget):
             self._status_label.setText(f"{len(self._results)}件")
 
         self._results_list.setCurrentRow(0)
+
+    def _get_result_text(self, target: SearchTarget) -> str:
+        if isinstance(target, Constellation):
+            return f"{target.name} [星座]"
+        elif isinstance(target, SkyObject):
+            object_type_label = OBJECT_TYPE_LABELS.get(target.object_type, target.object_type.name)
+            return f"{target.name} [{object_type_label}]"
+        else:
+            return "不明な結果"
 
 
     def _clear_results(self, status: str) -> None:
@@ -120,9 +149,14 @@ class SearchPanel(QWidget):
         if row < 0 or row >= len(self._results):
             return
 
-        sky_object = self._results[row]
+        target = self._results[row]
         scene_controller = self._application.scene_controller
 
-        scene_controller.select_object(sky_object)
-        if center:
-            scene_controller.center_camera_on_object(sky_object)
+        if isinstance(target, Constellation):
+            if center:
+                scene_controller.clear_selection()
+                scene_controller.center_camera_on_position(target.label_position)
+        elif isinstance(target, SkyObject):
+            scene_controller.select_object(target)
+            if center:
+                scene_controller.center_camera_on_object(target)
