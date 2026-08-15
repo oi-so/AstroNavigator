@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 
 from astronavigator.application.application import Application
 from astronavigator.gui.menu.main_menu_bar import MainMenuBar
+from astronavigator.gui.panel.object_browser_panel import ObjectBrowserPanel
 from astronavigator.gui.panel.search_panel import SearchPanel
 from astronavigator.gui.sky_view import SkyView
 from astronavigator.gui.panel.selection_panel import SelectionPanel
@@ -46,6 +47,8 @@ class MainWindow(QMainWindow):
 
         self._mount_dock = self._create_dock("Mount", MountPanel(self._application))
 
+        self._object_browser_dock = self._create_dock("Object Browser", ObjectBrowserPanel(self._application))
+
 
     def _create_dock(self, title: str, widget: QWidget) -> QDockWidget:
         dock = QDockWidget(title, self)
@@ -63,11 +66,14 @@ class MainWindow(QMainWindow):
 
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._selection_dock)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._search_dock)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._object_browser_dock)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._observer_dock)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._time_dock)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._mount_dock)
 
         self.splitDockWidget(self._search_dock, self._selection_dock, Qt.Orientation.Vertical)
+        self.tabifyDockWidget(self._search_dock, self._object_browser_dock)
+        self._search_dock.raise_()
         self.splitDockWidget(self._observer_dock, self._time_dock, Qt.Orientation.Vertical)
         self.splitDockWidget(self._time_dock, self._mount_dock, Qt.Orientation.Vertical)
 

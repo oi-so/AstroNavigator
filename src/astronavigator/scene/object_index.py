@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import bisect
 import math
+import re
 from PySide6.QtCore import QPointF
 
 from astronavigator.sky.object_type import ObjectType
@@ -231,3 +232,43 @@ class ObjectIndex:
                 result.append(obj_list[i])
 
         return result
+
+
+
+    def find_by_catalog(self, catalog_prefix: str) -> list[SkyObject]:
+        normalized_prefix = normalize_object_name(catalog_prefix)
+        if not normalized_prefix:
+            return []
+
+        results: list[tuple[tuple[int, str], SkyObject]] = []
+        for obj in self.find_by_type(ObjectType.DSO):
+            catalog_key = self._find_catalog_key(obj, normalized_prefix)
+
+            if catalog_key is not None:
+                results.append((catalog_key, obj))
+
+        results.sort(key=lambda entry: entry[0])
+        return [obj for _, obj in results]
+
+    def find_famous_stars(self, max_magnitude: float = 3.0) -> list[SkyObject]:
+        stars = [
+            star for star in self.find_by_type(ObjectType.STAR)
+            if not star.name.startswith("HYG ") and star.get_magnitude().value <= max_magnitude
+        ]
+
+        return sorted(stars, key=lambda star: (star.get_magnitude().value, star.name.casefold(), star.id))
+
+    @staticmethod
+    def _find_catalog_key(obj: SkyObject, catalog_prefix: str) -> tuple[int, str] | None:
+        for name in (obj.name, *obj.aliases):
+            normalized_name = normalize_object_name(name)
+            match = re.fullmatch(
+                rf"{re.escape(catalog_prefix)}"r"(\d+)([a-z]*)", normalized_name
+            )
+
+            if match is None:
+                continue
+
+            return (int(match.group(1)), match.group(2))
+
+        return None
