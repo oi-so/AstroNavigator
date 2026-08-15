@@ -170,7 +170,7 @@ class ObjectBrowserPanel(QWidget):
 
         if isinstance(target, SkyObject):
             controller.select_object(target)
-            controller.center_camera_on_object(target)
+            controller.set_focus(target)
         elif isinstance(target, Constellation):
             controller.select_object(None)
             controller.center_camera_on_position(target.label_position)

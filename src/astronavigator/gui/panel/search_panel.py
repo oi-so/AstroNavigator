@@ -159,4 +159,4 @@ class SearchPanel(QWidget):
         elif isinstance(target, SkyObject):
             scene_controller.select_object(target)
             if center:
-                scene_controller.center_camera_on_object(target)
+                scene_controller.set_focus(target)
