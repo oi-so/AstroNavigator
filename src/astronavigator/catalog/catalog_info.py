@@ -60,3 +60,11 @@ OPENNGC_ADDENDUM = CatalogInfo(
         Path.cwd() / "data" / "openngc" / "addendum.csv"
     ),
 )
+
+
+VISUAL_SATELLITES_OMM = CatalogInfo(
+    name="CelesTrak Visual Satellites",
+    url="https://celestrak.org/NORAD/elements/gp.php?GROUP=VISUAL&FORMAT=CSV",
+    save_path=Path(Path.cwd() / "data" / "satellites" / "visual.csv"),
+    max_age=timedelta(hours=12),
+)

@@ -78,7 +78,7 @@ class Satellite(SkyObject):
         return position
 
     def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
-        return Magnitude(0.0)  # TODO: ISSの等級計算
+        return Magnitude(10)  # TODO: 衛星の等級計算
 
 
 @dataclass(slots=True)

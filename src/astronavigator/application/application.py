@@ -22,7 +22,7 @@ from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.event.event_bus import EventBus
-from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG, ISS_OMM, OPENNGC_ADDENDUM, OPENNGC_NGC
+from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG, OPENNGC_ADDENDUM, OPENNGC_NGC, VISUAL_SATELLITES_OMM
 
 
 FPS = 30
@@ -41,7 +41,7 @@ class Application:
         self._load_constellations()
         self._load_skyfield()
         self._load_solar_system()
-        self._load_iss()
+        self._load_satellites()
         self._load_openngc()
 
         self._last_update_time = time.monotonic()
@@ -83,12 +83,12 @@ class Application:
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
 
-    def _load_iss(self):
+    def _load_satellites(self):
         if self._scene.skyfield is None:
             raise RuntimeError("Skyfield context is not loaded yet.")
-        self._catalog_manager.download_catalog(ISS_OMM)
-        parser = OmmCsvParser(self._scene.skyfield)
-        provider = LocalFileProvider(path=ISS_OMM.save_path, parser=parser)
+        self._catalog_manager.download_catalog(VISUAL_SATELLITES_OMM)
+        parser = OmmCsvParser(skyfield=self._scene.skyfield, catalog_name="CelesTrak Visual Satellites")
+        provider = LocalFileProvider(path=VISUAL_SATELLITES_OMM.save_path, parser=parser)
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
 

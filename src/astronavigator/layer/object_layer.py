@@ -152,7 +152,7 @@ class ObjectLayer(Layer):
     def _draw_satellite(self, painter: QPainter, satellite: Satellite, scene: Scene, point: QPointF) -> None:
         painter.setPen(Qt.GlobalColor.white)
         painter.setBrush(Qt.GlobalColor.white)
-        painter.drawEllipse(point, 3, 3)
+        painter.drawEllipse(point, 1, 1)
 
     def _draw_comet(self, painter: QPainter, comet: Comet, scene: Scene, point: QPointF) -> None:
         painter.setPen(Qt.GlobalColor.white)
