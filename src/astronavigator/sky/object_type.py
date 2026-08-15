@@ -1,16 +1,16 @@
 from __future__ import annotations
-from enum import Enum, auto
+from enum import Enum
 
 class ObjectType(Enum):
-    STAR = auto()
+    STAR = "Star"
 
-    SUN = auto()
-    PLANET = auto()
-    MOON = auto()
+    SUN = "Sun"
+    MOON = "Moon"
+    PLANET = "Planet"
 
-    DSO = auto()  # Deep Sky Object
+    DSO = "DeepSkyObject"  # Deep Sky Object
 
-    COMET = auto()
-    ASTEROID = auto()
+    COMET = "Comet"
+    ASTEROID = "Asteroid"
 
-    SATELLITE = auto()
+    SATELLITE = "Satellite"

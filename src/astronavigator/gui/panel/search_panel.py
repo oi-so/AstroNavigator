@@ -73,7 +73,7 @@ class SearchPanel(QWidget):
         self._results_list.clear()
 
         for sky_object in self._results:
-            item = QListWidgetItem(f"{sky_object.name} ({sky_object.object_type})")
+            item = QListWidgetItem(f"{sky_object.name} ({sky_object.object_type.value})")
             self._results_list.addItem(item)
 
         if not self._results:
