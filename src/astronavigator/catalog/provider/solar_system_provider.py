@@ -21,7 +21,7 @@ class SolarSystemProvider(CatalogProvider[Catalog]):
         objects = [
             Sun(
                 id="solar_system:sun",
-                name="Sun",
+                name="太陽",
                 object_type=ObjectType.SUN,
                 hip=None,
                 target_name="sun",
@@ -29,7 +29,7 @@ class SolarSystemProvider(CatalogProvider[Catalog]):
             ),
             Moon(
                 id="solar_system:moon",
-                name="Moon",
+                name="月",
                 object_type=ObjectType.MOON,
                 hip=None,
                 target_name="moon",
@@ -37,7 +37,7 @@ class SolarSystemProvider(CatalogProvider[Catalog]):
             ),
             Planet(
                 id="solar_system:mercury",
-                name="Mercury",
+                name="水星",
                 object_type=ObjectType.PLANET,
                 hip=None,
                 target_name="mercury barycenter",
@@ -45,7 +45,7 @@ class SolarSystemProvider(CatalogProvider[Catalog]):
             ),
             Planet(
                 id="solar_system:venus",
-                name="Venus",
+                name="金星",
                 object_type=ObjectType.PLANET,
                 hip=None,
                 target_name="venus barycenter",
@@ -53,7 +53,7 @@ class SolarSystemProvider(CatalogProvider[Catalog]):
             ),
             Planet(
                 id="solar_system:mars",
-                name="Mars",
+                name="火星",
                 object_type=ObjectType.PLANET,
                 hip=None,
                 target_name="mars barycenter",
@@ -61,7 +61,7 @@ class SolarSystemProvider(CatalogProvider[Catalog]):
             ),
             Planet(
                 id="solar_system:jupiter",
-                name="Jupiter",
+                name="木星",
                 object_type=ObjectType.PLANET,
                 hip=None,
                 target_name="jupiter barycenter",
@@ -69,7 +69,7 @@ class SolarSystemProvider(CatalogProvider[Catalog]):
             ),
             Planet(
                 id="solar_system:saturn",
-                name="Saturn",
+                name="土星",
                 object_type=ObjectType.PLANET,
                 hip=None,
                 target_name="saturn barycenter",
@@ -77,7 +77,7 @@ class SolarSystemProvider(CatalogProvider[Catalog]):
             ),
             Planet(
                 id="solar_system:uranus",
-                name="Uranus",
+                name="天王星",
                 object_type=ObjectType.PLANET,
                 hip=None,
                 target_name="uranus barycenter",
@@ -85,7 +85,7 @@ class SolarSystemProvider(CatalogProvider[Catalog]):
             ),
             Planet(
                 id="solar_system:neptune",
-                name="Neptune",
+                name="海王星",
                 object_type=ObjectType.PLANET,
                 hip=None,
                 target_name="neptune barycenter",
