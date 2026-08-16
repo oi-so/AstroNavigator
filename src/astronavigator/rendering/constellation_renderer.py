@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtCore import Qt
 
 from astronavigator.rendering.render_context import RendererContext
 
@@ -14,47 +15,69 @@ class ConstellationRenderer:
     def _draw_constellation_lines(self, context: RendererContext) -> None:
         painter = context.painter
         scene = context.scene
-        viewport = context.viewport
+        viewport_size = context.viewport.size()
         projection = context.projection
 
-        self._set_pen(painter, scene.rendering_settings.color_settings.constellation_line_color)
+        painter.save()
 
-        constellations = scene.constellations
-        for constellation in constellations:
-            for line in constellation.lines:
+        try:
+            painter.setClipPath(
+                projection.create_clip_path(
+                    context.projection_context, viewport_size
+                ),
+                Qt.ClipOperation.IntersectClip
+            )
 
-                start_pos = scene.object_index.find_by_hip(int(line.start_id))
-                end_pos = scene.object_index.find_by_hip(int(line.end_id))
+            self._set_pen(painter, scene.rendering_settings.color_settings.constellation_line_color)
 
-                if start_pos is None or end_pos is None:
-                    continue
+            for constellation in scene.constellations:
+                for line in constellation.lines:
+                    start_object = scene.object_index.find_by_hip(int(line.start_id))
+                    end_object = scene.object_index.find_by_hip(int(line.end_id))
 
-                start_position = start_pos.get_position(scene.time, scene.observer)
-                end_position = end_pos.get_position(scene.time, scene.observer)
+                    if start_object is None or end_object is None:
+                        continue
 
-                start_pos_converted = projection.convert_position(
-                    start_position, context.projection_context
-                )
+                    start_position = start_object.get_position(scene.time, scene.observer)
+                    end_position = end_object.get_position(scene.time, scene.observer)
 
-                end_pos_converted = projection.convert_position(
-                    end_position, context.projection_context
-                )
+                    start_pos_converted = projection.convert_position(
+                        start_position, context.projection_context
+                    )
 
+                    end_pos_converted = projection.convert_position(
+                        end_position, context.projection_context
+                    )
 
-                p1 = projection.project(
-                    start_pos_converted,
-                    context.projection_context,
-                    viewport.size()
-                )
+                    start_visible = projection.project(
+                        start_pos_converted, context.projection_context, viewport_size
+                    )
 
-                p2 = projection.project(
-                    end_pos_converted,
-                    context.projection_context,
-                    viewport.size()
-                )
+                    end_visible = projection.project(
+                        end_pos_converted, context.projection_context, viewport_size
+                    )
 
-                if p1 and p2:
-                    painter.drawLine(p1, p2)
+                    if start_visible is None and end_visible is None:
+                        continue
+
+                    start_point = start_visible
+                    if start_visible is None:
+                        start_point = projection.project_unclipped(
+                            start_pos_converted, context.projection_context, viewport_size
+                        )
+
+                    end_point = end_visible
+                    if end_visible is None:
+                        end_point = projection.project_unclipped(
+                            end_pos_converted, context.projection_context, viewport_size
+                        )
+
+                    if start_point is None or end_point is None:
+                        continue
+
+                    painter.drawLine(start_point, end_point)
+        finally:
+            painter.restore()
 
     # @profile
     def _draw_constellation_labels(self, context: RendererContext) -> None:
