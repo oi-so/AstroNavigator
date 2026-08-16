@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import bisect
 import math
+import re
 from PySide6.QtCore import QPointF
 
 from astronavigator.sky.object_type import ObjectType
@@ -28,6 +29,8 @@ class ObjectIndex:
         self._hip_index: dict[int, SkyObject] = {}
         self._name_index: dict[str, SkyObject] = {}
         self._type_index: dict[ObjectType, list[SkyObject]] = {}
+        self._search_names: list[str] = []
+        self._search_objects: list[SkyObject] = []
 
         self._fixed_type_index: dict[ObjectType, list[SkyObject]] = {}
         self._dynamic_type_index: dict[ObjectType, list[SkyObject]] = {}
@@ -37,17 +40,22 @@ class ObjectIndex:
         self._dec_bin_ra: dict[ObjectType, list[list[float]]] = {}
         self._dec_bin_objects: dict[ObjectType, list[list[SkyObject]]] = {}
 
+
     def update(self, objects: list[SkyObject]):
         self._objects = list(objects)
         self._id_index.clear()
         self._hip_index.clear()
         self._name_index.clear()
         self._type_index.clear()
+        self._search_names.clear()
+        self._search_objects.clear()
         self._dec_bin_magnitudes.clear()
         self._dec_bin_ra.clear()
         self._dec_bin_objects.clear()
         self._fixed_type_index.clear()
         self._dynamic_type_index.clear()
+
+        search_entries: list[tuple[str, SkyObject]] = []
 
         for obj in self._objects:
             self._id_index[obj.id] = obj
@@ -59,21 +67,81 @@ class ObjectIndex:
             else:
                 self._fixed_type_index.setdefault(obj.object_type, []).append(obj)
 
-            for name in (obj.name, *obj.aliases):
+            search_names = {obj.id, obj.name, *obj.aliases}
+            if obj.hip is not None:
+                search_names.add(f"hip {obj.hip}")
+
+            normalized_names: set[str] = set()
+            for name in search_names:
                 normalized_name = normalize_object_name(name)
-                if normalized_name:
-                    self._name_index.setdefault(normalized_name, obj)
+                if not normalized_name or normalized_name in normalized_names:
+                    continue
+                normalized_names.add(normalized_name)
+                self._name_index.setdefault(normalized_name, obj)
+                search_entries.append((normalized_name, obj))
 
             self._type_index.setdefault(obj.object_type, []).append(obj)
 
         for object_type, objects_of_type in self._fixed_type_index.items():
             self._build_spatial_magnitude_index(object_type, objects_of_type)
 
+        search_entries.sort(
+            key=lambda entry: (
+                entry[0], entry[1].name.casefold(), entry[1].id
+            )
+        )
+
+        self._search_names = [name for name, _ in search_entries]
+        self._search_objects = [obj for _, obj in search_entries]
+
     def find_by_id(self, id: str) -> SkyObject | None:
         return self._id_index.get(id)
 
     def find_by_name(self, name: str) -> SkyObject | None:
         return self._name_index.get(normalize_object_name(name))
+
+    def find_by_query(self, query: str, limit: int = 50) -> list[SkyObject]:
+        normalized_query = normalize_object_name(query)
+        if not normalized_query or limit <= 0:
+            return []
+
+        results: list[SkyObject] = []
+        result_ids: set[str] = set()
+
+        def add_result(obj: SkyObject) -> None:
+            if obj.id in result_ids:
+                return
+            result_ids.add(obj.id)
+            results.append(obj)
+
+        exact_start = bisect.bisect_left(self._search_names, normalized_query)
+        exact_end = bisect.bisect_right(self._search_names, normalized_query)
+
+        # 完全一致、前方一致、部分一致の順で取得
+        for index in range(exact_start, exact_end):
+            add_result(self._search_objects[index])
+            if len(results) >= limit:
+                return results
+
+        prefix_end = bisect.bisect_right(self._search_names, normalized_query + "\U0010ffff")
+        for index in range(exact_end, prefix_end):
+            name = self._search_names[index]
+            if not name.startswith(normalized_query):
+                continue
+            add_result(self._search_objects[index])
+            if len(results) >= limit:
+                return results
+
+        for name, obj in zip(self._search_names, self._search_objects, strict=True):
+            if name.startswith(normalized_query):
+                continue
+            if normalized_query not in name:
+                continue
+            add_result(obj)
+            if len(results) >= limit:
+                return results
+
+        return results
 
     def find_by_type(self, object_type: ObjectType) -> list[SkyObject]:
         return self._type_index.get(object_type, [])
@@ -164,3 +232,43 @@ class ObjectIndex:
                 result.append(obj_list[i])
 
         return result
+
+
+
+    def find_by_catalog(self, catalog_prefix: str) -> list[SkyObject]:
+        normalized_prefix = normalize_object_name(catalog_prefix)
+        if not normalized_prefix:
+            return []
+
+        results: list[tuple[tuple[int, str], SkyObject]] = []
+        for obj in self.find_by_type(ObjectType.DSO):
+            catalog_key = self._find_catalog_key(obj, normalized_prefix)
+
+            if catalog_key is not None:
+                results.append((catalog_key, obj))
+
+        results.sort(key=lambda entry: entry[0])
+        return [obj for _, obj in results]
+
+    def find_famous_stars(self, max_magnitude: float = 3.0) -> list[SkyObject]:
+        stars = [
+            star for star in self.find_by_type(ObjectType.STAR)
+            if not star.name.startswith("HYG ") and star.get_magnitude().value <= max_magnitude
+        ]
+
+        return sorted(stars, key=lambda star: (star.get_magnitude().value, star.name.casefold(), star.id))
+
+    @staticmethod
+    def _find_catalog_key(obj: SkyObject, catalog_prefix: str) -> tuple[int, str] | None:
+        for name in (obj.name, *obj.aliases):
+            normalized_name = normalize_object_name(name)
+            match = re.fullmatch(
+                rf"{re.escape(catalog_prefix)}"r"(\d+)([a-z]*)", normalized_name
+            )
+
+            if match is None:
+                continue
+
+            return (int(match.group(1)), match.group(2))
+
+        return None

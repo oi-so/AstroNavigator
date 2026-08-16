@@ -43,6 +43,7 @@ class SceneController:
 
     def advance_time(self, seconds: float) -> None:
         self._scene.time.advance(seconds)
+        self._update_focus_camera()
         self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
 
     def set_time_speed(self, speed: float) -> None:
@@ -117,16 +118,21 @@ class SceneController:
     def set_focus(self, sky_object: SkyObject) -> None:
         self._scene.focus.target = sky_object
         self._event_bus.publish(EventType.FOCUS_CHANGED, sky_object)
+        self._update_focus_camera()
 
     def clear_focus(self) -> None:
+        if self._scene.focus.target is None:
+            return
         self._scene.focus.target = None
         self._event_bus.publish(EventType.FOCUS_CHANGED, None)
 
     def move_camera(self, delta_ra: float, delta_dec: float) -> None:
+        self.clear_focus()
         self._scene.sky_camera.move(delta_ra, delta_dec)
         self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
 
     def move_camera_by_drag(self, previous_position: QPoint, current_position: QPoint, viewport_size: QSize) -> None:
+        self.clear_focus()
         projection = self._projection_manager.projection
         context = self._projection_manager.create_context(self._scene)
         center = projection.calculate_dragged_center(previous_position, current_position, context, viewport_size)
@@ -139,6 +145,7 @@ class SceneController:
 
     def add_constellation_catalog(self, catalog: ConstellationCatalog) -> None:
         self._scene.constellations.extend(catalog.constellations)
+        self._scene.constellation_index.update(self._scene.constellations)
         self._event_bus.publish(EventType.SCENE_UPDATED, catalog)
 
     def connect_mount(self, mount: Mount) -> None:
@@ -208,5 +215,25 @@ class SceneController:
 
     def center_camera_on_object(self, sky_object: SkyObject) -> None:
         position = sky_object.get_position(self._scene.time, self._scene.observer)
-        self._scene.sky_camera.center = position
+        self.center_camera_on_position(position)
+
+
+    def center_camera_on_position(self, position: Position) -> None:
+        self.clear_focus()
+        self._set_camera_center(position)
+
+    def _update_focus_camera(self) -> None:
+        target = self._scene.focus.target
+        if target is None:
+            return
+
+        position = target.get_position(self._scene.time, self._scene.observer)
+        self._set_camera_center(position)
+
+    def _set_camera_center(self, position: Position) -> None:
+        normalized_position = position.normalized()
+        if self._scene.sky_camera.center == normalized_position:
+            return 
+        
+        self._scene.sky_camera.center = normalized_position
         self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)

@@ -34,6 +34,12 @@ class SkyObject(ABC):
     def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
         ...
 
+    def get_add_info(self) -> str:
+        other_names = f"ID: {self.id}" if self.id else ""
+        other_names += f", HIP{self.hip}" if self.hip is not None else ""
+        other_names += f", 別名: {', '.join(self.aliases)}" if self.aliases else ""
+        return other_names
+
 
 @dataclass(slots=True)
 class Star(SkyObject):
@@ -107,6 +113,15 @@ class DeepSkyObject(SkyObject):
     
     def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
         return self._magnitude
+
+    def get_add_info(self) -> str:
+        info = f"type: {self.dso_type.name}"
+        if self.major_axis_arcmin is not None and self.minor_axis_arcmin is not None:
+            info += f"\n角径: {self.major_axis_arcmin:.1f}' x {self.minor_axis_arcmin:.1f}'"
+        if self.position_angle_deg is not None:
+            info += f", 位置角: {self.position_angle_deg:.1f}°\n"
+        info += super(DeepSkyObject, self).get_add_info()
+        return info
 
 @dataclass(slots=True)
 class Asteroid(SkyObject):

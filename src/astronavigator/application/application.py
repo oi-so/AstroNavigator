@@ -108,10 +108,10 @@ class Application:
 
         catalog = Catalog(name="OpenNGC", objects=list(objects_by_id.values()))
 
-        parsed_at = time.perf_counter()
+        # parsed_at = time.perf_counter()
         self._scene_controller.add_catalog(catalog)
-        completed_at = time.perf_counter()
-        print(f"OpenNGC loaded in {completed_at - started_at:.3f}s (parsed in {parsed_at - started_at:.3f}s)")
+        # completed_at = time.perf_counter()
+        # print(f"OpenNGC loaded in {completed_at - started_at:.3f}s (parsed in {parsed_at - started_at:.3f}s)")
 
 
     def _update(self):

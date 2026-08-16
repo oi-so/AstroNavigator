@@ -131,7 +131,7 @@ class MainActions(QObject):
         if selected is None:
             QMessageBox.warning(None, "中央エラー", "中央にする対象が選択されていません。")
             return
-        self._application.scene_controller.center_camera_on_object(selected)
+        self._application.scene_controller.set_focus(selected)
 
 
     def _set_now(self):
