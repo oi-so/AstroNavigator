@@ -5,7 +5,7 @@ from typing import Iterable
 from collections import OrderedDict
 import math
 
-from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLine, calculate_grid_sample_interval, format_grid_degree
+from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLabelPlacement, GridLine, calculate_grid_sample_interval, format_grid_degree
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.sky.coordinate_format import RightAscensionFormat
@@ -75,7 +75,8 @@ class EquatorialGrid(CoordinateGrid[Position]):
             if line_min_dec <= line_max_dec:
                 yield GridLine(
                     positions=self._iter_ra_line(ra, line_min_dec, line_max_dec, dec_sample_interval),
-                    label=self._format_ra_label(ra, ra_interval, context.scene.rendering_settings.ra_format)
+                    label=self._format_ra_label(ra, ra_interval, context.scene.rendering_settings.ra_format),
+                    label_placement=GridLabelPlacement.TOP_BOTTOM
                 )
             ra += ra_interval
 
@@ -84,7 +85,8 @@ class EquatorialGrid(CoordinateGrid[Position]):
             if abs(dec) < 90.0 - ANGLE_EPSILON:
                 yield GridLine(
                     positions=self._iter_dec_line(dec, min_ra, max_ra, ra_sample_interval),
-                    label=format_grid_degree(dec, dec_interval, signed=True)
+                    label=format_grid_degree(dec, dec_interval, signed=True),
+                    label_placement=GridLabelPlacement.LEFT_RIGHT
                 )
             dec += dec_interval
 

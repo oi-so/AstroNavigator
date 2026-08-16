@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum, auto
 from typing import Generic, TypeVar, Iterable
 from abc import ABC, abstractmethod
 
@@ -14,10 +15,16 @@ GRID_SAMPLES_PER_INTERVAL = 4.0
 MAX_GRID_SAMPLE_INTERVAL_DEG = 1.0
 
 
+class GridLabelPlacement(Enum):
+    TOP_BOTTOM = auto()
+    LEFT_RIGHT = auto()
+
+
 @dataclass(slots=True)
 class GridLine(Generic[T]):
     positions: Iterable[T]
     label: str
+    label_placement: GridLabelPlacement
 
 
 def calculate_grid_sample_interval(grid_interval: float) -> float:

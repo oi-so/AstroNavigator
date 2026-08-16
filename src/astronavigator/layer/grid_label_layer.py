@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QPointF
 
-from astronavigator.layer.grid_layer import GridLabel, GridLayer
+from astronavigator.layer.grid_layer import GridLabel, GridLabelEdge, GridLayer
 from astronavigator.layer.layer import Layer, LayerType
 from astronavigator.rendering.render_context import RendererContext
 
@@ -41,26 +41,22 @@ class GridLabelLayer(Layer):
         ascent = float(metrics.ascent())
         descent = float(metrics.descent())
 
-        point = label.anchor
-
-        edge_distances = (point.x(), width - point.x(), point.y(), height - point.y())
-        closest_edge = min(range(len(edge_distances)), key=lambda i: edge_distances[i])
-
-        min_baseline = GRID_LABEL_MARGIN + ascent
-        max_baseline = height - GRID_LABEL_MARGIN - descent
-
-        centered_baseline = point.y() + (ascent - descent) / 2
-        baseline_y = max(min_baseline, min(max_baseline, centered_baseline))
-
-        if closest_edge == 0:
-            return QPointF(GRID_LABEL_MARGIN, baseline_y)
-        elif closest_edge == 1:
-            return QPointF(width - GRID_LABEL_MARGIN - text_width, baseline_y)
-
-        centered_x = point.x() - text_width / 2
-        text_x = max(GRID_LABEL_MARGIN, min(width - GRID_LABEL_MARGIN - text_width, centered_x))
-
-        if closest_edge == 2:
-            return QPointF(text_x, GRID_LABEL_MARGIN + ascent)
+        if label.edge == GridLabelEdge.TOP:
+            text_x = label.anchor.x() - text_width / 2.0
+            baseline_y = label.anchor.y() + ascent + GRID_LABEL_MARGIN
+        elif label.edge == GridLabelEdge.BOTTOM:
+            text_x = label.anchor.x() - text_width / 2.0
+            baseline_y = label.anchor.y() - descent - GRID_LABEL_MARGIN
+        elif label.edge == GridLabelEdge.LEFT:
+            text_x = label.anchor.x() + GRID_LABEL_MARGIN
+            baseline_y = label.anchor.y() + (ascent - descent) / 2.0
+        elif label.edge == GridLabelEdge.RIGHT:
+            text_x = label.anchor.x() - text_width - GRID_LABEL_MARGIN
+            baseline_y = label.anchor.y() + (ascent - descent) / 2.0
         else:
-            return QPointF(text_x, height - GRID_LABEL_MARGIN - descent)
+            raise ValueError(f"Invalid edge value: {label.edge}")
+
+        text_x = max(GRID_LABEL_MARGIN, min(text_x, width - text_width - GRID_LABEL_MARGIN))
+        baseline_y = max(ascent + GRID_LABEL_MARGIN, min(baseline_y, height - descent - GRID_LABEL_MARGIN))
+
+        return QPointF(text_x, baseline_y)

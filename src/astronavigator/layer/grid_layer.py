@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from enum import Enum, auto
 from typing import TypeVar
 from PySide6.QtCore import QPointF, Qt
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QPainterPath
 
 from astronavigator.layer.layer import Layer, LayerType
+from astronavigator.rendering.grid.coordinate_grid import GridLabelPlacement
 from astronavigator.rendering.grid.horizontal_grid import HorizontalGrid
 from astronavigator.rendering.grid.equatorial_gird import EquatorialGrid
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
@@ -18,11 +20,19 @@ T = TypeVar("T")
 
 GRID_LABEL_MINIMUM_ALPHA = 200
 
+
+class GridLabelEdge(Enum):
+    LEFT = auto()
+    RIGHT = auto()
+    TOP = auto()
+    BOTTOM = auto()
+
 @dataclass(frozen=True, slots=True)
 class GridLabel:
     text: str
     color: QColor
     anchor: QPointF
+    edge: GridLabelEdge
 
 class GridLayer(Layer):
     def __init__(self) -> None:
@@ -67,33 +77,33 @@ class GridLayer(Layer):
                 painter.setPen(color)
 
                 for line in grid.iter_lines(context):
-                    anchor = self._draw_line(context, grid.coordinate_system, line.positions)
-                    if anchor is None:
+                    label_anchor = self._draw_line(context, grid.coordinate_system, line.positions, line.label_placement, clip_path)
+                    if label_anchor is None:
                         continue
+
+                    anchor, edge = label_anchor
 
                     label_color = QColor(color)
                     label_color.setAlpha(max(label_color.alpha(), GRID_LABEL_MINIMUM_ALPHA))
-                    self._labels.append(GridLabel(text=line.label, color=label_color, anchor=anchor))
+                    self._labels.append(GridLabel(text=line.label, color=label_color, anchor=anchor, edge=edge))
         finally:
             painter.restore()
 
     # @profile
-    def _draw_line(self, context: RendererContext, coordinate_system: CoordinateSystem, positions: Iterable[T]) -> QPointF | None:
+    def _draw_line(self, context: RendererContext, coordinate_system: CoordinateSystem, positions: Iterable[T], label_placement: GridLabelPlacement, clip_path: QPainterPath) -> tuple[QPointF, GridLabelEdge] | None:
         previous_line_point: QPointF | None = None
         previous_is_visible = False
 
-        closest_point: QPointF | None = None
-        closest_edge_distance = float("inf")
+        candidates: list[tuple[QPointF, GridLabelEdge]] = []
+
+        topmost_point: QPointF | None = None
+        leftmost_point: QPointF | None = None
 
         viewport_size = context.viewport.size()
         width = float(viewport_size.width())
         height = float(viewport_size.height())
 
         for position in positions:
-            visible_point = context.projection.project_grid_position(
-                position, coordinate_system, context.projection_context, viewport_size
-            )
-
             line_point = context.projection.project_grid_position_unclipped(
                 position, coordinate_system, context.projection_context, viewport_size
             )
@@ -103,24 +113,80 @@ class GridLayer(Layer):
                 previous_is_visible = False
                 continue
 
-            is_visible = visible_point is not None
+            inside = clip_path.contains(line_point)
 
-            if previous_line_point is not None and (previous_is_visible or is_visible):
-                context.painter.drawLine(previous_line_point, line_point)
+            if inside:
+                if topmost_point is None or line_point.y() < topmost_point.y():
+                    topmost_point = line_point
+                if leftmost_point is None or line_point.x() < leftmost_point.x():
+                    leftmost_point = line_point
 
-            if visible_point is not None:
-                edge_distance = min(
-                    visible_point.x(), 
-                    width - visible_point.x(), 
-                    visible_point.y(), 
-                    height - visible_point.y()
-                    )
-                
-                if edge_distance < closest_edge_distance:
-                    closest_edge_distance = edge_distance
-                    closest_point = visible_point
+            if previous_line_point is not None:
+                if previous_is_visible or inside:
+                    context.painter.drawLine(previous_line_point, line_point)
+
+                if previous_is_visible != inside:
+                    intersection_point = self._find_clip_intersection(previous_line_point, line_point, previous_is_visible, clip_path)
+                    edge = self._classify_edge(intersection_point, width, height)
+
+                    if self._edge_matches_placement(edge, label_placement):
+                        candidates.append((intersection_point, edge))
 
             previous_line_point = line_point
-            previous_is_visible = is_visible
+            previous_is_visible = inside
 
-        return closest_point
+        preferred_edge = (
+            (GridLabelEdge.TOP, GridLabelEdge.BOTTOM) 
+            if label_placement == GridLabelPlacement.TOP_BOTTOM
+            else (GridLabelEdge.LEFT, GridLabelEdge.RIGHT)
+        )
+
+
+        for preferred_edge in preferred_edge:
+            edge_candidates = [c for c in candidates if c[1] == preferred_edge]
+            if edge_candidates:
+                return edge_candidates[0]
+
+        if label_placement == GridLabelPlacement.TOP_BOTTOM:
+            if topmost_point is not None:
+                return (topmost_point, GridLabelEdge.TOP)
+        else:
+            if leftmost_point is not None:
+                return (leftmost_point, GridLabelEdge.LEFT)
+
+        return None
+
+
+    @staticmethod
+    def _find_clip_intersection(p1: QPointF, p2: QPointF, p1_inside: bool, clip_path: QPainterPath) -> QPointF:
+        inside_point = p1 if p1_inside else p2
+        outside_point = p2 if p1_inside else p1
+
+        for _ in range(24):
+            middle = QPointF(
+                (inside_point.x() + outside_point.x()) / 2, 
+                (inside_point.y() + outside_point.y()) / 2
+            )
+
+            if clip_path.contains(middle):
+                inside_point = middle
+            else:
+                outside_point = middle
+        return inside_point
+
+    @staticmethod
+    def _classify_edge(point: QPointF, width: float, height: float) -> GridLabelEdge:
+        distances = (
+            (abs(point.x()), GridLabelEdge.LEFT),
+            (abs(point.x() - width), GridLabelEdge.RIGHT),
+            (abs(point.y()), GridLabelEdge.TOP),
+            (abs(point.y() - height), GridLabelEdge.BOTTOM)
+        )
+        return min(distances, key=lambda x: x[0])[1]
+
+    @staticmethod
+    def _edge_matches_placement(edge: GridLabelEdge, placement: GridLabelPlacement) -> bool:
+        if placement == GridLabelPlacement.TOP_BOTTOM:
+            return edge in (GridLabelEdge.TOP, GridLabelEdge.BOTTOM)
+        else:
+            return edge in (GridLabelEdge.LEFT, GridLabelEdge.RIGHT)
