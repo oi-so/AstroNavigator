@@ -11,8 +11,8 @@ class Observer:
     @classmethod
     def default(cls) -> "Observer":
         return cls(
-            latitude=35.681236,
-            longitude=139.767125,
+            latitude=35.6924721,
+            longitude=139.4128306,
             elevation=0.0,
             timezone=ZoneInfo("Asia/Tokyo"),
         )
