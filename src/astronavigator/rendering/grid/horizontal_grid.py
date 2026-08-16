@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from typing import OrderedDict
 
 from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
-from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLine, format_grid_degree
+from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLine, calculate_grid_sample_interval, format_grid_degree
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.sky.position import HorizontalPosition
@@ -41,10 +41,13 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
 
         az_interval, alt_interval = self._get_grid_intervals(context.scene.sky_camera.fov_deg)
 
+        az_sample_interval = calculate_grid_sample_interval(az_interval)
+        alt_sample_interval = calculate_grid_sample_interval(alt_interval)
+
         az = (min_pos.azimuth_deg // az_interval) * az_interval
         while az <= max_pos.azimuth_deg:
             yield GridLine(
-                positions=self._iter_az_line(az, min_pos.altitude_deg, max_pos.altitude_deg, alt_interval),
+                positions=self._iter_az_line(az, min_pos.altitude_deg, max_pos.altitude_deg, alt_sample_interval),
                 label=format_grid_degree(az % 360.0, az_interval)
             )
             az += az_interval
@@ -52,7 +55,7 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
         alt = (min_pos.altitude_deg // alt_interval) * alt_interval
         while alt <= max_pos.altitude_deg:
             yield GridLine(
-                positions=self._iter_alt_line(alt, min_pos.azimuth_deg, max_pos.azimuth_deg, az_interval),
+                positions=self._iter_alt_line(alt, min_pos.azimuth_deg, max_pos.azimuth_deg, az_sample_interval),
                 label=format_grid_degree(alt, alt_interval, signed=True)
             )
             alt += alt_interval
