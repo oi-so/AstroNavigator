@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import sys
 
 from PySide6.QtCore import QCoreApplication, QLocationPermission, QObject, QPermission, Qt
 from PySide6.QtPositioning import QGeoPositionInfo, QGeoPositionInfoSource
@@ -10,6 +11,12 @@ from astronavigator.location.location_provider import GeographicLocation, Locati
 
 LOCATION_TIMEOUT_MS = 10000
 
+def can_use_qt_permission_api() -> bool:
+    if sys.platform != "darwin":
+        return True
+
+    return "__compiled__" in globals()
+
 
 class QtLocationProvider(QObject):
     def __init__(self, parent: QObject | None = None) -> None:
@@ -17,6 +24,9 @@ class QtLocationProvider(QObject):
         self._source = QGeoPositionInfoSource.createDefaultSource(self)
         self._on_location: LocationCallback | None = None
         self._on_error: LocationErrorCallback | None = None
+
+        if not can_use_qt_permission_api():
+            return
 
         if self._source is not None:
             self._source.setPreferredPositioningMethods(
@@ -30,9 +40,16 @@ class QtLocationProvider(QObject):
         self._on_location = on_location
         self._on_error = on_error
 
+        if not can_use_qt_permission_api():
+            self._finish_with_error("macOSでuvからは位置情報を使えません")
+
         application = QCoreApplication.instance()
         if application is None:
             self._finish_with_error("アプリケーションが起動していないので、現在地を取得できません")
+            return
+
+        if not can_use_qt_permission_api():
+            self._request_source_update()
             return
 
         permission = QLocationPermission()
@@ -69,7 +86,7 @@ class QtLocationProvider(QObject):
             return
 
         altitude = coordinate.altitude()
-        elevation = altitude if not math.isfinite(altitude) else None
+        elevation = altitude if math.isfinite(altitude) else None
 
         callback = self._on_location
         self._clear_callbacks()
