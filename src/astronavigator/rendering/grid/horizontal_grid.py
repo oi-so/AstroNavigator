@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from typing import OrderedDict
 
 from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
-from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid
+from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLine, format_grid_degree
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.sky.position import HorizontalPosition
@@ -32,7 +32,7 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
         return CoordinateSystem.HORIZONTAL
 
 
-    def iter_lines(self, context: RendererContext) -> Iterable[Iterable[HorizontalPosition]]:
+    def iter_lines(self, context: RendererContext) -> Iterable[GridLine[HorizontalPosition]]:
         bounds = self._visible_bounds(context)
         if bounds is None:
             return
@@ -43,12 +43,18 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
 
         az = (min_pos.azimuth_deg // az_interval) * az_interval
         while az <= max_pos.azimuth_deg:
-            yield self._iter_az_line(az, min_pos.altitude_deg, max_pos.altitude_deg, alt_interval)
+            yield GridLine(
+                positions=self._iter_az_line(az, min_pos.altitude_deg, max_pos.altitude_deg, alt_interval),
+                label=format_grid_degree(az % 360.0, az_interval)
+            )
             az += az_interval
 
         alt = (min_pos.altitude_deg // alt_interval) * alt_interval
         while alt <= max_pos.altitude_deg:
-            yield self._iter_alt_line(alt, min_pos.azimuth_deg, max_pos.azimuth_deg, az_interval)
+            yield GridLine(
+                positions=self._iter_alt_line(alt, min_pos.azimuth_deg, max_pos.azimuth_deg, az_interval),
+                label=format_grid_degree(alt, alt_interval, signed=True)
+            )
             alt += alt_interval
 
     def _iter_az_line(self, az: float, min_alt: float, max_alt: float, alt_interval: float) -> Iterable[HorizontalPosition]:

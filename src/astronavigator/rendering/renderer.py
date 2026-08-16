@@ -5,6 +5,7 @@ from PySide6.QtCore import QRect
 from PySide6.QtGui import QPainter, Qt
 
 from astronavigator.layer.constellation_layer import ConstellationLayer
+from astronavigator.layer.grid_label_layer import GridLabelLayer
 from astronavigator.layer.grid_layer import GridLayer
 from astronavigator.layer.horizontal_layer import HorizonLayer
 from astronavigator.layer.label_layer import LabelLayer
@@ -26,11 +27,14 @@ class Renderer(Generic[P, C]):
         self._projection_manager = projection_manager
         self.layer_manager = LayerManager()
 
-        self.layer_manager.add_layer(GridLayer())
+        grid_layer = GridLayer()
+
+        self.layer_manager.add_layer(grid_layer)
         self.layer_manager.add_layer(ConstellationLayer())
         self.layer_manager.add_layer(ObjectLayer())
         self.layer_manager.add_layer(LabelLayer())
         self.layer_manager.add_layer(HorizonLayer())
+        self.layer_manager.add_layer(GridLabelLayer(grid_layer))
         self.layer_manager.add_layer(MountLayer())
         self.layer_manager.add_layer(SelectionLayer())
 

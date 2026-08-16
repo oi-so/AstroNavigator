@@ -4,10 +4,12 @@ from bisect import bisect_right
 from typing import Iterable
 from collections import OrderedDict
 
-from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid
+from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLine, calculate_grid_sample_interval, format_grid_degree
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.render_context import RendererContext
+from astronavigator.sky.coordinate_format import RightAscensionFormat
 from astronavigator.sky.position import Position
+from astronavigator.utils.coordinate_formatter import format_ra_hms
 
 
 GRID_INTERVAL_TABLE: OrderedDict[float, tuple[float, float]] = OrderedDict({
@@ -33,20 +35,29 @@ class EquatorialGrid(CoordinateGrid[Position]):
         return CoordinateSystem.EQUATORIAL
 
 
-    def iter_lines(self, context: RendererContext) -> Iterable[Iterable[Position]]:
+    def iter_lines(self, context: RendererContext) -> Iterable[GridLine[Position]]:
         min_pos, max_pos = self._visible_bounds(context)
 
         ra_interval, dec_interval = self._get_grid_intervals(context.scene.sky_camera.fov_deg)
 
+        ra_sample_interval = calculate_grid_sample_interval(ra_interval)
+        dec_sample_interval = calculate_grid_sample_interval(dec_interval)
+
         ra = (min_pos.ra_deg // ra_interval) * ra_interval
 
         while ra <= max_pos.ra_deg:
-            yield self._iter_ra_line(ra, min_pos.dec_deg, max_pos.dec_deg, dec_interval)
+            yield GridLine(
+                positions=self._iter_ra_line(ra, min_pos.dec_deg, max_pos.dec_deg, dec_sample_interval),
+                label=self._format_ra_label(ra, ra_interval, context.scene.rendering_settings.ra_format)
+            )
             ra += ra_interval
 
         dec = (min_pos.dec_deg // dec_interval) * dec_interval
         while dec <= max_pos.dec_deg:
-            yield self._iter_dec_line(dec, min_pos.ra_deg, max_pos.ra_deg, ra_interval)
+            yield GridLine(
+                positions=self._iter_dec_line(dec, min_pos.ra_deg, max_pos.ra_deg, ra_sample_interval),
+                label=format_grid_degree(dec, dec_interval, signed=True)
+            )
             dec += dec_interval
 
     def _iter_ra_line(self, ra: float, min_dec: float, max_dec: float, dec_interval: float) -> Iterable[Position]:
@@ -82,3 +93,12 @@ class EquatorialGrid(CoordinateGrid[Position]):
             Position(camera.center.ra_deg - half_width_deg, camera.center.dec_deg - half_height_deg),
             Position(camera.center.ra_deg + half_width_deg, camera.center.dec_deg + half_height_deg),
         )
+
+    @staticmethod
+    def _format_ra_label(ra_deg: float, interval: float, ra_format: RightAscensionFormat) -> str:
+        normalized_ra = ra_deg % 360
+        if ra_format == RightAscensionFormat.HMS:
+            show_seconds = interval < 0.5
+            return format_ra_hms(normalized_ra, show_seconds=show_seconds)
+        else:
+            return format_grid_degree(normalized_ra, interval)
