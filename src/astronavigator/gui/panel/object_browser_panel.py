@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum, auto
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget, QHeaderView
 
 from astronavigator.application.application import Application
 from astronavigator.event.event import Event
@@ -60,12 +60,21 @@ class ObjectBrowserPanel(QWidget):
         super().__init__()
 
         self._application = application
+        self._category_targets: dict[ObjectBrowserCategory, list[BrowserTarget]] = {}
 
         self._tree = QTreeWidget()
         self._tree.setColumnCount(2)
         self._tree.setHeaderLabels(("名前", "種類"))
         self._tree.setUniformRowHeights(True)
         self._tree.setAlternatingRowColors(True)
+        self._tree.setSortingEnabled(False)
+
+        header = self._tree.header()
+        header.setStretchLastSection(False)
+        header.setSectionsClickable(False)
+        header.setSortIndicatorShown(False)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
 
         layout = QVBoxLayout(self)
         layout.addWidget(self._tree)
@@ -79,20 +88,29 @@ class ObjectBrowserPanel(QWidget):
 
     def _create_categories(self) -> None:
         self._tree.clear()
+        self._category_targets.clear()
 
         for category in ObjectBrowserCategory:
-            item = QTreeWidgetItem(self._tree)
-            item.setData(0, CATEGORY_ROLE, category)
-            item.setData(0, LOADED_ROLE, False)
-
-            self._tree.addTopLevelItem(item)
-
             if category == ObjectBrowserCategory.USER_POSITION:
+                item = QTreeWidgetItem([CATEGORY_NAMES[category], "未実装"])
+                item.setData(0, CATEGORY_ROLE, category)
+                item.setData(0, LOADED_ROLE, True)
                 item.setDisabled(True)
-                item.setText(1, "未実装")
+                self._tree.addTopLevelItem(item)
                 continue
 
-            item.addChild(QTreeWidgetItem(["読み込み中...", ""]))
+            targets = self._get_targets(category)
+            self._category_targets[category] = targets
+
+            item = QTreeWidgetItem(
+                [f"{CATEGORY_NAMES[category]} ({len(targets)})", ""]
+            )
+            item.setData(0, CATEGORY_ROLE, category)
+            item.setData(0, LOADED_ROLE, False)
+            self._tree.addTopLevelItem(item)
+
+            if targets:
+                item.addChild(QTreeWidgetItem(["読み込み中...", ""]))
 
     def _on_scene_updated(self, event: Event) -> None:
         self._create_categories()
@@ -107,14 +125,13 @@ class ObjectBrowserPanel(QWidget):
             return
 
         item.takeChildren()
-        targets = self._get_targets(category)
+        targets = self._category_targets.get(category, [])
 
         for target in targets:
             child = QTreeWidgetItem([target.name, self._get_target_type_name(target)])
             child.setData(0, TARGET_ROLE, target)
             item.addChild(child)
 
-        item.setText(0, f"{CATEGORY_NAMES[category]} ({len(targets)})")
         item.setData(0, LOADED_ROLE, True)
 
     def _get_targets(self, category: ObjectBrowserCategory) -> list[BrowserTarget]:
@@ -131,19 +148,28 @@ class ObjectBrowserPanel(QWidget):
             return sorted(scene.constellations, key=lambda c: c.name.casefold())
 
         if category == ObjectBrowserCategory.MESSIER:
-            return sorted(object_index.find_by_catalog("M"), key=lambda obj: obj.name.casefold())
+            return list(object_index.find_by_catalog("M"))
 
         if category == ObjectBrowserCategory.NGC:
-            return sorted(object_index.find_by_catalog("NGC"), key=lambda obj: obj.name.casefold())
+            return list(object_index.find_by_catalog("NGC"))
 
         if category == ObjectBrowserCategory.IC:
-            return sorted(object_index.find_by_catalog("IC"), key=lambda obj: obj.name.casefold())
+            return list(object_index.find_by_catalog("IC"))
 
         if category == ObjectBrowserCategory.SATELLITE:
-            return sorted(object_index.find_by_type(ObjectType.SATELLITE), key=lambda obj: obj.name.casefold())
+            return sorted(
+                object_index.find_by_type(ObjectType.SATELLITE),
+                key=lambda obj: obj.name.casefold(),
+            )
 
         if category == ObjectBrowserCategory.COMET_AND_ASTEROID:
-            return sorted([*object_index.find_by_type(ObjectType.COMET), *object_index.find_by_type(ObjectType.ASTEROID)], key=lambda obj: obj.name.casefold())
+            return sorted(
+                [
+                    *object_index.find_by_type(ObjectType.COMET),
+                    *object_index.find_by_type(ObjectType.ASTEROID),
+                ],
+                key=lambda obj: obj.name.casefold(),
+            )
 
         if category == ObjectBrowserCategory.FAMOUS_STAR:
             return [*object_index.find_famous_stars()]
@@ -172,5 +198,5 @@ class ObjectBrowserPanel(QWidget):
             controller.select_object(target)
             controller.set_focus(target)
         elif isinstance(target, Constellation):
-            controller.select_object(None)
+            controller.clear_selection()
             controller.center_camera_on_position(target.label_position)
