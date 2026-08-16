@@ -13,6 +13,6 @@ class Observer:
         return cls(
             latitude=35.6924721,
             longitude=139.4128306,
-            elevation=0.0,
+            elevation=100.0,
             timezone=ZoneInfo("Asia/Tokyo"),
         )
