@@ -3,6 +3,7 @@ from __future__ import annotations
 from bisect import bisect_right
 from typing import Iterable
 from collections import OrderedDict
+import math
 
 from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLine, calculate_grid_sample_interval, format_grid_degree
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
@@ -10,6 +11,15 @@ from astronavigator.rendering.render_context import RendererContext
 from astronavigator.sky.coordinate_format import RightAscensionFormat
 from astronavigator.sky.position import Position
 from astronavigator.utils.coordinate_formatter import format_ra_hms
+
+
+POLE_MINOR_LINE_LIMIT_DEG = 80.0
+POLE_MEDIUM_LINE_LIMIT_DEG = 85.0
+
+MEDIUM_RA_INTERVAL_DEG = 30.0
+MAJOR_RA_INTERVAL_DEG = 90.0
+
+ANGLE_EPSILON = 1e-9
 
 
 GRID_INTERVAL_TABLE: OrderedDict[float, tuple[float, float]] = OrderedDict({
@@ -40,37 +50,70 @@ class EquatorialGrid(CoordinateGrid[Position]):
 
         ra_interval, dec_interval = self._get_grid_intervals(context.scene.sky_camera.fov_deg)
 
+        raw_min_dec = min_pos.dec_deg
+        raw_max_dec = max_pos.dec_deg
+
+        min_dec = max(-90.0, raw_min_dec)
+        max_dec = min(90.0, raw_max_dec)
+        includes_pole = raw_min_dec <= -90.0 or raw_max_dec >= 90.0
+        if includes_pole:
+            min_ra = 0.0
+            max_ra = 360.0
+        else:
+            min_ra = min_pos.ra_deg
+            max_ra = max_pos.ra_deg
+
         ra_sample_interval = calculate_grid_sample_interval(ra_interval)
         dec_sample_interval = calculate_grid_sample_interval(dec_interval)
 
-        ra = (min_pos.ra_deg // ra_interval) * ra_interval
-
-        while ra <= max_pos.ra_deg:
-            yield GridLine(
-                positions=self._iter_ra_line(ra, min_pos.dec_deg, max_pos.dec_deg, dec_sample_interval),
-                label=self._format_ra_label(ra, ra_interval, context.scene.rendering_settings.ra_format)
+        ra = (min_ra // ra_interval) * ra_interval
+        while ra <= max_ra + ANGLE_EPSILON:
+            line_min_dec, line_max_dec = self._calclate_ra_line_dec_bouns(
+                ra, min_dec, max_dec, includes_pole
             )
+
+            if line_min_dec <= line_max_dec:
+                yield GridLine(
+                    positions=self._iter_ra_line(ra, line_min_dec, line_max_dec, dec_sample_interval),
+                    label=self._format_ra_label(ra, ra_interval, context.scene.rendering_settings.ra_format)
+                )
             ra += ra_interval
 
-        dec = (min_pos.dec_deg // dec_interval) * dec_interval
-        while dec <= max_pos.dec_deg:
-            yield GridLine(
-                positions=self._iter_dec_line(dec, min_pos.ra_deg, max_pos.ra_deg, ra_sample_interval),
-                label=format_grid_degree(dec, dec_interval, signed=True)
-            )
+        dec = (min_dec // dec_interval) * dec_interval
+        while dec <= max_dec + ANGLE_EPSILON:
+            if abs(dec) < 90.0 - ANGLE_EPSILON:
+                yield GridLine(
+                    positions=self._iter_dec_line(dec, min_ra, max_ra, ra_sample_interval),
+                    label=format_grid_degree(dec, dec_interval, signed=True)
+                )
             dec += dec_interval
 
     def _iter_ra_line(self, ra: float, min_dec: float, max_dec: float, dec_interval: float) -> Iterable[Position]:
-        dec = min_dec
-        while dec <= max_dec:
+        if min_dec > max_dec:
+            return
+        yield Position(ra, min_dec)
+        dec = min_dec + dec_interval
+
+        while dec < max_dec - ANGLE_EPSILON:
             yield Position(ra, dec)
             dec += dec_interval
 
+        if max_dec > min_dec + ANGLE_EPSILON:
+            yield Position(ra, max_dec)
+
     def _iter_dec_line(self, dec: float, min_ra: float, max_ra: float, ra_interval: float) -> Iterable[Position]:
-        ra = min_ra
-        while ra <= max_ra:
+        if min_ra > max_ra:
+            return
+        yield Position(min_ra, dec)
+        ra = min_ra + ra_interval
+
+        while ra < max_ra - ANGLE_EPSILON:
             yield Position(ra, dec)
             ra += ra_interval
+
+        if max_ra > min_ra + ANGLE_EPSILON:
+            yield Position(max_ra, dec)
+            
 
     def _get_grid_intervals(self, fov_deg: float) -> tuple[float, float]:
         index = bisect_right(SORTED_GRID_INTERVAL_KEYS, fov_deg)
@@ -102,3 +145,23 @@ class EquatorialGrid(CoordinateGrid[Position]):
             return format_ra_hms(normalized_ra, show_seconds=show_seconds)
         else:
             return format_grid_degree(normalized_ra, interval)
+
+
+    @classmethod
+    def _calclate_ra_line_dec_bouns(cls, ra: float, min_dec: float, max_dec: float, includes_pole: bool) -> tuple[float, float]:
+        if not includes_pole:
+            return min_dec, max_dec
+
+        if cls._is_angle_multiple(ra, MAJOR_RA_INTERVAL_DEG):
+            limit = 90.0
+        elif cls._is_angle_multiple(ra, MEDIUM_RA_INTERVAL_DEG):
+            limit = POLE_MEDIUM_LINE_LIMIT_DEG
+        else:
+            limit = POLE_MINOR_LINE_LIMIT_DEG
+
+        return (max(min_dec, -limit), min(max_dec, limit))
+
+    @staticmethod
+    def _is_angle_multiple(angle: float, interval: float) -> bool:
+        remainder = angle % interval
+        return math.isclose(remainder, 0.0, abs_tol=ANGLE_EPSILON) or math.isclose(remainder, interval, abs_tol=ANGLE_EPSILON)

@@ -25,7 +25,7 @@ from astronavigator.event.event_bus import EventBus
 from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG, OPENNGC_ADDENDUM, OPENNGC_NGC, VISUAL_SATELLITES_OMM
 
 
-FPS = 30
+FPS = 1000
 
 class Application:
     def __init__(self):
@@ -117,7 +117,8 @@ class Application:
     def _update(self):
         current_time = time.monotonic()
         delta_time = current_time - self._last_update_time
-        # print(f"[update] delta_time={delta_time:.4f}s")
+        if delta_time > 0.01:
+            print(f"[update] delta_time={delta_time:.4f}s")
         self._last_update_time = current_time
 
         self._scene_controller.advance_time(delta_time)
