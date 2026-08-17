@@ -158,9 +158,9 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
 
         normalized_az = az % 360.0
 
-        if self._is_angle_mulitple(normalized_az, MAJOR_AZ_INTERVAL_DEG):
+        if self._is_angle_multiple(normalized_az, MAJOR_AZ_INTERVAL_DEG):
             limit = 90.0
-        elif self._is_angle_mulitple(normalized_az, MEDIUM_AZ_INTERVAL_DEG):
+        elif self._is_angle_multiple(normalized_az, MEDIUM_AZ_INTERVAL_DEG):
             limit = ZENITH_MEDIUM_LINE_LIMIT_DEG
         else:
             limit = ZENITH_MINOR_LINE_LIMIT_DEG
@@ -174,7 +174,7 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
         return (line_min_alt, line_max_alt)
 
     @staticmethod
-    def _is_angle_mulitple(angle: float, interval: float) -> bool:
+    def _is_angle_multiple(angle: float, interval: float) -> bool:
         remainder = angle % interval
         return (
             math.isclose(remainder, 0.0, abs_tol=ANGLE_EPSILON) or
