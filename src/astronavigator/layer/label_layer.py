@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QPointF
+from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QColor, QPainter, QPen
 
 from astronavigator.layer.layer import Layer, LayerType
@@ -12,7 +12,18 @@ from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.magnitude import Magnitude
 
 
-LABEL_OFFSET = QPointF(5, -5)
+LABEL_MARGIN = 5.0
+
+OBJECT_LABEL_PRIORITY = {
+    ObjectType.SUN: 0,
+    ObjectType.MOON: 1,
+    ObjectType.PLANET: 2,
+    ObjectType.STAR: 3,
+    ObjectType.DSO: 4,
+    ObjectType.SATELLITE: 5,
+    ObjectType.COMET: 6,
+    ObjectType.ASTEROID: 7,
+}
 
 
 class LabelLayer(Layer):
@@ -37,34 +48,61 @@ class LabelLayer(Layer):
         min_position, max_position = context.projection.visible_bounds(context.projection_context, viewport_size)
         self._set_pen(painter, scene.rendering_settings.color_settings.constellation_label_color)
 
+        candidates: list[tuple[int, float, str, SkyObject]] = []
+
         for object_type in ObjectType:
             fixed_objects = scene.object_index.find_visible_by_type(
                 object_type, limiting_magnitude, min_position, max_position
             )
-            for obj in fixed_objects:
-                self._draw_label(obj, limiting_magnitude, context)
-
             dynamic_objects = scene.object_index.find_dynamic_by_type(object_type)
-            for obj in dynamic_objects:
-                self._draw_label(obj, limiting_magnitude, context)
 
-    def _draw_label(self, obj: SkyObject, limiting_magnitude: float, context: RendererContext) -> None:
-        scene = context.scene
-        magnitude = obj.get_magnitude(scene.time, scene.observer)
+            for obj in (*fixed_objects, *dynamic_objects):
+                magnitude = obj.get_magnitude(scene.time, scene.observer)
+                if not magnitude.is_visible(limiting_magnitude):
+                    continue
 
-        if not magnitude.is_visible(limiting_magnitude):
-            return
+                if not self._should_draw_label(obj, magnitude, scene.rendering_settings):
+                    continue
 
-        if not self._should_draw_label(obj, magnitude, scene.rendering_settings):
-            return
+                candidates.append((
+                    OBJECT_LABEL_PRIORITY.get(obj.object_type, 100),
+                    magnitude.value, obj.name, obj
+                ))
 
+        candidates.sort(key=lambda x: (x[0], x[1], x[2]))
+        for _, _, _, obj in candidates:
+            self._draw_label(obj, context)
+
+    def _draw_label(self, obj: SkyObject, context: RendererContext) -> None:
+        painter = context.painter
         point = context.projection.project_object(
             obj, context.projection_context, context.viewport.size()
         )
         if point is None:
             return
 
-        context.painter.drawText(point + LABEL_OFFSET, obj.name)
+        metrics = painter.fontMetrics()
+        text_width = metrics.horizontalAdvance(obj.name)
+        ascent = float(metrics.ascent())
+        text_height = ascent + float(metrics.descent())
+
+        candidate_positions = (
+            QPointF(point.x() + LABEL_MARGIN, point.y() - ascent),
+            QPointF(point.x() + LABEL_MARGIN, point.y() + LABEL_MARGIN),
+            QPointF(point.x() - text_width - LABEL_MARGIN, point.y() - ascent),
+            QPointF(point.x() - text_width - LABEL_MARGIN, point.y() + LABEL_MARGIN),
+        )
+        viewport_rect = QRectF(context.viewport)
+
+        for position in candidate_positions:
+            label_rect = QRectF(position.x(), position.y() - ascent, text_width, text_height)
+            if not viewport_rect.contains(label_rect):
+                continue
+            if not context.label_layout.try_reserve(label_rect):
+                continue
+
+            painter.drawText(position, obj.name)
+            return
 
 
     # @profile
