@@ -4,6 +4,7 @@ from typing import TypeVar, Generic
 from PySide6.QtCore import QRect
 from PySide6.QtGui import QPainter, Qt
 
+from astronavigator.layer.constellation_label_layer import ConstellationLabelLayer
 from astronavigator.layer.constellation_layer import ConstellationLayer
 from astronavigator.layer.grid_label_layer import GridLabelLayer
 from astronavigator.layer.grid_layer import GridLayer
@@ -35,6 +36,7 @@ class Renderer(Generic[P, C]):
         self.layer_manager.add_layer(HorizonLayer())
 
         self.layer_manager.add_layer(GridLabelLayer(grid_layer))
+        self.layer_manager.add_layer(ConstellationLabelLayer())
         self.layer_manager.add_layer(LabelLayer())
 
         self.layer_manager.add_layer(MountLayer())

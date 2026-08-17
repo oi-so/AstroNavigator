@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QPointF, QRectF
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 
 from astronavigator.layer.layer import Layer, LayerType
+from astronavigator.rendering.label_layout import BELOW_HORIZON_LABEL_ALPHA
 from astronavigator.rendering.limiting_magnitude import calculate_label_limiting_magnitude
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.rendering.rendering_settings import RenderingSettings
@@ -39,15 +40,16 @@ class LabelLayer(Layer):
 
     # @profile
     def _draw_labels(self, context: RendererContext) -> None:
-        painter = context.painter
         scene = context.scene
         viewport_size = context.viewport.size()
 
         limiting_magnitude = calculate_label_limiting_magnitude(scene.rendering_settings.wide_label_limiting_magnitude, scene.rendering_settings.label_limiting_magnitude, scene.sky_camera.fov_deg)
         min_position, max_position = context.projection.visible_bounds(context.projection_context, viewport_size)
-        self._set_pen(painter, scene.rendering_settings.color_settings.constellation_label_color)
 
         candidates: list[tuple[int, float, str, SkyObject]] = []
+
+        below_horizon_path = context.projection.create_below_horizon_path(context.projection_context, viewport_size)
+        base_color = scene.rendering_settings.color_settings.constellation_label_color
 
         for object_type in ObjectType:
             fixed_objects = scene.object_index.find_visible_by_type(
@@ -70,9 +72,9 @@ class LabelLayer(Layer):
 
         candidates.sort(key=lambda x: (x[0], x[1], x[2]))
         for _, _, _, obj in candidates:
-            self._draw_label(obj, context)
+            self._draw_label(obj, context, below_horizon_path, base_color)
 
-    def _draw_label(self, obj: SkyObject, context: RendererContext) -> None:
+    def _draw_label(self, obj: SkyObject, context: RendererContext, below_horizon_path: QPainterPath, base_color: QColor) -> None:
         painter = context.painter
         point = context.projection.project_object(
             obj, context.projection_context, context.viewport.size()
@@ -86,10 +88,10 @@ class LabelLayer(Layer):
         text_height = ascent + float(metrics.descent())
 
         candidate_positions = (
-            QPointF(point.x() + LABEL_MARGIN, point.y() - ascent),
-            QPointF(point.x() + LABEL_MARGIN, point.y() + LABEL_MARGIN),
-            QPointF(point.x() - text_width - LABEL_MARGIN, point.y() - ascent),
-            QPointF(point.x() - text_width - LABEL_MARGIN, point.y() + LABEL_MARGIN),
+            QPointF(point.x() + LABEL_MARGIN, point.y() - LABEL_MARGIN),
+            QPointF(point.x() + LABEL_MARGIN, point.y() + LABEL_MARGIN + ascent),
+            QPointF(point.x() - LABEL_MARGIN - text_width, point.y() - LABEL_MARGIN),
+            QPointF(point.x() - LABEL_MARGIN - text_width, point.y() + LABEL_MARGIN + ascent),
         )
         viewport_rect = QRectF(context.viewport)
 
@@ -100,6 +102,11 @@ class LabelLayer(Layer):
             if not context.label_layout.try_reserve(label_rect):
                 continue
 
+            color = QColor(base_color)
+            if below_horizon_path.contains(point):
+                color.setAlpha(min(color.alpha(), BELOW_HORIZON_LABEL_ALPHA))
+
+            self._set_pen(painter, color)
             painter.drawText(position, obj.name)
             return
 

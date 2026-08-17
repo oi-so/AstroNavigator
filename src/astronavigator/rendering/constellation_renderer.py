@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 from PySide6.QtGui import QColor, QPainter, QPen
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPointF, QRectF, Qt
 
 from astronavigator.rendering.render_context import RendererContext
+from astronavigator.rendering.label_layout import BELOW_HORIZON_LABEL_ALPHA
 
 class ConstellationRenderer:
     # @profile
-    def render(self, context: RendererContext) -> None:
+    def render_lines(self, context: RendererContext) -> None:
         self._draw_constellation_lines(context)
+
+    def render_labels(self, context: RendererContext) -> None:
         self._draw_constellation_labels(context)
 
     # @profile
@@ -86,16 +89,38 @@ class ConstellationRenderer:
         viewport = context.viewport
         projection = context.projection
 
-        self._set_pen(painter, scene.rendering_settings.color_settings.constellation_label_color)
-        constellations = scene.constellations
-        for constellation in constellations:
-            name = constellation.name
-            label_position = constellation.label_position
+        base_color = scene.rendering_settings.color_settings.constellation_label_color
+        below_horizon_path = projection.create_below_horizon_path(context.projection_context, viewport.size())
 
-            label_position_converted = projection.convert_position(label_position, context.projection_context)
-            p = projection.project(label_position_converted, context.projection_context, viewport.size())
-            if p:
-                painter.drawText(p, name)
+        metrics = painter.fontMetrics()
+        ascent = float(metrics.ascent())
+        descent = float(metrics.descent())
+        text_height = ascent + descent
+
+        for constellation in scene.constellations:
+            name = constellation.name
+            converted = projection.convert_position(constellation.label_position, context.projection_context)
+            point = projection.project(converted, context.projection_context, viewport.size())
+
+            if point is None:
+                continue
+
+            text_width = float(metrics.horizontalAdvance(name))
+            position = QPointF(point.x() - text_width / 2.0, point.y() + (ascent - descent) / 2.0)
+            label_rect = QRectF(position.x(), position.y() - ascent, text_width, text_height)
+
+            if not QRectF(viewport).intersects(label_rect):
+                continue
+
+            if not context.label_layout.try_reserve(label_rect):
+                continue
+
+            color = QColor(base_color)
+            if below_horizon_path.contains(point):
+                color.setAlpha(min(color.alpha(), BELOW_HORIZON_LABEL_ALPHA))
+
+            self._set_pen(painter, color)
+            painter.drawText(position, name)
 
 
     def _set_pen(self, painter: QPainter, color: QColor) -> None:

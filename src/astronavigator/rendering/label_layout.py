@@ -5,6 +5,7 @@ from PySide6.QtCore import QRectF
 
 
 LABEL_COLLISION_PADDING = 2.0
+BELOW_HORIZON_LABEL_ALPHA = 100
 
 
 @dataclass(slots=True)

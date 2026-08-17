@@ -4,15 +4,15 @@ from astronavigator.layer.layer import Layer, LayerType
 from astronavigator.rendering.constellation_renderer import ConstellationRenderer
 from astronavigator.rendering.render_context import RendererContext
 
-class ConstellationLayer(Layer):
+
+class ConstellationLabelLayer(Layer):
     def __init__(self) -> None:
         super().__init__(visible=True, layer_type=LayerType.CONSTELLATION)
+        self._renderer = ConstellationRenderer()
 
-        self.renderer = ConstellationRenderer()
 
-    # @profile
     def render(self, context: RendererContext) -> None:
         if not self.visible:
             return
 
-        self.renderer.render_lines(context)
+        self._renderer.render_labels(context)
