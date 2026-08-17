@@ -4,12 +4,11 @@ from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QColor, QPainter, QPen
 
 from astronavigator.layer.layer import Layer, LayerType
-from astronavigator.rendering.limiting_magnitude import calculate_limiting_magnitude
+from astronavigator.rendering.limiting_magnitude import calculate_label_limiting_magnitude
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.rendering.rendering_settings import RenderingSettings
 from astronavigator.sky.sky_object import SkyObject
 from astronavigator.sky.object_type import ObjectType
-from astronavigator.sky.magnitude import Magnitude
 
 
 LABEL_MARGIN = 5.0
@@ -44,7 +43,7 @@ class LabelLayer(Layer):
         scene = context.scene
         viewport_size = context.viewport.size()
 
-        limiting_magnitude = calculate_limiting_magnitude(scene.rendering_settings.label_limiting_magnitude, scene.sky_camera.fov_deg)
+        limiting_magnitude = calculate_label_limiting_magnitude(scene.rendering_settings.wide_label_limiting_magnitude, scene.rendering_settings.label_limiting_magnitude, scene.sky_camera.fov_deg)
         min_position, max_position = context.projection.visible_bounds(context.projection_context, viewport_size)
         self._set_pen(painter, scene.rendering_settings.color_settings.constellation_label_color)
 
@@ -61,7 +60,7 @@ class LabelLayer(Layer):
                 if not magnitude.is_visible(limiting_magnitude):
                     continue
 
-                if not self._should_draw_label(obj, magnitude, scene.rendering_settings):
+                if not self._should_draw_label(obj, scene.rendering_settings):
                     continue
 
                 candidates.append((
@@ -106,14 +105,8 @@ class LabelLayer(Layer):
 
 
     # @profile
-    def _should_draw_label(self, obj: SkyObject, magnitude: Magnitude, settings: RenderingSettings) -> bool:
+    def _should_draw_label(self, obj: SkyObject, settings: RenderingSettings) -> bool:
         if not settings.show_labels:
-            return False
-
-        if magnitude.value > settings.label_limiting_magnitude:
-            return False
-
-        if obj.name.startswith("HYG") and not settings.show_catalog_names:
             return False
 
         return True
