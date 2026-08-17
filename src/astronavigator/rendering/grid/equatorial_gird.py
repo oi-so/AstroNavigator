@@ -64,7 +64,6 @@ class EquatorialGrid(CoordinateGrid[Position]):
             max_ra = max_pos.ra_deg
 
         fov_deg = context.scene.sky_camera.fov_deg
-        ra_sample_interval = calculate_grid_sample_interval(ra_interval, fov_deg)
         dec_sample_interval = calculate_grid_sample_interval(dec_interval, fov_deg)
 
         ra = (min_ra // ra_interval) * ra_interval

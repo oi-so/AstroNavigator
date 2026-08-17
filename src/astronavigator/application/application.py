@@ -94,7 +94,7 @@ class Application:
 
 
     def _load_openngc(self) -> None:
-        started_at = time.perf_counter()
+        # started_at = time.perf_counter()
 
         parser = NGCParser()
         objects_by_id = {}
