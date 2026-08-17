@@ -68,7 +68,7 @@ class EquatorialGrid(CoordinateGrid[Position]):
 
         ra = (min_ra // ra_interval) * ra_interval
         while ra <= max_ra + ANGLE_EPSILON:
-            line_min_dec, line_max_dec = self._calclate_ra_line_dec_bouns(
+            line_min_dec, line_max_dec = self._calculate_ra_line_dec_bounds(
                 ra, min_dec, max_dec, includes_pole
             )
 
@@ -150,7 +150,7 @@ class EquatorialGrid(CoordinateGrid[Position]):
 
 
     @classmethod
-    def _calclate_ra_line_dec_bouns(cls, ra: float, min_dec: float, max_dec: float, includes_pole: bool) -> tuple[float, float]:
+    def _calculate_ra_line_dec_bounds(cls, ra: float, min_dec: float, max_dec: float, includes_pole: bool) -> tuple[float, float]:
         if not includes_pole:
             return min_dec, max_dec
 
