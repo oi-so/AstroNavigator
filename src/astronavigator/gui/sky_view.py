@@ -90,9 +90,12 @@ class SkyView(QWidget):
             if self._dragging:
                 self._input_controller.end_drag()
             else:
-                self._input_controller.handle_click(event.position(), self.rect().size())
-                self._drag_start_position = None
-                self._dragging = False
+                selected_object = self._renderer.find_nearest_object(event.position())
+                self._input_controller.handle_selection(selected_object)
+
+                
+            self._drag_start_position = None
+            self._dragging = False
 
         self.update()
         super().mouseReleaseEvent(event)

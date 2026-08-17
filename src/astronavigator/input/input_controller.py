@@ -5,6 +5,7 @@ from PySide6.QtCore import QPointF, QSize, QPoint
 
 from astronavigator.input.input_action import InputAction
 from astronavigator.scene.scene_controller import SceneController
+from astronavigator.sky.sky_object import SkyObject
 
 
 
@@ -51,13 +52,13 @@ class InputController:
     def handle_drag(self, previous_position: QPoint, current_position: QPoint, viewport_size: QSize) -> None:
         self._scene_controller.move_camera_by_drag(previous_position, current_position, viewport_size)
 
-    
-    def handle_click(self, position: QPointF, viewport_size: QSize) -> None:
-        self._scene_controller.select_object_at(position, viewport_size)
-
 
     def begin_drag(self) -> None:
         self._scene_controller.begin_camera_drag()
 
     def end_drag(self) -> None:
         self._scene_controller.end_camera_drag()
+
+
+    def handle_selection(self, sky_object: SkyObject | None) -> None:
+        self._scene_controller.select_object(sky_object)

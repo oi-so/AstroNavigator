@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import TypeVar, Generic
-from PySide6.QtCore import QRect
+from PySide6.QtCore import QPointF, QRect
 from PySide6.QtGui import QPainter, Qt
 
 from astronavigator.layer.constellation_label_layer import ConstellationLabelLayer
@@ -17,6 +17,7 @@ from astronavigator.layer.selection_layer import SelectionLayer
 from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.scene.scene import Scene
+from astronavigator.sky.sky_object import SkyObject
 
 
 P = TypeVar("P")
@@ -29,10 +30,11 @@ class Renderer(Generic[P, C]):
         self.layer_manager = LayerManager()
 
         grid_layer = GridLayer()
+        self._object_layer = ObjectLayer()
 
         self.layer_manager.add_layer(grid_layer)
         self.layer_manager.add_layer(ConstellationLayer())
-        self.layer_manager.add_layer(ObjectLayer())
+        self.layer_manager.add_layer(self._object_layer)
         self.layer_manager.add_layer(HorizonLayer())
 
         self.layer_manager.add_layer(GridLabelLayer(grid_layer))
@@ -67,3 +69,7 @@ class Renderer(Generic[P, C]):
 
         painter.setPen(Qt.GlobalColor.white)
         painter.setBrush(Qt.GlobalColor.white)
+
+
+    def find_nearest_object(self, point: QPointF) -> SkyObject | None:
+        return self._object_layer.find_nearest_object(point)
