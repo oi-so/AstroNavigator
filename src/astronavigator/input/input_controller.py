@@ -54,3 +54,10 @@ class InputController:
     
     def handle_click(self, position: QPointF, viewport_size: QSize) -> None:
         self._scene_controller.select_object_at(position, viewport_size)
+
+
+    def begin_drag(self) -> None:
+        self._scene_controller.begin_camera_drag()
+
+    def end_drag(self) -> None:
+        self._scene_controller.end_camera_drag()

@@ -43,6 +43,7 @@ class Renderer(Generic[P, C]):
         self.layer_manager.add_layer(SelectionLayer())
 
 
+    # @profile
     def render(self, painter: QPainter, scene: Scene, viewport: QRect) -> None:
         projection_context = self._projection_manager.create_context(scene)
         context = RendererContext(

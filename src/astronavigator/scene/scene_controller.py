@@ -25,6 +25,7 @@ class SceneController:
         self._scene = scene
         self._event_bus = event_bus
         self._projection_manager = projection_manager
+        self._drag_projection_context = None
 
     @property
     def scene(self) -> Scene:
@@ -132,10 +133,17 @@ class SceneController:
         self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
 
     def move_camera_by_drag(self, previous_position: QPoint, current_position: QPoint, viewport_size: QSize) -> None:
-        self.clear_focus()
+        context = self._drag_projection_context
+        if context is None:
+            context = self._projection_manager.create_context(self._scene)
+
         projection = self._projection_manager.projection
-        context = self._projection_manager.create_context(self._scene)
-        center = projection.calculate_dragged_center(previous_position, current_position, context, viewport_size)
+        center = projection.calculate_dragged_center(
+            previous_position, current_position, context, viewport_size
+        )
+        if center == self._scene.sky_camera.center:
+            return
+
         self._scene.sky_camera.center = center
         self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
 
@@ -237,3 +245,11 @@ class SceneController:
         
         self._scene.sky_camera.center = normalized_position
         self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
+
+
+    def begin_camera_drag(self) -> None:
+        self.clear_focus()
+        self._drag_projection_context = self._projection_manager.create_context(self._scene)
+
+    def end_camera_drag(self) -> None:
+        self._drag_projection_context = None

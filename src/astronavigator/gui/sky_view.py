@@ -21,7 +21,7 @@ class SkyView(QWidget):
         self._renderer = renderer
         self._input_controller = input_controller
         self._event_bus = event_bus
-        self._last_mouse_position: QPoint | None = None
+        self._drag_start_position: QPoint | None = None
         self._dragging = False
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
@@ -29,7 +29,10 @@ class SkyView(QWidget):
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
-        self._renderer.render(painter, self._scene, self.rect())
+        try:
+            self._renderer.render(painter, self._scene, self.rect())
+        finally:
+            painter.end()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         action = KEY_BINDINGS.get(event.key())
@@ -60,36 +63,36 @@ class SkyView(QWidget):
     
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            self._last_mouse_position = event.pos()
+            self._drag_start_position = event.pos()
             self._dragging = False
 
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if self._last_mouse_position is None:
+        if self._drag_start_position is None:
             return
 
-        previous_position = self._last_mouse_position
         current_position = event.pos()
-        delta = current_position - previous_position
+        delta = current_position - self._drag_start_position
 
-        if delta.manhattanLength() > DRAG_THRESHOLD_PX:
+        if not self._dragging:
+            if delta.manhattanLength() <= DRAG_THRESHOLD_PX:
+                return
+
             self._dragging = True
+            self._input_controller.begin_drag()
 
-        self._last_mouse_position = current_position
-        self._input_controller.handle_drag(
-            previous_position, current_position, self.rect().size()
-        )
-
+        self._input_controller.handle_drag(self._drag_start_position, current_position, self.rect().size())
         self.update()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            if not self._dragging:
+            if self._dragging:
+                self._input_controller.end_drag()
+            else:
                 self._input_controller.handle_click(event.position(), self.rect().size())
-
-            self._last_mouse_position = None
-            self._dragging = False
+                self._drag_start_position = None
+                self._dragging = False
 
         self.update()
         super().mouseReleaseEvent(event)

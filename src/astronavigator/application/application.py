@@ -25,7 +25,7 @@ from astronavigator.event.event_bus import EventBus
 from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG, OPENNGC_ADDENDUM, OPENNGC_NGC, VISUAL_SATELLITES_OMM
 
 
-FPS = 1000
+FPS = 60
 
 class Application:
     def __init__(self):
@@ -112,7 +112,6 @@ class Application:
         self._scene_controller.add_catalog(catalog)
         # completed_at = time.perf_counter()
         # print(f"OpenNGC loaded in {completed_at - started_at:.3f}s (parsed in {parsed_at - started_at:.3f}s)")
-
 
     def _update(self):
         current_time = time.monotonic()
