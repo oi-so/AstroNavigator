@@ -8,6 +8,7 @@ from astronavigator.rendering.render_context import RendererContext
 
 
 GRID_LABEL_MARGIN = 4.0
+NSEW_LABEL_SIZE = 30.0
 
 
 class GridLabelLayer(Layer):
@@ -23,8 +24,15 @@ class GridLabelLayer(Layer):
         painter.save()
 
         try:
+            font = painter.font()
             for label in self._grid_layer.labels:
                 painter.setPen(label.color)
+                if label.offset_direction is not None:
+                    font.setPointSizeF(NSEW_LABEL_SIZE)
+                    painter.setFont(font)
+                else:
+                    font.setPointSizeF(font.pointSizeF())
+                    painter.setFont(font)
                 painter.drawText(self._calculate_label_position(context, label), label.text)
         finally:
             painter.restore()
@@ -41,7 +49,15 @@ class GridLabelLayer(Layer):
         ascent = float(metrics.ascent())
         descent = float(metrics.descent())
 
-        if label.edge == GridLabelEdge.TOP:
+        if label.offset_direction is not None:
+            text_height = ascent + descent
+            label_center_x = label.anchor.x() + label.offset_direction.x() * (text_width / 2.0 + GRID_LABEL_MARGIN)
+            label_center_y = label.anchor.y() + label.offset_direction.y() * (text_height / 2.0 + GRID_LABEL_MARGIN)
+
+            text_x = label_center_x - text_width / 2.0
+            baseline_y = label_center_y + (ascent - descent) / 2.0
+
+        elif label.edge == GridLabelEdge.TOP:
             text_x = label.anchor.x() - text_width / 2.0
             baseline_y = label.anchor.y() + ascent + GRID_LABEL_MARGIN
         elif label.edge == GridLabelEdge.BOTTOM:

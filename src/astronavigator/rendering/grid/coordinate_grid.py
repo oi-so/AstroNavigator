@@ -26,6 +26,12 @@ class GridLine(Generic[T]):
     label: str
     label_placement: GridLabelPlacement
 
+@dataclass(slots=True)
+class GridPointLabel(Generic[T]):
+    position: T
+    offset_position: T
+    text: str
+
 
 def calculate_grid_sample_interval(grid_interval: float) -> float:
     return min(grid_interval / GRID_SAMPLES_PER_INTERVAL, MAX_GRID_SAMPLE_INTERVAL_DEG)
@@ -43,6 +49,10 @@ class CoordinateGrid(ABC, Generic[T]):
     @abstractmethod
     def iter_lines(self, context: RendererContext) -> Iterable[GridLine[T]]:
         ...
+
+
+    def iter_point_labels(self, context: RendererContext) -> Iterable[GridPointLabel[T]]:
+        return ()
 
     @property
     @abstractmethod

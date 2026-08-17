@@ -6,7 +6,7 @@ from typing import OrderedDict
 import math
 
 from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
-from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLabelPlacement, GridLine, calculate_grid_sample_interval, format_grid_degree
+from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLabelPlacement, GridLine, GridPointLabel, calculate_grid_sample_interval, format_grid_degree
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.sky.position import HorizontalPosition
@@ -19,6 +19,16 @@ MEDIUM_AZ_INTERVAL_DEG = 30.0
 MAJOR_AZ_INTERVAL_DEG = 90.0
 
 ANGLE_EPSILON = 1e-9
+
+CARDINAL_LABEL_FOV = 120.0
+CARDINAL_LABEL_DIRECTION_ALTITUDE_DEG = 1.0
+
+CARDINAL_LABELS = {
+    0.0: "北",
+    90.0: "東",
+    180.0: "南",
+    270.0: "西",
+}
 
 
 GRID_INTERVAL_TABLE: OrderedDict[float, tuple[float, float]] = OrderedDict({
@@ -170,3 +180,15 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
             math.isclose(remainder, 0.0, abs_tol=ANGLE_EPSILON) or
             math.isclose(remainder, interval, abs_tol=ANGLE_EPSILON)
         )
+
+
+    def iter_point_labels(self, context: RendererContext) -> Iterable[GridPointLabel[HorizontalPosition]]:
+        if context.scene.sky_camera.fov_deg < CARDINAL_LABEL_FOV:
+            return ()
+
+        for az, text in CARDINAL_LABELS.items():
+            yield GridPointLabel(
+                position=HorizontalPosition(az, 0.0),
+                offset_position=HorizontalPosition(az, CARDINAL_LABEL_DIRECTION_ALTITUDE_DEG),
+                text=text,
+            )

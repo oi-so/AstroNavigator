@@ -3,8 +3,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum, auto
+import math
 from typing import TypeVar
-from PySide6.QtCore import QPointF, Qt
+from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QPainterPath
 
 from astronavigator.layer.layer import Layer, LayerType
@@ -20,6 +21,9 @@ T = TypeVar("T")
 
 GRID_LABEL_MINIMUM_ALPHA = 200
 
+POINT_LABEL_VISIBILITY_TOLERANCE = 1.0
+POINT_LABEL_DIRECTION_EPSILON = 1e-9
+
 
 class GridLabelEdge(Enum):
     LEFT = auto()
@@ -32,7 +36,8 @@ class GridLabel:
     text: str
     color: QColor
     anchor: QPointF
-    edge: GridLabelEdge
+    edge: GridLabelEdge | None = None
+    offset_direction: QPointF | None = None
 
 class GridLayer(Layer):
     def __init__(self) -> None:
@@ -86,6 +91,46 @@ class GridLayer(Layer):
                     label_color = QColor(color)
                     label_color.setAlpha(max(label_color.alpha(), GRID_LABEL_MINIMUM_ALPHA))
                     self._labels.append(GridLabel(text=line.label, color=label_color, anchor=anchor, edge=edge))
+
+                for point_label in grid.iter_point_labels(context):
+                    anchor = context.projection.project_grid_position_unclipped(
+                        point_label.position, grid.coordinate_system, context.projection_context, context.viewport.size()
+                    )
+                    toward_point = context.projection.project_grid_position_unclipped(
+                        point_label.offset_position,
+                        grid.coordinate_system,
+                        context.projection_context,
+                        context.viewport.size(),
+                    )
+
+                    if anchor is None or toward_point is None:
+                        continue
+
+                    anchor_area = QRectF(
+                        anchor.x() - POINT_LABEL_VISIBILITY_TOLERANCE,
+                        anchor.y() - POINT_LABEL_VISIBILITY_TOLERANCE,
+                        2.0 * POINT_LABEL_VISIBILITY_TOLERANCE,
+                        2.0 * POINT_LABEL_VISIBILITY_TOLERANCE
+                    )
+
+                    if not clip_path.contains(anchor) and not clip_path.intersects(anchor_area):
+                        continue
+
+                    if not clip_path.contains(toward_point):
+                        continue
+
+                    dx = toward_point.x() - anchor.x()
+                    dy = toward_point.y() - anchor.y()
+                    direction_length = math.hypot(dx, dy)
+
+                    if direction_length <= POINT_LABEL_DIRECTION_EPSILON:
+                        continue
+
+                    direction = QPointF(dx / direction_length, dy / direction_length)
+
+                    point_label_color = QColor(color)
+                    point_label_color.setAlpha(max(point_label_color.alpha(), GRID_LABEL_MINIMUM_ALPHA))
+                    self._labels.append(GridLabel(text=point_label.text, color=point_label_color, anchor=anchor, offset_direction=direction))
         finally:
             painter.restore()
 
