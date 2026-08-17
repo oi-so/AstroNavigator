@@ -167,8 +167,8 @@ class GridLayer(Layer):
                     leftmost_point = line_point
 
             if previous_line_point is not None:
-                if previous_is_visible or inside:
-                    context.painter.drawLine(previous_line_point, line_point)
+                # if previous_is_visible or inside:
+                context.painter.drawLine(previous_line_point, line_point)
 
                 if previous_is_visible != inside:
                     intersection_point = self._find_clip_intersection(previous_line_point, line_point, previous_is_visible, clip_path)

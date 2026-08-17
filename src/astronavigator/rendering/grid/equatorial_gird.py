@@ -5,7 +5,7 @@ from typing import Iterable
 from collections import OrderedDict
 import math
 
-from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLabelPlacement, GridLine, calculate_grid_sample_interval, calculate_parallel_sample_interval, format_grid_degree
+from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLabelPlacement, GridLine, calculate_grid_sample_interval, calculate_parallel_sample_interval, calculate_spherical_longitude_bounds, format_grid_degree
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.sky.coordinate_format import RightAscensionFormat
@@ -68,6 +68,9 @@ class EquatorialGrid(CoordinateGrid[Position]):
 
         ra = (min_ra // ra_interval) * ra_interval
         while ra <= max_ra + ANGLE_EPSILON:
+            if includes_pole and ra >= 360.0 - ANGLE_EPSILON:
+                break
+
             line_min_dec, line_max_dec = self._calculate_ra_line_dec_bounds(
                 ra, min_dec, max_dec, includes_pole
             )
@@ -129,15 +132,15 @@ class EquatorialGrid(CoordinateGrid[Position]):
 
     def _visible_bounds(self, context: RendererContext) -> tuple[Position, Position]:
         camera = context.scene.sky_camera
-        viewport_size = context.viewport.size()
-        scale = min(viewport_size.width(), viewport_size.height()) / camera.fov_deg
+        half_fov_deg = camera.fov_deg / 2.0
 
-        half_width_deg = (viewport_size.width() / 2) / scale
-        half_height_deg = (viewport_size.height() / 2) / scale
+        min_ra, max_ra = calculate_spherical_longitude_bounds(
+            camera.center.ra_deg, camera.center.dec_deg, half_fov_deg
+        )
 
         return (
-            Position(camera.center.ra_deg - half_width_deg, camera.center.dec_deg - half_height_deg),
-            Position(camera.center.ra_deg + half_width_deg, camera.center.dec_deg + half_height_deg),
+            Position(min_ra, camera.center.dec_deg - half_fov_deg),
+            Position(max_ra, camera.center.dec_deg + half_fov_deg),
         )
 
     @staticmethod

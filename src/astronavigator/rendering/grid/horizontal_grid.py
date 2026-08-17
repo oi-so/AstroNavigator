@@ -6,7 +6,7 @@ from typing import OrderedDict
 import math
 
 from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
-from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLabelPlacement, GridLine, GridPointLabel, calculate_grid_sample_interval, calculate_parallel_sample_interval, format_grid_degree
+from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLabelPlacement, GridLine, GridPointLabel, calculate_grid_sample_interval, calculate_parallel_sample_interval, calculate_spherical_longitude_bounds, format_grid_degree
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.sky.position import HorizontalPosition
@@ -141,15 +141,15 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
             context.projection_context.observer_position
         )
         camera = context.scene.sky_camera
-        viewport_size = context.viewport.size()
-        scale = min(viewport_size.width(), viewport_size.height()) / camera.fov_deg
+        half_fov_deg = camera.fov_deg / 2.0
 
-        half_width_deg = (viewport_size.width() / 2) / scale
-        half_height_deg = (viewport_size.height() / 2) / scale
+        min_az, max_az = calculate_spherical_longitude_bounds(
+            center.azimuth_deg, center.altitude_deg, half_fov_deg
+        )
 
         return (
-            HorizontalPosition(center.azimuth_deg - half_width_deg, center.altitude_deg - half_height_deg),
-            HorizontalPosition(center.azimuth_deg + half_width_deg, center.altitude_deg + half_height_deg),
+            HorizontalPosition(min_az, center.altitude_deg - half_fov_deg),
+            HorizontalPosition(max_az, center.altitude_deg + half_fov_deg),
         )
 
 

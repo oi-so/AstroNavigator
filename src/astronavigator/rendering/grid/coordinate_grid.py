@@ -71,6 +71,22 @@ def format_grid_degree(value: float, interval: float, *, signed: bool = False) -
         return f"{value:.{decimal_places}f}°"
 
 
+def calculate_spherical_longitude_bounds(center_longitude_deg: float, center_latitude_deg: float, half_fov_deg: float) -> tuple[float, float]:
+    raw_min_latitude = center_latitude_deg - half_fov_deg
+    raw_max_latitude = center_latitude_deg + half_fov_deg
+
+    if raw_min_latitude <= -90.0 or raw_max_latitude >= 90.0:
+        return (0.0, 360.0)
+
+    latitude_rad = math.radians(center_latitude_deg)
+    half_fov_rad = math.radians(half_fov_deg)
+
+    longitude_ratio = math.sin(half_fov_rad) / max(abs(math.cos(latitude_rad)), 1e-12)
+    half_longitude_deg = math.degrees(math.asin(longitude_ratio))
+
+    return (center_longitude_deg - half_longitude_deg, center_longitude_deg + half_longitude_deg)
+
+
 class CoordinateGrid(ABC, Generic[T]):
     @abstractmethod
     def iter_lines(self, context: RendererContext) -> Iterable[GridLine[T]]:
