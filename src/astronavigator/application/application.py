@@ -94,8 +94,6 @@ class Application:
 
 
     def _load_openngc(self) -> None:
-        # started_at = time.perf_counter()
-
         parser = NGCParser()
         objects_by_id = {}
 
@@ -107,19 +105,13 @@ class Application:
                 objects_by_id.setdefault(obj.id, obj)
 
         catalog = Catalog(name="OpenNGC", objects=list(objects_by_id.values()))
-
-        # parsed_at = time.perf_counter()
         self._scene_controller.add_catalog(catalog)
-        # completed_at = time.perf_counter()
-        # print(f"OpenNGC loaded in {completed_at - started_at:.3f}s (parsed in {parsed_at - started_at:.3f}s)")
+
 
     def _update(self):
         current_time = time.monotonic()
         delta_time = current_time - self._last_update_time
-        if delta_time > 0.03:
-            print(f"[update] delta_time={delta_time:.4f}s")
         self._last_update_time = current_time
-
         self._scene_controller.advance_time(delta_time)
 
     @property
