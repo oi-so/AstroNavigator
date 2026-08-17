@@ -6,7 +6,7 @@ from typing import OrderedDict
 import math
 
 from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
-from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLabelPlacement, GridLine, GridPointLabel, calculate_grid_sample_interval, calculate_parallel_sample_interval, calculate_spherical_longitude_bounds, format_grid_degree
+from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLabelPlacement, GridLine, GridPointLabel, calculate_grid_sample_interval, calculate_parallel_sample_interval, calculate_spherical_longitude_bounds, format_grid_degree, calculate_longitude_grid_interval
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.sky.position import HorizontalPosition
@@ -58,7 +58,7 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
 
         min_pos, max_pos = bounds
 
-        az_interval, alt_interval = self._get_grid_intervals(context.scene.sky_camera.fov_deg)
+        base_az_interval, alt_interval = self._get_grid_intervals(context.scene.sky_camera.fov_deg)
 
         fov_deg = context.scene.sky_camera.fov_deg
         alt_sample_interval = calculate_grid_sample_interval(alt_interval, fov_deg)
@@ -71,6 +71,8 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
 
         min_az = min_pos.azimuth_deg
         max_az = max_pos.azimuth_deg
+
+        az_interval = calculate_longitude_grid_interval(base_az_interval, max_az - min_az)
 
         includes_zenith_or_nadir = raw_min_alt <= -90.0 or raw_max_alt >= 90.0
         if includes_zenith_or_nadir:
@@ -95,7 +97,7 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
         alt = (min_alt // alt_interval) * alt_interval
         while alt <= max_alt + ANGLE_EPSILON:
             if abs(alt) < 90.0 - ANGLE_EPSILON:
-                line_az_sample_interval = calculate_parallel_sample_interval(alt_interval, alt, max_az - min_az)
+                line_az_sample_interval = calculate_parallel_sample_interval(base_az_interval, alt, max_az - min_az)
                 yield GridLine(
                     positions=self._iter_alt_line(alt, min_az, max_az, line_az_sample_interval),
                     label=format_grid_degree(alt, alt_interval, signed=True),

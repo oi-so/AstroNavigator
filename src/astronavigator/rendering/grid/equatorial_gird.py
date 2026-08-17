@@ -5,7 +5,7 @@ from typing import Iterable
 from collections import OrderedDict
 import math
 
-from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLabelPlacement, GridLine, calculate_grid_sample_interval, calculate_parallel_sample_interval, calculate_spherical_longitude_bounds, format_grid_degree
+from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLabelPlacement, GridLine, calculate_grid_sample_interval, calculate_parallel_sample_interval, calculate_spherical_longitude_bounds, format_grid_degree, calculate_longitude_grid_interval
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.sky.coordinate_format import RightAscensionFormat
@@ -47,14 +47,12 @@ class EquatorialGrid(CoordinateGrid[Position]):
 
     def iter_lines(self, context: RendererContext) -> Iterable[GridLine[Position]]:
         min_pos, max_pos = self._visible_bounds(context)
-
-        ra_interval, dec_interval = self._get_grid_intervals(context.scene.sky_camera.fov_deg)
-
         raw_min_dec = min_pos.dec_deg
         raw_max_dec = max_pos.dec_deg
 
         min_dec = max(-90.0, raw_min_dec)
         max_dec = min(90.0, raw_max_dec)
+
         includes_pole = raw_min_dec <= -90.0 or raw_max_dec >= 90.0
         if includes_pole:
             min_ra = 0.0
@@ -62,6 +60,9 @@ class EquatorialGrid(CoordinateGrid[Position]):
         else:
             min_ra = min_pos.ra_deg
             max_ra = max_pos.ra_deg
+
+        base_ra_interval, dec_interval = self._get_grid_intervals(context.scene.sky_camera.fov_deg)
+        ra_interval = calculate_longitude_grid_interval(base_ra_interval, max_ra - min_ra)
 
         fov_deg = context.scene.sky_camera.fov_deg
         dec_sample_interval = calculate_grid_sample_interval(dec_interval, fov_deg)
@@ -86,7 +87,7 @@ class EquatorialGrid(CoordinateGrid[Position]):
         dec = (min_dec // dec_interval) * dec_interval
         while dec <= max_dec + ANGLE_EPSILON:
             if abs(dec) < 90.0 - ANGLE_EPSILON:
-                line_ra_sample_interval = calculate_parallel_sample_interval(ra_interval, dec, max_ra - min_ra)
+                line_ra_sample_interval = calculate_parallel_sample_interval(base_ra_interval, dec, max_ra - min_ra)
                 yield GridLine(
                     positions=self._iter_dec_line(dec, min_ra, max_ra, line_ra_sample_interval),
                     label=format_grid_degree(dec, dec_interval, signed=True),

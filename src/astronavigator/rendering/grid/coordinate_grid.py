@@ -22,6 +22,25 @@ MIN_LATITUDE_COSINE = 0.15
 MAX_LONGITUDE_SAMPLE_INTERVAL_DEG = 20.0
 MAX_PARALLEL_SAMPLES = 120
 
+MAX_LONGITUDE_GRID_LINES = 12
+NICE_LONGITUDE_INTERVALS_DEG = (
+    0.1,
+    0.2,
+    0.5,
+    1.0,
+    2.0,
+    3.0,
+    5.0,
+    6.0,
+    9.0,
+    10.0,
+    15.0,
+    18.0,
+    30.0,
+    45.0,
+    90.0,
+)
+
 
 class GridLabelPlacement(Enum):
     TOP_BOTTOM = auto()
@@ -85,6 +104,17 @@ def calculate_spherical_longitude_bounds(center_longitude_deg: float, center_lat
     half_longitude_deg = math.degrees(math.asin(longitude_ratio))
 
     return (center_longitude_deg - half_longitude_deg, center_longitude_deg + half_longitude_deg)
+
+
+def calculate_longitude_grid_interval(base_interval: float, longitude_span: float) -> float:
+    if longitude_span <= 0.0:
+        return base_interval
+
+    required_interval = max(base_interval, longitude_span / MAX_LONGITUDE_GRID_LINES)
+    for interval in NICE_LONGITUDE_INTERVALS_DEG:
+        if interval + 1e-9 >= required_interval:
+            return interval
+    return NICE_LONGITUDE_INTERVALS_DEG[-1]
 
 
 class CoordinateGrid(ABC, Generic[T]):
