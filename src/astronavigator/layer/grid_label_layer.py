@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QPointF
+from PySide6.QtCore import QPointF, QRectF
+from PySide6.QtGui import QFont
 
 from astronavigator.layer.grid_layer import GridLabel, GridLabelEdge, GridLayer
 from astronavigator.layer.layer import Layer, LayerType
@@ -24,16 +25,34 @@ class GridLabelLayer(Layer):
         painter.save()
 
         try:
-            font = painter.font()
-            for label in self._grid_layer.labels:
-                painter.setPen(label.color)
+            base_font = QFont(painter.font())
+
+            labels = sorted(self._grid_layer.labels, key=lambda label: label.offset_direction is None)
+
+            for label in labels:
+                font = QFont(base_font)
                 if label.offset_direction is not None:
                     font.setPointSizeF(NSEW_LABEL_SIZE)
-                    painter.setFont(font)
-                else:
-                    font.setPointSizeF(font.pointSizeF())
-                    painter.setFont(font)
-                painter.drawText(self._calculate_label_position(context, label), label.text)
+
+                painter.setFont(font)
+                position = self._calculate_label_position(context, label)
+
+                metrics = painter.fontMetrics()
+                text_width = float(metrics.horizontalAdvance(label.text))
+
+                text_rect = QRectF(
+                    position.x(),
+                    position.y() - float(metrics.ascent()),
+                    text_width,
+                    float(metrics.height()),
+                )
+
+                if not context.label_layout.try_reserve(text_rect):
+                    continue
+
+                painter.setPen(label.color)
+                painter.drawText(position, label.text)
+
         finally:
             painter.restore()
 
