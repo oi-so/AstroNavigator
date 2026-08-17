@@ -117,7 +117,7 @@ class Application:
     def _update(self):
         current_time = time.monotonic()
         delta_time = current_time - self._last_update_time
-        if delta_time > 0.01:
+        if delta_time > 0.03:
             print(f"[update] delta_time={delta_time:.4f}s")
         self._last_update_time = current_time
 

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Generic, TypeVar, Iterable
 from abc import ABC, abstractmethod
+import math
 
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.render_context import RendererContext
@@ -12,13 +13,14 @@ T = TypeVar("T")
 
 
 GRID_SAMPLES_PER_INTERVAL = 4.0
+GRID_SAMPLE_FOV_DIVISOR = 18.0
 
-MEDIUM_SAMPLE_FOV_DEG = 60.0
-WIDE_SAMPLE_FOV_DEG = 120.0
+MIN_GRID_SAMPLE_INTERVAL_DEG = 1.0
+MAX_GRID_SAMPLE_INTERVAL_DEG = 10.0
 
-NARROW_MAX_SAMPLE_INTERVAL = 1.0
-MEDIUM_MAX_SAMPLE_INTERVAL = 3.0
-WIDE_MAX_SAMPLE_INTERVAL = 10.0
+MIN_LATITUDE_COSINE = 0.15
+MAX_LONGITUDE_SAMPLE_INTERVAL_DEG = 20.0
+MAX_PARALLEL_SAMPLES = 120
 
 
 class GridLabelPlacement(Enum):
@@ -39,15 +41,26 @@ class GridPointLabel(Generic[T]):
     text: str
 
 
-def calculate_grid_sample_interval(grid_interval: float, fov_deg: float) -> float:
-    if fov_deg >= WIDE_SAMPLE_FOV_DEG:
-        max_sample_interval = WIDE_MAX_SAMPLE_INTERVAL
-    elif fov_deg >= MEDIUM_SAMPLE_FOV_DEG:
-        max_sample_interval = MEDIUM_MAX_SAMPLE_INTERVAL
-    else:
-        max_sample_interval = NARROW_MAX_SAMPLE_INTERVAL
+def calculate_grid_sample_interval(interval: float, fov_deg: float) -> float:
+    fov_sample_interval = fov_deg / GRID_SAMPLE_FOV_DIVISOR
+    fov_sample_interval = max(
+        MIN_GRID_SAMPLE_INTERVAL_DEG, 
+        min(fov_sample_interval, MAX_GRID_SAMPLE_INTERVAL_DEG)
+    )
 
-    return min(grid_interval / GRID_SAMPLES_PER_INTERVAL, max_sample_interval)
+    return min(interval / GRID_SAMPLES_PER_INTERVAL, fov_sample_interval)
+
+
+def calculate_parallel_sample_interval(interval: float, latitude: float, longitude_span: float) -> float:
+    latitude_cosine = abs(math.cos(math.radians(latitude)))
+    latitude_cosine = max(MIN_LATITUDE_COSINE, latitude_cosine)
+
+    latitude_interval = interval / latitude_cosine
+    budget_interval = longitude_span / MAX_PARALLEL_SAMPLES
+    return min(
+        MAX_LONGITUDE_SAMPLE_INTERVAL_DEG,
+        max(interval, latitude_interval, budget_interval)
+    )
 
 
 def format_grid_degree(value: float, interval: float, *, signed: bool = False) -> str:

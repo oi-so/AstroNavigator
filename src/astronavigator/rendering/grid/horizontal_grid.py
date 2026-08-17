@@ -6,7 +6,7 @@ from typing import OrderedDict
 import math
 
 from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
-from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLabelPlacement, GridLine, GridPointLabel, calculate_grid_sample_interval, format_grid_degree
+from astronavigator.rendering.grid.coordinate_grid import CoordinateGrid, GridLabelPlacement, GridLine, GridPointLabel, calculate_grid_sample_interval, calculate_parallel_sample_interval, format_grid_degree
 from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.sky.position import HorizontalPosition
@@ -96,8 +96,9 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
         alt = (min_alt // alt_interval) * alt_interval
         while alt <= max_alt + ANGLE_EPSILON:
             if abs(alt) < 90.0 - ANGLE_EPSILON:
+                line_az_sample_interval = calculate_parallel_sample_interval(alt_interval, alt, max_az - min_az)
                 yield GridLine(
-                    positions=self._iter_alt_line(alt, min_az, max_az, az_sample_interval),
+                    positions=self._iter_alt_line(alt, min_az, max_az, line_az_sample_interval),
                     label=format_grid_degree(alt, alt_interval, signed=True),
                     label_placement=GridLabelPlacement.LEFT_RIGHT
                 )
