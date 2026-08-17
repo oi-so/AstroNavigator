@@ -60,8 +60,9 @@ class HorizontalGrid(CoordinateGrid[HorizontalPosition]):
 
         az_interval, alt_interval = self._get_grid_intervals(context.scene.sky_camera.fov_deg)
 
-        az_sample_interval = calculate_grid_sample_interval(az_interval)
-        alt_sample_interval = calculate_grid_sample_interval(alt_interval)
+        fov_deg = context.scene.sky_camera.fov_deg
+        az_sample_interval = calculate_grid_sample_interval(az_interval, fov_deg)
+        alt_sample_interval = calculate_grid_sample_interval(alt_interval, fov_deg)
 
         raw_min_alt = min_pos.altitude_deg
         raw_max_alt = max_pos.altitude_deg

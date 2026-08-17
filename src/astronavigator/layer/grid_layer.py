@@ -207,7 +207,7 @@ class GridLayer(Layer):
         inside_point = p1 if p1_inside else p2
         outside_point = p2 if p1_inside else p1
 
-        for _ in range(24):
+        for _ in range(10):
             middle = QPointF(
                 (inside_point.x() + outside_point.x()) / 2, 
                 (inside_point.y() + outside_point.y()) / 2

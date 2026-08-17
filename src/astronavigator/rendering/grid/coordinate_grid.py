@@ -12,7 +12,13 @@ T = TypeVar("T")
 
 
 GRID_SAMPLES_PER_INTERVAL = 4.0
-MAX_GRID_SAMPLE_INTERVAL_DEG = 1.0
+
+MEDIUM_SAMPLE_FOV_DEG = 60.0
+WIDE_SAMPLE_FOV_DEG = 120.0
+
+NARROW_MAX_SAMPLE_INTERVAL = 1.0
+MEDIUM_MAX_SAMPLE_INTERVAL = 3.0
+WIDE_MAX_SAMPLE_INTERVAL = 10.0
 
 
 class GridLabelPlacement(Enum):
@@ -33,8 +39,15 @@ class GridPointLabel(Generic[T]):
     text: str
 
 
-def calculate_grid_sample_interval(grid_interval: float) -> float:
-    return min(grid_interval / GRID_SAMPLES_PER_INTERVAL, MAX_GRID_SAMPLE_INTERVAL_DEG)
+def calculate_grid_sample_interval(grid_interval: float, fov_deg: float) -> float:
+    if fov_deg >= WIDE_SAMPLE_FOV_DEG:
+        max_sample_interval = WIDE_MAX_SAMPLE_INTERVAL
+    elif fov_deg >= MEDIUM_SAMPLE_FOV_DEG:
+        max_sample_interval = MEDIUM_MAX_SAMPLE_INTERVAL
+    else:
+        max_sample_interval = NARROW_MAX_SAMPLE_INTERVAL
+
+    return min(grid_interval / GRID_SAMPLES_PER_INTERVAL, max_sample_interval)
 
 
 def format_grid_degree(value: float, interval: float, *, signed: bool = False) -> str:
