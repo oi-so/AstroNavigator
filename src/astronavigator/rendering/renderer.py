@@ -32,9 +32,11 @@ class Renderer(Generic[P, C]):
         self.layer_manager.add_layer(grid_layer)
         self.layer_manager.add_layer(ConstellationLayer())
         self.layer_manager.add_layer(ObjectLayer())
-        self.layer_manager.add_layer(LabelLayer())
         self.layer_manager.add_layer(HorizonLayer())
+
         self.layer_manager.add_layer(GridLabelLayer(grid_layer))
+        self.layer_manager.add_layer(LabelLayer())
+
         self.layer_manager.add_layer(MountLayer())
         self.layer_manager.add_layer(SelectionLayer())
 
