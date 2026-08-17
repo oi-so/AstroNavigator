@@ -1,3 +1,4 @@
+from astronavigator.rendering.label_layout import LabelLayout
 from astronavigator.rendering.projection.projection import Projection
 from astronavigator.scene.scene import Scene
 
@@ -6,7 +7,7 @@ from PySide6.QtCore import QRect
 from PySide6.QtGui import QPainter
 
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Generic, TypeVar
 
 
@@ -22,3 +23,4 @@ class RendererContext(Generic[P, C]):
     viewport: QRect
     projection: Projection[P, C]
     projection_context: C
+    label_layout: LabelLayout = field(default_factory=LabelLayout)

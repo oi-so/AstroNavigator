@@ -19,13 +19,12 @@ from astronavigator.scene.time import Time
 from astronavigator.catalog.catalog import ConstellationCatalog
 
 
-SELECTION_THRESHOLD = 20
-
 class SceneController:
     def __init__(self, scene: Scene, event_bus: EventBus, projection_manager: ProjectionManager) -> None:
         self._scene = scene
         self._event_bus = event_bus
         self._projection_manager = projection_manager
+        self._drag_projection_context = None
 
     @property
     def scene(self) -> Scene:
@@ -44,6 +43,7 @@ class SceneController:
 
     def advance_time(self, seconds: float) -> None:
         self._scene.time.advance(seconds)
+        self._update_focus_camera()
         self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
 
     def set_time_speed(self, speed: float) -> None:
@@ -106,11 +106,6 @@ class SceneController:
         self._scene.selection.selected = sky_object
         self._event_bus.publish(EventType.SELECTION_CHANGED, sky_object)
 
-    # TODO: 非表示のオブジェクトを選択できないようにする
-    def select_object_at(self, position: QPointF, viewport_size: QSize) -> None:
-        obj = self._find_nearest_object(position, viewport_size)
-        self.select_object(obj)
-
     def clear_selection(self) -> None:
         self._scene.selection.selected = None
         self._event_bus.publish(EventType.SELECTION_CHANGED, None)
@@ -118,19 +113,31 @@ class SceneController:
     def set_focus(self, sky_object: SkyObject) -> None:
         self._scene.focus.target = sky_object
         self._event_bus.publish(EventType.FOCUS_CHANGED, sky_object)
+        self._update_focus_camera()
 
     def clear_focus(self) -> None:
+        if self._scene.focus.target is None:
+            return
         self._scene.focus.target = None
         self._event_bus.publish(EventType.FOCUS_CHANGED, None)
 
     def move_camera(self, delta_ra: float, delta_dec: float) -> None:
+        self.clear_focus()
         self._scene.sky_camera.move(delta_ra, delta_dec)
         self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
 
     def move_camera_by_drag(self, previous_position: QPoint, current_position: QPoint, viewport_size: QSize) -> None:
+        context = self._drag_projection_context
+        if context is None:
+            context = self._projection_manager.create_context(self._scene)
+
         projection = self._projection_manager.projection
-        context = self._projection_manager.create_context(self._scene)
-        center = projection.calculate_dragged_center(previous_position, current_position, context, viewport_size)
+        center = projection.calculate_dragged_center(
+            previous_position, current_position, context, viewport_size
+        )
+        if center == self._scene.sky_camera.center:
+            return
+
         self._scene.sky_camera.center = center
         self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
 
@@ -140,6 +147,7 @@ class SceneController:
 
     def add_constellation_catalog(self, catalog: ConstellationCatalog) -> None:
         self._scene.constellations.extend(catalog.constellations)
+        self._scene.constellation_index.update(self._scene.constellations)
         self._event_bus.publish(EventType.SCENE_UPDATED, catalog)
 
     def connect_mount(self, mount: Mount) -> None:
@@ -181,31 +189,37 @@ class SceneController:
         mount.sync(position, pier_side=pier_side)
         self._scene.mount_position = position
         self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
+        
+
+    def center_camera_on_object(self, sky_object: SkyObject) -> None:
+        position = sky_object.get_position(self._scene.time, self._scene.observer)
+        self.center_camera_on_position(position)
 
 
-    def _find_nearest_object(self, position: QPointF, viewport_size: QSize) -> SkyObject | None:
-        best_object = None
-        best_distance2 = float("inf")
-        camera = self._scene.sky_camera
-        projection = self._projection_manager.projection
-        projection_context = self._projection_manager.create_context(self._scene)
+    def center_camera_on_position(self, position: Position) -> None:
+        self.clear_focus()
+        self._set_camera_center(position)
 
-        for obj in self._scene.objects:
-            if not obj.get_magnitude().is_visible(camera.limit_magnitude):
-                continue
+    def _update_focus_camera(self) -> None:
+        target = self._scene.focus.target
+        if target is None:
+            return
 
-            point = projection.project_object(obj, projection_context, viewport_size)
-            if point is None:
-                continue
+        position = target.get_position(self._scene.time, self._scene.observer)
+        self._set_camera_center(position)
 
-            dx = point.x() - position.x()
-            dy = point.y() - position.y()
-            distance2 = dx * dx + dy * dy
+    def _set_camera_center(self, position: Position) -> None:
+        normalized_position = position.normalized()
+        if self._scene.sky_camera.center == normalized_position:
+            return 
+        
+        self._scene.sky_camera.center = normalized_position
+        self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
 
-            if distance2 < best_distance2:
-                best_distance2 = distance2
-                best_object = obj
 
-        if best_distance2 > SELECTION_THRESHOLD ** 2:
-            return None
-        return best_object
+    def begin_camera_drag(self) -> None:
+        self.clear_focus()
+        self._drag_projection_context = self._projection_manager.create_context(self._scene)
+
+    def end_camera_drag(self) -> None:
+        self._drag_projection_context = None

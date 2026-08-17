@@ -5,13 +5,14 @@ from astronavigator.rendering.render_context import RendererContext
 
 class LayerManager:
     def __init__(self):
-        self.layers: list[Layer] = []
+        self._layers: list[Layer] = []
 
     def add_layer(self, layer: Layer):
-        self.layers.append(layer)
+        self._layers.append(layer)
 
     def render(self, context: RendererContext):
-        for layer in self.layers:
+        for layer in self._layers:
+
             if layer.visible:
                 layer.render(context)
 
@@ -28,7 +29,7 @@ class LayerManager:
         return None
 
     def get(self, layer_type: LayerType) -> Layer | None:
-        for layer in self.layers:
+        for layer in self._layers:
             if layer.layer_type == layer_type:
                 return layer
             

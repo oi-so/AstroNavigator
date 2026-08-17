@@ -15,3 +15,4 @@ class Constellation:
     name: str
     lines: list[ConstellationLine]
     label_position: Position
+    aliases: tuple[str, ...] = ()

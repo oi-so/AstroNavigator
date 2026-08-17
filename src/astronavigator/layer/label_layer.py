@@ -1,18 +1,29 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QPointF
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtCore import QPointF, QRectF
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 
 from astronavigator.layer.layer import Layer, LayerType
-from astronavigator.rendering.limiting_magnitude import calculate_limiting_magnitude
+from astronavigator.rendering.label_layout import BELOW_HORIZON_LABEL_ALPHA
+from astronavigator.rendering.limiting_magnitude import calculate_label_limiting_magnitude
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.rendering.rendering_settings import RenderingSettings
-from astronavigator.scene.scene import Scene
 from astronavigator.sky.sky_object import SkyObject
 from astronavigator.sky.object_type import ObjectType
 
 
-LABEL_OFFSET = QPointF(5, -5)
+LABEL_MARGIN = 5.0
+
+OBJECT_LABEL_PRIORITY = {
+    ObjectType.SUN: 0,
+    ObjectType.MOON: 1,
+    ObjectType.PLANET: 2,
+    ObjectType.STAR: 3,
+    ObjectType.DSO: 4,
+    ObjectType.SATELLITE: 5,
+    ObjectType.COMET: 6,
+    ObjectType.ASTEROID: 7,
+}
 
 
 class LabelLayer(Layer):
@@ -29,43 +40,80 @@ class LabelLayer(Layer):
 
     # @profile
     def _draw_labels(self, context: RendererContext) -> None:
-        painter = context.painter
         scene = context.scene
-        viewport = context.viewport
-        projection = context.projection
-        projection_context = context.projection_context
+        viewport_size = context.viewport.size()
 
-        limiting_magnitude = calculate_limiting_magnitude(
-            scene.rendering_settings.limiting_magnitude,
-            scene.sky_camera.fov_deg
-        )
+        limiting_magnitude = calculate_label_limiting_magnitude(scene.rendering_settings.wide_label_limiting_magnitude, scene.rendering_settings.label_limiting_magnitude, scene.sky_camera.fov_deg)
+        min_position, max_position = context.projection.visible_bounds(context.projection_context, viewport_size)
 
-        min_position, max_position = context.projection.visible_bounds(context.projection_context, viewport.size())
-        self._set_pen(painter, scene.rendering_settings.color_settings.constellation_label_color)
+        candidates: list[tuple[int, float, str, SkyObject]] = []
+
+        below_horizon_path = context.projection.create_below_horizon_path(context.projection_context, viewport_size)
+        base_color = scene.rendering_settings.color_settings.constellation_label_color
 
         for object_type in ObjectType:
-            visible_objects = scene.object_index.find_visible_by_type(object_type, limiting_magnitude, min_position, max_position)
+            fixed_objects = scene.object_index.find_visible_by_type(
+                object_type, limiting_magnitude, min_position, max_position
+            )
+            dynamic_objects = scene.object_index.find_dynamic_by_type(object_type)
 
-            for obj in visible_objects:
+            for obj in (*fixed_objects, *dynamic_objects):
+                magnitude = obj.get_magnitude(scene.time, scene.observer)
+                if not magnitude.is_visible(limiting_magnitude):
+                    continue
+
                 if not self._should_draw_label(obj, scene.rendering_settings):
                     continue
 
-                point = projection.project_object(obj, projection_context, viewport.size())
+                candidates.append((
+                    OBJECT_LABEL_PRIORITY.get(obj.object_type, 100),
+                    magnitude.value, obj.name, obj
+                ))
 
-                if point is None:
-                    continue
+        candidates.sort(key=lambda x: (x[0], x[1], x[2]))
+        for _, _, _, obj in candidates:
+            self._draw_label(obj, context, below_horizon_path, base_color)
 
-                painter.drawText(point + LABEL_OFFSET, obj.name)
+    def _draw_label(self, obj: SkyObject, context: RendererContext, below_horizon_path: QPainterPath, base_color: QColor) -> None:
+        painter = context.painter
+        point = context.projection.project_object(
+            obj, context.projection_context, context.viewport.size()
+        )
+        if point is None:
+            return
+
+        metrics = painter.fontMetrics()
+        text_width = metrics.horizontalAdvance(obj.name)
+        ascent = float(metrics.ascent())
+        text_height = ascent + float(metrics.descent())
+
+        candidate_positions = (
+            QPointF(point.x() + LABEL_MARGIN, point.y() - LABEL_MARGIN),
+            QPointF(point.x() + LABEL_MARGIN, point.y() + LABEL_MARGIN + ascent),
+            QPointF(point.x() - LABEL_MARGIN - text_width, point.y() - LABEL_MARGIN),
+            QPointF(point.x() - LABEL_MARGIN - text_width, point.y() + LABEL_MARGIN + ascent),
+        )
+        viewport_rect = QRectF(context.viewport)
+
+        for position in candidate_positions:
+            label_rect = QRectF(position.x(), position.y() - ascent, text_width, text_height)
+            if not viewport_rect.contains(label_rect):
+                continue
+            if not context.label_layout.try_reserve(label_rect):
+                continue
+
+            color = QColor(base_color)
+            if below_horizon_path.contains(point):
+                color.setAlpha(min(color.alpha(), BELOW_HORIZON_LABEL_ALPHA))
+
+            self._set_pen(painter, color)
+            painter.drawText(position, obj.name)
+            return
+
 
     # @profile
     def _should_draw_label(self, obj: SkyObject, settings: RenderingSettings) -> bool:
         if not settings.show_labels:
-            return False
-
-        if obj.get_magnitude().value > settings.label_limiting_magnitude:
-            return False
-
-        if obj.name.startswith("HYG") and not settings.show_catalog_names:
             return False
 
         return True

@@ -32,10 +32,11 @@ class ColorSettings:
 
 @dataclass(slots=True)
 class RenderingSettings:
-    limiting_magnitude: float = 6.0
+    limiting_magnitude: float = 15.0 # 等級制限
 
     show_labels: bool = True
-    label_limiting_magnitude: float = 2.0
+    wide_label_limiting_magnitude: float = 1.0
+    label_limiting_magnitude: float = 15.0
     show_catalog_names: bool = False
 
     ra_format: RightAscensionFormat = RightAscensionFormat.HMS

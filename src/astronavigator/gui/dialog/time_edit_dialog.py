@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, available_timezones
 
-from PySide6.QtCore import QDateTime
+from PySide6.QtCore import QDateTime, Qt
 from PySide6.QtWidgets import QComboBox, QDateTimeEdit, QDialog, QDialogButtonBox, QFormLayout
 
 
@@ -22,16 +22,15 @@ class TimeEditDialog(QDialog):
         self._datetime_edit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
 
         self._timezone_combo = QComboBox()
+        self._timezone_combo.addItems(sorted(available_timezones()))
 
-        timezones = [
-            "UTC",
-            "Asia/Tokyo",
-            "America/New_York",
-            "Europe/London",
-            "Europe/Paris",
-            "Australia/Sydney",
-        ]
-        self._timezone_combo.addItems(timezones)
+        self._timezone_combo.setEditable(True)
+        self._timezone_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+
+        completer = self._timezone_combo.completer()
+        if completer:
+            completer.setFilterMode(Qt.MatchFlag.MatchContains)
+            completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
 
         current_timezone = str(timezone_value)
         index = self._timezone_combo.findText(current_timezone)

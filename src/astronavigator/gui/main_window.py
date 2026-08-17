@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 
 from astronavigator.application.application import Application
 from astronavigator.gui.menu.main_menu_bar import MainMenuBar
+from astronavigator.gui.panel.object_panel import ObjectPanel
 from astronavigator.gui.sky_view import SkyView
 from astronavigator.gui.panel.selection_panel import SelectionPanel
 from astronavigator.gui.panel.observer_panel import ObserverPanel
@@ -38,6 +39,8 @@ class MainWindow(QMainWindow):
     def _create_docks(self):
         self._selection_dock = self._create_dock("Selection", SelectionPanel(self._application))
 
+        self._objects_dock = self._create_dock("Objects", ObjectPanel(self._application))
+
         self._observer_dock = self._create_dock("Observer", ObserverPanel(self._application))
 
         self._time_dock = self._create_dock("Time", TimePanel(self._application))
@@ -60,10 +63,12 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._sky_view)
 
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._selection_dock)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self._objects_dock)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._observer_dock)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._time_dock)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._mount_dock)
 
+        self.splitDockWidget(self._objects_dock, self._selection_dock, Qt.Orientation.Vertical)
         self.splitDockWidget(self._observer_dock, self._time_dock, Qt.Orientation.Vertical)
         self.splitDockWidget(self._time_dock, self._mount_dock, Qt.Orientation.Vertical)
 

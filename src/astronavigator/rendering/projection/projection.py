@@ -250,3 +250,73 @@ class Projection(ABC, Generic[T, C]):
         QPainterPath
             水平線の下にある領域のパス。The path for the area below the horizon.
         """
+
+
+    def project_unclipped(self, position: T, context: C, viewport_size: QSize) -> QPointF | None:
+        """
+        ビューポートの範囲外も含めて、天球上の座標をスクリーン座標に投影する。
+        Project celestial coordinates to screen coordinates, including areas outside the viewport.
+
+        Parameters
+        ----------
+        position : T
+            投影する天球上の座標。The celestial coordinates to project.
+        context : C
+            投影コンテキスト。Projection context.
+        viewport_size : QSize
+            ビューポートのサイズ。Viewport size.
+
+        Returns
+        -------
+        QPointF | None
+            スクリーン座標。Screen coordinates.
+            Noneの場合、オブジェクトはビューポート内に表示されない。If None, the object is not visible within the viewport.
+        """
+        return self.project(position, context, viewport_size)
+
+
+    def project_grid_position_unclipped(self, position: GridPosition, coordinate_system: CoordinateSystem, context: C, viewport_size: QSize) -> QPointF | None:
+        """
+        ビューポートの範囲外も含めて、グリッド座標を現在の投影方式でスクリーン座標に投影する。
+        Project a grid coordinate in its native coordinate system, including areas outside the viewport.
+
+        Parameters
+        ----------
+        position : GridPosition
+            投影するグリッド座標。The grid coordinate to project.
+        coordinate_system : CoordinateSystem
+            グリッド座標系。The grid coordinate system.
+        context : C
+            投影コンテキスト。Projection context.
+        viewport_size : QSize
+            ビューポートのサイズ。Viewport size.
+
+        Returns
+        -------
+        QPointF | None
+            スクリーン座標。Screen coordinates.
+            Noneの場合、オブジェクトはビューポート内に表示されない。If None, the object is not visible within the viewport.
+        """
+        return self.project_grid_position(position, coordinate_system, context, viewport_size)
+
+
+    def create_clip_path(self, context: C, viewport_size: QSize) -> QPainterPath:
+        """
+        ビューポートの範囲内に表示される領域のパスを作成する。
+        Create a path for the area visible within the viewport.
+
+        Parameters
+        ----------
+        context : C
+            投影コンテキスト。Projection context.
+        viewport_size : QSize
+            ビューポートのサイズ。Viewport size.
+
+        Returns
+        -------
+        QPainterPath
+            ビューポートの範囲内に表示される領域のパス。The path for the area visible within the viewport.
+        """
+        path = QPainterPath()
+        path.addRect(0, 0, viewport_size.width(), viewport_size.height())
+        return path
