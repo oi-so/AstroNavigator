@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import dataclass
 
 from PySide6.QtCore import QPointF, QRectF, Qt, QSize
 from PySide6.QtGui import QColor, QPainter, QPen
@@ -16,6 +17,9 @@ from astronavigator.rendering.render_context import RendererContext
 from astronavigator.sky.dso_type import DeepSkyObjectType
 
 
+SELECTION_THRESHOLD = 20.0 # px
+
+
 PLANET_COLORS = {
     "solar_system:mercury": QColor(190, 190, 190),
     "solar_system:venus": QColor(255, 220, 150),
@@ -25,6 +29,13 @@ PLANET_COLORS = {
     "solar_system:uranus": QColor(150, 220, 230),
     "solar_system:neptune": QColor(100, 140, 240),
 }
+
+
+@dataclass(slots=True)
+class RenderedObject:
+    obj: SkyObject
+    point: QPointF
+    
 
 
 class ObjectLayer(Layer):
@@ -40,8 +51,11 @@ class ObjectLayer(Layer):
         self.show_moon = True
         self.show_sun = True
 
+        self._render_objects: list[RenderedObject] = []
+
     # @profile
     def render(self, context: RendererContext) -> None:
+        self._render_objects.clear()
         if not self.visible:
             return
 
@@ -95,6 +109,7 @@ class ObjectLayer(Layer):
             return
 
         self._draw_object(obj, point, context, magnitude)
+        self._render_objects.append(RenderedObject(obj, point))
 
 
     def _draw_object(self, obj: SkyObject, point: QPointF, context: RendererContext, magnitude: Magnitude) -> None:
@@ -228,3 +243,19 @@ class ObjectLayer(Layer):
         pen = QPen(color)
         pen.setWidthF(1.0)
         painter.setPen(pen)
+
+
+
+    def find_nearest_object(self, point: QPointF) -> SkyObject | None:
+        best_object: SkyObject | None = None
+        best_distance2 = SELECTION_THRESHOLD ** 2
+
+        for rendered in reversed(self._render_objects):
+            dx = rendered.point.x() - point.x()
+            dy = rendered.point.y() - point.y()
+            distance2 = dx * dx + dy * dy
+            if distance2 < best_distance2:
+                best_distance2 = distance2
+                best_object = rendered.obj
+
+        return best_object

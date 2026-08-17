@@ -18,13 +18,12 @@ from astronavigator.scene.time import Time
 from astronavigator.catalog.catalog import ConstellationCatalog
 
 
-SELECTION_THRESHOLD = 20
-
 class SceneController:
     def __init__(self, scene: Scene, event_bus: EventBus, projection_manager: ProjectionManager) -> None:
         self._scene = scene
         self._event_bus = event_bus
         self._projection_manager = projection_manager
+        self._drag_projection_context = None
 
     @property
     def scene(self) -> Scene:
@@ -106,11 +105,6 @@ class SceneController:
         self._scene.selection.selected = sky_object
         self._event_bus.publish(EventType.SELECTION_CHANGED, sky_object)
 
-    # TODO: 非表示のオブジェクトを選択できないようにする
-    def select_object_at(self, position: QPointF, viewport_size: QSize) -> None:
-        obj = self._find_nearest_object(position, viewport_size)
-        self.select_object(obj)
-
     def clear_selection(self) -> None:
         self._scene.selection.selected = None
         self._event_bus.publish(EventType.SELECTION_CHANGED, None)
@@ -132,10 +126,17 @@ class SceneController:
         self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
 
     def move_camera_by_drag(self, previous_position: QPoint, current_position: QPoint, viewport_size: QSize) -> None:
-        self.clear_focus()
+        context = self._drag_projection_context
+        if context is None:
+            context = self._projection_manager.create_context(self._scene)
+
         projection = self._projection_manager.projection
-        context = self._projection_manager.create_context(self._scene)
-        center = projection.calculate_dragged_center(previous_position, current_position, context, viewport_size)
+        center = projection.calculate_dragged_center(
+            previous_position, current_position, context, viewport_size
+        )
+        if center == self._scene.sky_camera.center:
+            return
+
         self._scene.sky_camera.center = center
         self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
 
@@ -183,35 +184,7 @@ class SceneController:
         mount.sync(position)
         self._scene.mount_position = position
         self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
-
-
-    def _find_nearest_object(self, position: QPointF, viewport_size: QSize) -> SkyObject | None:
-        best_object = None
-        best_distance2 = float("inf")
-        camera = self._scene.sky_camera
-        projection = self._projection_manager.projection
-        projection_context = self._projection_manager.create_context(self._scene)
-
-        # TODO: O(N)かかるため必要だったら、ObjectIndexを使って高速化する
-        for obj in self._scene.objects:
-            if not obj.get_magnitude(self._scene.time, self._scene.observer).is_visible(camera.limit_magnitude):
-                continue
-
-            point = projection.project_object(obj, projection_context, viewport_size)
-            if point is None:
-                continue
-
-            dx = point.x() - position.x()
-            dy = point.y() - position.y()
-            distance2 = dx * dx + dy * dy
-
-            if distance2 < best_distance2:
-                best_distance2 = distance2
-                best_object = obj
-
-        if best_distance2 > SELECTION_THRESHOLD ** 2:
-            return None
-        return best_object
+        
 
     def center_camera_on_object(self, sky_object: SkyObject) -> None:
         position = sky_object.get_position(self._scene.time, self._scene.observer)
@@ -237,3 +210,11 @@ class SceneController:
         
         self._scene.sky_camera.center = normalized_position
         self._event_bus.publish(EventType.CAMERA_MOVED, self._scene.sky_camera)
+
+
+    def begin_camera_drag(self) -> None:
+        self.clear_focus()
+        self._drag_projection_context = self._projection_manager.create_context(self._scene)
+
+    def end_camera_drag(self) -> None:
+        self._drag_projection_context = None
