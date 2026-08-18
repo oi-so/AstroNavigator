@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QComboBox, QDoubleSpinBox, QFormLayout, QFrame, QHBoxLayout, QLabel, QMessageBox, QPushButton, QSpinBox, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QComboBox, QDoubleSpinBox, QFormLayout, QFrame, QHBoxLayout, QLabel, QMessageBox, QPushButton, QSpinBox, QVBoxLayout, QWidget, QScrollArea
 
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
@@ -82,8 +82,18 @@ class TrackingPanel(QWidget):
         self._dec_offset.valueChanged.connect(self._on_adjustment_changed)
         self._time_offset.valueChanged.connect(self._on_adjustment_changed)
 
-        layout = QVBoxLayout(self)
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+
+        scroll_content = QWidget()
+        layout = QVBoxLayout(scroll_content)
         layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(6)
 
         status_form = QFormLayout()
         status_form.addRow("対象", self._target_value)
@@ -107,10 +117,16 @@ class TrackingPanel(QWidget):
         layout.addWidget(self._message_value)
         layout.addStretch()
 
-        button_layout = QHBoxLayout()
+        scroll_area.setWidget(scroll_content)
+        outer_layout.addWidget(scroll_area)
+
+        button_container = QWidget()
+        button_layout = QHBoxLayout(button_container)
+        button_layout.setContentsMargins(8, 6, 8, 6)
         button_layout.addWidget(self._start_button)
         button_layout.addWidget(self._stop_button)
-        layout.addLayout(button_layout)
+
+        outer_layout.addWidget(button_container)
 
         event_bus = self._application.event_bus
         event_bus.subscribe(EventType.SELECTION_CHANGED, self._on_selection_changed)
@@ -194,7 +210,7 @@ class TrackingPanel(QWidget):
             self._message_value.setText(str(payload))
             return
 
-        if not isinstance(payload, TrackingControllerUpdate,):
+        if not isinstance(payload, TrackingControllerUpdate):
             return
 
         messages: list[str] = []

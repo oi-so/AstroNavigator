@@ -74,7 +74,9 @@ class MainWindow(QMainWindow):
         self.splitDockWidget(self._objects_dock, self._selection_dock, Qt.Orientation.Vertical)
         self.splitDockWidget(self._observer_dock, self._time_dock, Qt.Orientation.Vertical)
         self.splitDockWidget(self._time_dock, self._mount_dock, Qt.Orientation.Vertical)
-        self.splitDockWidget(self._mount_dock, self._tracking_dock, Qt.Orientation.Vertical)
+
+        self.tabifyDockWidget(self._mount_dock, self._tracking_dock)
+        self._mount_dock.raise_()
 
 
     def _create_menu_bar(self):
