@@ -14,8 +14,11 @@ from astronavigator.catalog.parser.ngc_parser import NGCParser
 from astronavigator.catalog.provider.debug_catalog_provider import DebugCatalogProvider
 from astronavigator.catalog.provider.local_file_provider import LocalFileProvider
 from astronavigator.catalog.provider.solar_system_provider import SolarSystemProvider
+from astronavigator.event.event_type import EventType
 from astronavigator.gui.actions.main_actions import MainActions
 from astronavigator.input.input_controller import InputController
+from astronavigator.mount.mount import ConnectionState
+from astronavigator.mount.simulator import SimulatorMount
 from astronavigator.rendering.projection.stereographic_projection import StereographicProjection
 from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.rendering.renderer import Renderer
@@ -23,6 +26,17 @@ from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.event.event_bus import EventBus
 from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG, OPENNGC_ADDENDUM, OPENNGC_NGC, VISUAL_SATELLITES_OMM
+from astronavigator.tracking.simulator_tracking import SimulatorTrackingBackend
+from astronavigator.tracking.target_predictor import TargetPredictor
+from astronavigator.tracking.tracking_adjustment import TrackingAdjustment
+from astronavigator.tracking.tracking_config import TrackingConfig
+from astronavigator.tracking.tracking_controller import TrackingController
+from astronavigator.tracking.tracking_planner import TrackingPlanner
+from astronavigator.tracking.tracking_safety_policy import TrackingSafetyContext, TrackingSafetyPolicy
+from astronavigator.tracking.tracking_state import TrackingRunMode, TrackingState
+from astronavigator.tracking.tracking_time_provider import SystemUtcTimeProvider, TrackingTimeProvider
+from astronavigator.tracking.tracking_time_provider import SimulationTimeProvider
+from astronavigator.tracking.target_horizontal_position_calculator import SkyfieldHorizontalPositionCalculator
 
 
 FPS = 60
@@ -43,6 +57,11 @@ class Application:
         self._load_solar_system()
         self._load_satellites()
         self._load_openngc()
+
+        self._tracking_controller: TrackingController | None = None
+        self._tracking_time_provider: TrackingTimeProvider | None = None
+        self._tracking_config: TrackingConfig | None = None
+        self._tracking_update_accumulator = 0.0
 
         self._last_update_time = time.monotonic()
         self._update_timer = QTimer()
@@ -112,7 +131,54 @@ class Application:
         current_time = time.monotonic()
         delta_time = current_time - self._last_update_time
         self._last_update_time = current_time
+
+        self._update_scene_time(delta_time)
+        self._update_dynamic_tracking(delta_time)
+
+    def _update_scene_time(self, delta_time: float):
+        provider = self._tracking_time_provider
+        controller = self._tracking_controller
+        if provider is not None and controller is not None and controller.is_active and provider.mode is TrackingRunMode.OBSERVATION:
+            if self._scene.time.speed != 1.0:
+                self._scene_controller.set_time_speed(1.0)
+            if self._scene.time.is_paused:
+                self._scene_controller.set_time_paused(False)
+            self._scene_controller.set_time(provider.get_snapshot().utc)
+            return
+
         self._scene_controller.advance_time(delta_time)
+
+    def _update_dynamic_tracking(self, delta_time: float):
+        controller = self._tracking_controller
+        config = self._tracking_config
+
+        if controller is None or config is None or not controller.is_active:
+            return
+
+        self._tracking_update_accumulator += delta_time
+        if self._tracking_update_accumulator < config.prediction_interval:
+            return
+
+        tracking_elapsed = self._tracking_update_accumulator
+        self._tracking_update_accumulator = 0.0
+        previous_state = controller.state
+
+        try:
+            update = controller.update(tracking_elapsed, self._create_tracking_safety_context())
+        except Exception as e:
+            controller.stop()
+            self._event_bus.publish(EventType.TRACKING_UPDATED, e)
+            self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, TrackingState.FAILED)
+            return
+
+        self._scene.mount_position = controller.mount_position
+        self._event_bus.publish(EventType.TRACKING_UPDATED, update)
+        if update.state is not previous_state:
+            self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, update.state)
+        mount = self._scene.mount
+        if mount is not None:
+            self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount.position)
+
 
     @property
     def scene(self) -> Scene:
@@ -133,3 +199,99 @@ class Application:
     @property
     def input_controller(self) -> InputController:
         return self._input_controller
+
+
+    @property
+    def tracking_controller(self) -> TrackingController | None:
+        return self._tracking_controller
+
+    @property
+    def tracking_state(self) -> TrackingState:
+        if self._tracking_controller is None:
+            return TrackingState.IDLE
+        return self._tracking_controller.state
+
+    def start_dynamic_tracking(self, *, run_mode: TrackingRunMode, config: TrackingConfig, adjustment: TrackingAdjustment):
+        target = self._scene.selection.selected
+        mount = self._scene.mount
+
+        if target is None:
+            raise RuntimeError("No target selected for tracking.")
+        if not target.is_dynamic:
+            raise RuntimeError("Selected target is not dynamic and cannot be tracked.")
+
+        if mount is None or not mount.is_connected:
+            raise RuntimeError("Mount is not connected for tracking.")
+
+        skyfield_context = self._scene.skyfield
+        if skyfield_context is None:
+            raise RuntimeError("Skyfield context is not loaded yet.")
+
+        if self._tracking_controller is not None and self._tracking_controller.is_active:
+            raise RuntimeError("Dynamic tracking is already active.")
+
+        if run_mode is TrackingRunMode.OBSERVATION:
+            time_provider = SystemUtcTimeProvider()
+            self._scene_controller.set_time_speed(1.0)
+            self._scene_controller.set_time_paused(False)
+            self._scene_controller.set_time(time_provider.get_snapshot().utc)
+        else:
+            time_provider = SimulationTimeProvider(lambda: self._scene.time)
+
+        predictor = TargetPredictor()
+        horizontal_calculator = SkyfieldHorizontalPositionCalculator(skyfield_context)
+        planner = TrackingPlanner(predictor, horizontal_calculator)
+        plan = planner.create_plan(target, self._scene.observer, time_provider, config)
+        backend = SimulatorTrackingBackend(mount)
+        controller = TrackingController(predictor, backend, time_provider, TrackingSafetyPolicy())
+        controller.set_adjustment(adjustment)
+        safety_result = controller.prepare(
+            target=target, 
+            observer=self._scene.observer, 
+            plan=plan, 
+            config=config, 
+            safety_context=self._create_tracking_safety_context(run_mode)
+        )
+
+        if safety_result.can_start:
+            self._tracking_controller = controller
+            self._tracking_time_provider = time_provider
+            self._tracking_config = config
+            self._tracking_update_accumulator = 0.0
+
+        self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, controller.state)
+
+        return plan, safety_result
+
+
+    def stop_dynamic_tracking(self):
+        controller = self._tracking_controller
+        if controller is None:
+            return 
+        controller.stop()
+        self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, controller.state)
+
+
+    def set_tracking_adjustment(self, adjustment: TrackingAdjustment):
+        controller = self._tracking_controller
+        if controller is None:
+            return
+        controller.set_adjustment(adjustment)
+
+    def _create_tracking_safety_context(self, run_mode: TrackingRunMode | None = None) -> TrackingSafetyContext:
+        mount = self._scene.mount
+
+        if run_mode is None:
+            provider = self._tracking_time_provider
+            run_mode = provider.mode if provider is not None else TrackingRunMode.OBSERVATION
+
+        return TrackingSafetyContext(
+            run_mode=run_mode,
+            is_real_mount=mount is not None,
+            mount_connected=mount is not None and mount.is_connected,
+            mount_synchronized=isinstance(mount, SimulatorMount),
+            communication_healthy=mount is not None and mount.state is not ConnectionState.ERROR,
+            collision_risk=False,
+            mount_limit_reached=False,
+            time_rate=self._scene.time.speed,
+        )

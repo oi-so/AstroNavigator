@@ -91,6 +91,10 @@ class TrackingController:
             TrackingState.REACQUIRING,
         }
 
+    @property
+    def mount_position(self) -> Position:
+        return self._backend.position
+
     def set_adjustment(self, adjustment: TrackingAdjustment) -> None:
         self._adjustment = adjustment
 
