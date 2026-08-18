@@ -1,3 +1,7 @@
+from astronavigator.tracking.target_predictor import (
+    TargetPrediction,
+    TargetPredictor,
+)
 from astronavigator.tracking.tracking_adjustment import TrackingAdjustment
 from astronavigator.tracking.tracking_config import TrackingConfig
 from astronavigator.tracking.tracking_plan import (
@@ -22,6 +26,8 @@ __all__ = [
     "RateLimitWarning",
     "SimulationTimeProvider",
     "SystemUtcTimeProvider",
+    "TargetPrediction",
+    "TargetPredictor",
     "TrackingAdjustment",
     "TrackingConfig",
     "TrackingPlan",
