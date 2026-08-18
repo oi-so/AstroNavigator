@@ -20,6 +20,11 @@ from astronavigator.tracking.tracking_time_provider import (
     TrackingTimeProvider,
     TrackingTimeSnapshot,
 )
+from astronavigator.tracking.target_horizontal_position_calculator import SkyfieldHorizontalPositionCalculator, TargetHorizontalPositionCalculator
+from astronavigator.tracking.tracking_planner import (
+    TrackingPlanner,
+    TrackingPlannerSettings,
+)
 
 __all__ = [
     "MeridianStrategy",
@@ -36,4 +41,8 @@ __all__ = [
     "TrackingState",
     "TrackingTimeProvider",
     "TrackingTimeSnapshot",
+    "SkyfieldHorizontalPositionCalculator",
+    "TargetHorizontalPositionCalculator",
+    "TrackingPlanner",
+    "TrackingPlannerSettings",
 ]
