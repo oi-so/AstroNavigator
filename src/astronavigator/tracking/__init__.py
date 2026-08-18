@@ -34,6 +34,12 @@ from astronavigator.tracking.tracking_safety_policy import (
     TrackingSafetySeverity,
 )
 
+from astronavigator.tracking.tracking_controller import (
+    TrackingController,
+    TrackingControllerSettings,
+    TrackingControllerUpdate,
+)
+
 __all__ = [
     "MeridianStrategy",
     "RateLimitWarning",
@@ -59,4 +65,7 @@ __all__ = [
     "TrackingSafetyPolicy",
     "TrackingSafetyResult",
     "TrackingSafetySeverity",
+    "TrackingController",
+    "TrackingControllerSettings",
+    "TrackingControllerUpdate",
 ]
