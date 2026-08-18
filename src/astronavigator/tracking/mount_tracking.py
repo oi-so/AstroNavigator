@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import math
 
+from astronavigator.sky.position import Position
+
 
 @dataclass(frozen=True, slots=True)
 class TrackingRateCommand:
@@ -80,4 +82,20 @@ class MountTrackingBackend(ABC):
 
     @abstractmethod
     def stop(self) -> None:
+        ...
+
+
+    @property
+    @abstractmethod
+    def position(self) -> Position:
+        ...
+
+
+    @abstractmethod
+    def preposition(self, position: Position) -> None:
+        ...
+
+
+    @abstractmethod
+    def update(self, elapsed_sec: float) -> None:
         ...

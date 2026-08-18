@@ -8,6 +8,7 @@ from astronavigator.tracking.mount_tracking import (
     MountTrackingBackend,
     TrackingRateCommand,
 )
+from astronavigator.sky.position import Position
 
 
 class SimulatorTrackingBackend(MountTrackingBackend):
@@ -131,3 +132,22 @@ class SimulatorTrackingBackend(MountTrackingBackend):
     def _validate_rate(name: str, value: float) -> None:
         if not math.isfinite(value):
             raise ValueError(f"{name} must be finite.")
+
+
+    @property
+    def position(self) -> Position:
+        return self._mount.position
+
+    def preposition(self, position: Position) -> None:
+        if not self._mount.is_connected:
+            raise RuntimeError(
+                "Cannot preposition: mount is not connected."
+            )
+
+        self._mount.slew_to(position)
+
+    def update(self, elapsed_sec: float) -> None:
+        if not self._is_active:
+            return
+
+        self._mount.advance(elapsed_sec)
