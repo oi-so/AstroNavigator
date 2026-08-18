@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-
 import serial
-
 
 
 from astronavigator.mount.mount import Axis, ConnectionState, Mount, MountDevice
@@ -57,6 +55,7 @@ class EZeus2(Mount):
         status = self._e_zeus2_status
         if status is None:
             self.update_status()
+            status = self._e_zeus2_status
         # TODO: 向き確認
         return (status[EZeus2StatusIndex.RA_DIRECTION] == "F" and status[EZeus2StatusIndex.RA_SPEED] == 1)
 
@@ -75,6 +74,7 @@ class EZeus2(Mount):
         status = self._e_zeus2_status
         if status is None:
             self.update_status()
+            status = self._e_zeus2_status
         return (status[EZeus2StatusIndex.RA_STATUS] != "I" or status[EZeus2StatusIndex.DEC_STATUS] != "I")
     
 
