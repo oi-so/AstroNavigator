@@ -57,7 +57,18 @@ class EZeusRateProfile:
         if not self.name.strip():
             raise ValueError("name must not be empty")
 
-        object.__setattr__(self, "options", tuple(self.options))
+        normalized_options = tuple(
+            sorted(
+                self.options,
+                key=lambda option: (
+                    0 if option.axis is Axis.RA else 1,
+                    option.speed.value,
+                    option.coordinate_direction,
+                ),
+            )
+        )
+
+        object.__setattr__(self, "options", normalized_options)
 
         keys :set[tuple[Axis, EZeus2_Speed, int]] = set()
 
