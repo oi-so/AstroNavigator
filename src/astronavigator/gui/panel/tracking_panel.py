@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QComboBox, QDoubleSpinBox, QFormLayout, QFrame, QHBoxLayout, QLabel, QMessageBox, QPushButton, QSpinBox, QVBoxLayout, QWidget, QScrollArea
+from PySide6.QtWidgets import QComboBox, QDialog, QDoubleSpinBox, QFormLayout, QFrame, QHBoxLayout, QLabel, QMessageBox, QPushButton, QSpinBox, QVBoxLayout, QWidget, QScrollArea
 
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
+from astronavigator.gui.dialog.e_zeus_rate_profile_dialog import EZeusRateProfileDialog
 from astronavigator.tracking.tracking_adjustment import TrackingAdjustment
 from astronavigator.tracking.tracking_config import TrackingConfig
 from astronavigator.tracking.tracking_controller import TrackingControllerUpdate
@@ -128,6 +129,26 @@ class TrackingPanel(QWidget):
 
         outer_layout.addWidget(button_container)
 
+        self._rate_profile = QComboBox()
+        self._new_profile_button = QPushButton("新規")
+        self._edit_profile_button = QPushButton("編集")
+        self._delete_profile_button = QPushButton("削除")
+
+        self._rate_profile.currentIndexChanged.connect(self._on_rate_profile_changed)
+        self._new_profile_button.clicked.connect(self._on_new_profile)
+        self._edit_profile_button.clicked.connect(self._on_edit_profile)
+        self._delete_profile_button.clicked.connect(self._on_delete_profile)
+
+        profile_widget = QWidget()
+        profile_layout = QHBoxLayout(profile_widget)
+        profile_layout.setContentsMargins(0, 0, 0, 0)
+        profile_layout.addWidget(self._rate_profile)
+        profile_layout.addWidget(self._new_profile_button)
+        profile_layout.addWidget(self._edit_profile_button)
+        profile_layout.addWidget(self._delete_profile_button)
+
+        settings_form.addRow("E-ZEUSレート", profile_widget)
+
         event_bus = self._application.event_bus
         event_bus.subscribe(EventType.SELECTION_CHANGED, self._on_selection_changed)
         event_bus.subscribe(EventType.TRACKING_STATE_CHANGED, self._on_tracking_state_changed)
@@ -137,6 +158,7 @@ class TrackingPanel(QWidget):
 
         self._update_target()
         self._update_state(self._application.tracking_state)
+        self._reload_rate_profiles()
 
     @staticmethod
     def _create_offset_spin_box(suffix: str) -> QDoubleSpinBox:
@@ -152,7 +174,12 @@ class TrackingPanel(QWidget):
             config = TrackingConfig(
                 entry_altitude_deg=self._entry_altitude.value(),
                 exit_altitude_deg=self._exit_altitude.value(),
-                max_session_sec=float(self._maximum_session.value()) if self._maximum_session.value() > 0 else None,
+                max_session_sec=(
+                    float(self._maximum_session.value())
+                    if self._maximum_session.value() > 0
+                    else None
+                ),
+                rate_profile_id=self._rate_profile.currentData(),
             )
 
             plan, safety_result = (
@@ -265,3 +292,94 @@ class TrackingPanel(QWidget):
         self._entry_altitude.setEnabled(not active)
         self._exit_altitude.setEnabled(not active)
         self._maximum_session.setEnabled(not active)
+
+        self._rate_profile.setEnabled(not active)
+        self._new_profile_button.setEnabled(not active)
+
+        has_profile = self._rate_profile.currentData() is not None
+        self._edit_profile_button.setEnabled(not active and has_profile)
+        self._delete_profile_button.setEnabled(not active and has_profile)
+
+
+    def _reload_rate_profiles(self, selected_id: str | None = None) -> None:
+        repository = self._application.e_zeus_rate_profile_repository
+
+        if selected_id is None:
+            selected_id = repository.get_selected_profile_id()
+
+        self._rate_profile.blockSignals(True)
+        self._rate_profile.clear()
+
+        for profile in repository.list_profiles():
+            self._rate_profile.addItem(
+                profile.name,
+                profile.profile_id,
+            )
+
+        if selected_id is not None:
+            index = self._rate_profile.findData(selected_id)
+            if index >= 0:
+                self._rate_profile.setCurrentIndex(index)
+
+        self._rate_profile.blockSignals(False)
+        self._update_profile_buttons()
+
+
+    def _on_rate_profile_changed(self) -> None:
+        profile_id = self._rate_profile.currentData()
+
+        self._application.e_zeus_rate_profile_repository.select_profile(profile_id)
+        self._update_profile_buttons()
+
+
+    def _on_new_profile(self) -> None:
+        dialog = EZeusRateProfileDialog(parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        profile = dialog.profile
+        repository = self._application.e_zeus_rate_profile_repository
+        repository.save_profile(profile, select=True)
+        self._reload_rate_profiles(profile.profile_id)
+
+
+    def _on_edit_profile(self) -> None:
+        profile_id = self._rate_profile.currentData()
+        if profile_id is None:
+            return
+
+        repository = self._application.e_zeus_rate_profile_repository
+        profile = repository.get_profile(profile_id)
+        if profile is None:
+            return
+
+        dialog = EZeusRateProfileDialog(profile, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        repository.save_profile(dialog.profile, select=True)
+        self._reload_rate_profiles(dialog.profile.profile_id)
+
+
+    def _on_delete_profile(self) -> None:
+        profile_id = self._rate_profile.currentData()
+        if profile_id is None:
+            return
+
+        result = QMessageBox.question(
+            self,
+            "プロファイル削除",
+            "選択したプロファイルを削除しますか？",
+        )
+        if result is not QMessageBox.StandardButton.Yes:
+            return
+
+        repository = self._application.e_zeus_rate_profile_repository
+        repository.delete_profile(profile_id)
+        self._reload_rate_profiles()
+
+
+    def _update_profile_buttons(self) -> None:
+        has_profile = self._rate_profile.currentData() is not None
+        self._edit_profile_button.setEnabled(has_profile)
+        self._delete_profile_button.setEnabled(has_profile)
