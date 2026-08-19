@@ -39,6 +39,13 @@ from astronavigator.tracking.tracking_controller import (
     TrackingControllerSettings,
     TrackingControllerUpdate,
 )
+from astronavigator.tracking.e_zeus_rate_profile import (
+    EZeusRateOption,
+    EZeusRateProfile,
+)
+from astronavigator.tracking.e_zeus_tracking_backend import (
+    EZeusTrackingBackend,
+)
 
 __all__ = [
     "MeridianStrategy",
@@ -68,4 +75,7 @@ __all__ = [
     "TrackingController",
     "TrackingControllerSettings",
     "TrackingControllerUpdate",
+    "EZeusRateOption",
+    "EZeusRateProfile",
+    "EZeusTrackingBackend",
 ]
