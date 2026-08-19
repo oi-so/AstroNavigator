@@ -15,6 +15,9 @@ class TrackingRateCommand:
     applied_ra_rate_deg_per_sec: float
     applied_dec_rate_deg_per_sec: float
 
+    ra_rate_limited: bool | None = None
+    dec_rate_limited: bool | None = None
+
     def __post_init__(self) -> None:
         values = {
             "requested_ra_rate_deg_per_sec": (
@@ -37,6 +40,9 @@ class TrackingRateCommand:
 
     @property
     def ra_saturated(self) -> bool:
+        if self.ra_rate_limited is not None:
+            return self.ra_rate_limited
+
         return not math.isclose(
             self.requested_ra_rate_deg_per_sec,
             self.applied_ra_rate_deg_per_sec,
@@ -45,6 +51,9 @@ class TrackingRateCommand:
 
     @property
     def dec_saturated(self) -> bool:
+        if self.dec_rate_limited is not None:
+            return self.dec_rate_limited
+        
         return not math.isclose(
             self.requested_dec_rate_deg_per_sec,
             self.applied_dec_rate_deg_per_sec,
@@ -54,6 +63,22 @@ class TrackingRateCommand:
     @property
     def is_saturated(self) -> bool:
         return self.ra_saturated or self.dec_saturated
+
+    @property
+    def ra_quantized(self) -> bool:
+        return not math.isclose(
+            self.requested_ra_rate_deg_per_sec,
+            self.applied_ra_rate_deg_per_sec,
+            abs_tol=1e-12,
+        )
+
+    @property
+    def dec_quantized(self) -> bool:
+        return not math.isclose(
+            self.requested_dec_rate_deg_per_sec,
+            self.applied_dec_rate_deg_per_sec,
+            abs_tol=1e-12,
+        )
 
 
 class MountTrackingBackend(ABC):

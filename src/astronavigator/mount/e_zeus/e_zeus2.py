@@ -216,15 +216,7 @@ class EZeus2(Mount):
             self._protocol.drive(e_axis, EZeus2_Direction.FORWARD, EZeus2_Speed.STOP)
             return
 
-        coordinate_sign = self._settings.ra_coordinate_sign if axis == Axis.RA else self._settings.dec_coordinate_sign
-        forward_step_sign = self._forward_step_sign(axis)
-
-        requested_coordinate_sign = 1 if speed > 0 else -1
-        forward_coordinate_sign = forward_step_sign * coordinate_sign
-
-        direction = EZeus2_Direction.FORWARD if requested_coordinate_sign == forward_coordinate_sign else EZeus2_Direction.REVERSE
-
-        self._protocol.drive(e_axis, direction, e_speed)
+        self.move_axis_discrete(axis, 1 if speed > 0 else -1, e_speed)
 
     def stop_axis(self, axis: Axis) -> None:
         e_axis = self._axis_to_e_axis(axis)
@@ -495,3 +487,28 @@ class EZeus2(Mount):
             settings.reference_time_utc is not None and
             settings.pier_side != PierSide.UNKNOWN
         )
+
+
+
+    def move_axis_discrete(self, axis: Axis, coordinate_direction: int, speed: EZeus2_Speed) -> None:
+        if not self.is_connected:
+            raise RuntimeError("Mount is not connected")
+
+        if coordinate_direction not in (-1, 1):
+            raise ValueError(f"coordinate_direction must be -1 or 1, got {coordinate_direction}")
+
+        if axis is Axis.DEC and speed is EZeus2_Speed.SIDEREAL:
+            raise ValueError("DEC axis cannot use SIDEREAL speed")
+
+        if speed is EZeus2_Speed.STOP:
+            self.stop_axis(axis)
+            return
+
+        e_axis = self._axis_to_e_axis(axis)
+        coordinate_sign = self._settings.ra_coordinate_sign if axis == Axis.RA else self._settings.dec_coordinate_sign
+        forward_step_sign = self._forward_step_sign(axis)
+        forward_coordinate_sign = forward_step_sign * coordinate_sign
+
+        direction = EZeus2_Direction.FORWARD if coordinate_direction == forward_coordinate_sign else EZeus2_Direction.REVERSE
+
+        self._protocol.drive(e_axis, direction, speed)
