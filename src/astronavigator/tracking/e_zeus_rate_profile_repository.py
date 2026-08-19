@@ -37,7 +37,7 @@ class EZeusRateProfileRepository:
             if profile.profile_id == profile_id:
                 return profile
 
-            return None
+        return None
 
     
     def get_selected_profile_id(self) -> str | None:
