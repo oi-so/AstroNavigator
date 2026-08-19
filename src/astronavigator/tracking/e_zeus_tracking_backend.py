@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import math
 
 from astronavigator.mount.e_zeus.e_zeus2 import EZeus2
-from astronavigator.mount.e_zeus.e_zeus2_protocol import EZeus2_Speed
+from astronavigator.mount.e_zeus.e_zeus2_protocol import EZeus2_Direction, EZeus2_Speed
 from astronavigator.mount.mount import Axis
 from astronavigator.mount.slew_path import PierSide
 from astronavigator.sky.position import Position
@@ -22,7 +22,7 @@ class _AxisModulationState:
     last_direction: int = 0
 
     active_speed: EZeus2_Speed = EZeus2_Speed.STOP
-    active_direction: int = 0
+    active_drive_direction: EZeus2_Direction | None = None
 
 
 class EZeusTrackingBackend(MountTrackingBackend):
@@ -48,14 +48,14 @@ class EZeusTrackingBackend(MountTrackingBackend):
         return self._is_active
 
     @property
-    def max_ra_rate_deg_per_sec(self) -> float:
+    def maximum_ra_rate_deg_per_sec(self) -> float:
         sky_rates = [option.axis_rate_deg_per_sec + SIDEREAL_RATE_DEG_PER_SEC for option in self._rate_profile.options_for_axis(Axis.RA)]
         sky_rates.append(SIDEREAL_RATE_DEG_PER_SEC)
         return max(abs(rate) for rate in sky_rates)
 
 
     @property
-    def max_dec_rate_deg_per_sec(self) -> float:
+    def maximum_dec_rate_deg_per_sec(self) -> float:
         return max(abs(option.axis_rate_deg_per_sec) for option in self._rate_profile.options_for_axis(Axis.DEC))
 
     def preposition(self, position: Position) -> None:
@@ -156,18 +156,18 @@ class EZeusTrackingBackend(MountTrackingBackend):
 
     def _apply_option(self, axis: Axis, option: EZeusRateOption | None, state: _AxisModulationState) -> None:
         speed = EZeus2_Speed.STOP if option is None else option.speed
-        direction = 0 if option is None else option.coordinate_direction
+        direction = 0 if option is None else option.drive_direction
 
-        if state.active_speed is speed and state.active_direction == direction:
+        if state.active_speed is speed and state.active_drive_direction is direction:
             return
 
         if option is None:
             self._mount.stop_axis(axis)
         else:
-            self._mount.move_axis_discrete(axis, option.coordinate_direction, option.speed)
+            self._mount.drive_axis_discrete(axis, option.drive_direction, option.speed)
 
         state.active_speed = speed
-        state.active_direction = direction
+        state.active_drive_direction = direction
 
 
     def _require_ready(self) -> None:

@@ -5,12 +5,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-from astronavigator.mount.e_zeus.e_zeus2_protocol import EZeus2_Speed
+from astronavigator.mount.e_zeus.e_zeus2_protocol import EZeus2_Direction, EZeus2_Speed
 from astronavigator.mount.mount import Axis
 from astronavigator.tracking.e_zeus_rate_profile import EZeusRateOption,EZeusRateProfile
 
 
-FILE_FORMAT_VERSION = 1
+FILE_FORMAT_VERSION = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,7 +202,7 @@ class EZeusRateProfileRepository:
             key=lambda option: (
                 option.axis.value,
                 option.speed.value,
-                option.coordinate_direction,
+                option.drive_direction.value,
             ),
         )
 
@@ -213,12 +213,8 @@ class EZeusRateProfileRepository:
                 {
                     "axis": option.axis.name,
                     "speed": option.speed.name,
-                    "coordinate_direction": (
-                        option.coordinate_direction
-                    ),
-                    "axis_rate_deg_per_sec": (
-                        option.axis_rate_deg_per_sec
-                    ),
+                    "drive_direction": option.drive_direction.name,
+                    "axis_rate_deg_per_sec": option.axis_rate_deg_per_sec,
                 }
                 for option in options
             ],
@@ -243,7 +239,7 @@ class EZeusRateProfileRepository:
                 EZeusRateOption(
                     axis=Axis[raw_option["axis"]],
                     speed=EZeus2_Speed[raw_option["speed"]],
-                    coordinate_direction=int(raw_option["coordinate_direction"]),
+                    drive_direction=EZeus2_Direction[raw_option["drive_direction"]],
                     axis_rate_deg_per_sec=float(raw_option["axis_rate_deg_per_sec"]),
                 )
             )

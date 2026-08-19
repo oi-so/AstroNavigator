@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 
-from astronavigator.mount.e_zeus.e_zeus2_protocol import EZeus2_Speed
+from astronavigator.mount.e_zeus.e_zeus2_protocol import EZeus2_Direction, EZeus2_Speed
 from astronavigator.mount.mount import Axis
 
 
@@ -12,15 +12,13 @@ class EZeusRateOption:
     axis: Axis
     speed: EZeus2_Speed
 
-    coordinate_direction: int
+    # E-ZEUS IIへ実際に送るF/R指令
+    drive_direction: EZeus2_Direction
+
+    # 実測された架台軸座標上の速度
     axis_rate_deg_per_sec: float
 
     def __post_init__(self) -> None:
-        if self.coordinate_direction not in (-1, 1):
-            raise ValueError(
-                f"coordinate_direction must be -1 or 1, got {self.coordinate_direction}"
-            )
-
         if self.speed is EZeus2_Speed.STOP:
             raise ValueError("speed must not be STOP")
 
@@ -28,21 +26,17 @@ class EZeusRateOption:
             raise ValueError("DEC axis cannot use SIDEREAL speed")
 
         if not math.isfinite(self.axis_rate_deg_per_sec):
-            raise ValueError(
-                f"axis_rate_deg_per_sec must be finite, got {self.axis_rate_deg_per_sec}"
-            )
+            raise ValueError(f"axis_rate_deg_per_sec must be finite, got {self.axis_rate_deg_per_sec}")
 
         if self.axis_rate_deg_per_sec == 0.0:
             raise ValueError(
-                f"axis_rate_deg_per_sec must be non-zero, got {self.axis_rate_deg_per_sec}"
+                "Zero-rate commands must be omitted because "
+                "STOP already represents zero axis rate."
             )
 
-        actual_direction = 1 if self.axis_rate_deg_per_sec > 0.0 else -1
-        if actual_direction != self.coordinate_direction:
-            raise ValueError(
-                f"coordinate_direction ({self.coordinate_direction}) does not match "
-                f"the sign of axis_rate_deg_per_sec ({self.axis_rate_deg_per_sec})"
-            )
+    @property
+    def coordinate_direction(self) -> int:
+        return 1 if self.axis_rate_deg_per_sec > 0.0 else -1
 
 @dataclass(frozen=True, slots=True)
 class EZeusRateProfile:
@@ -63,22 +57,30 @@ class EZeusRateProfile:
                 key=lambda option: (
                     0 if option.axis is Axis.RA else 1,
                     option.speed.value,
-                    option.coordinate_direction,
+                    option.drive_direction.value,
                 ),
             )
         )
 
         object.__setattr__(self, "options", normalized_options)
 
-        keys :set[tuple[Axis, EZeus2_Speed, int]] = set()
+        keys: set[tuple[Axis, EZeus2_Speed, EZeus2_Direction]] = set()
 
         for option in self.options:
-            key = (option.axis, option.speed, option.coordinate_direction)
+            key = (
+                option.axis,
+                option.speed,
+                option.drive_direction,
+            )
+
             if key in keys:
                 raise ValueError(
-                    f"Duplicate option for axis={option.axis}, speed={option.speed}, "
-                    f"coordinate_direction={option.coordinate_direction}"
+                    "Duplicate option for "
+                    f"axis={option.axis}, "
+                    f"speed={option.speed}, "
+                    f"drive_direction={option.drive_direction}"
                 )
+
             keys.add(key)
 
         for axis in (Axis.RA, Axis.DEC):
@@ -89,7 +91,14 @@ class EZeusRateProfile:
         return tuple(option for option in self.options if option.axis == axis)
 
     def options_for_direction(self, axis: Axis, direction: int) -> tuple[EZeusRateOption, ...]:
+        if direction not in (-1, 1):
+            raise ValueError(
+                f"direction must be -1 or 1, got {direction}"
+            )
+
         return tuple(
-            option for option in self.options
-            if option.axis == axis and option.coordinate_direction == direction
+            option
+            for option in self.options
+            if option.axis is axis
+            and option.coordinate_direction == direction
         )

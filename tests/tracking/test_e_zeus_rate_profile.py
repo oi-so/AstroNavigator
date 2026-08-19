@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from astronavigator.mount.e_zeus.e_zeus2_protocol import (
+    EZeus2_Direction,
     EZeus2_Speed,
 )
 from astronavigator.mount.mount import Axis
@@ -30,25 +31,25 @@ def create_profile(
             EZeusRateOption(
                 axis=Axis.RA,
                 speed=EZeus2_Speed.SIDEREAL,
-                coordinate_direction=-1,
+                drive_direction=EZeus2_Direction.FORWARD,
                 axis_rate_deg_per_sec=-0.004,
             ),
             EZeusRateOption(
                 axis=Axis.RA,
                 speed=EZeus2_Speed.SLOW,
-                coordinate_direction=1,
+                drive_direction=EZeus2_Direction.FORWARD,
                 axis_rate_deg_per_sec=0.1,
             ),
             EZeusRateOption(
                 axis=Axis.DEC,
                 speed=EZeus2_Speed.SLOW,
-                coordinate_direction=-1,
+                drive_direction=EZeus2_Direction.REVERSE,
                 axis_rate_deg_per_sec=-0.1,
             ),
             EZeusRateOption(
                 axis=Axis.DEC,
                 speed=EZeus2_Speed.SLOW,
-                coordinate_direction=1,
+                drive_direction=EZeus2_Direction.FORWARD,
                 axis_rate_deg_per_sec=0.1,
             ),
         ),

@@ -491,11 +491,28 @@ class EZeus2(Mount):
 
 
     def move_axis_discrete(self, axis: Axis, coordinate_direction: int, speed: EZeus2_Speed) -> None:
+        if coordinate_direction not in (-1, 1):
+            raise ValueError("coordinate_direction must be -1 or 1")
+
+        coordinate_sign = (
+            self._settings.ra_coordinate_sign
+            if axis is Axis.RA
+            else self._settings.dec_coordinate_sign
+        )
+        forward_step_sign = self._forward_step_sign(axis)
+        forward_coordinate_sign = coordinate_sign * forward_step_sign
+
+        drive_direction = (
+            EZeus2_Direction.FORWARD
+            if coordinate_direction == forward_coordinate_sign
+            else EZeus2_Direction.REVERSE
+        )
+
+        self.drive_axis_discrete(axis, drive_direction, speed)
+
+    def drive_axis_discrete(self, axis: Axis, direction: EZeus2_Direction, speed: EZeus2_Speed) -> None:
         if not self.is_connected:
             raise RuntimeError("Mount is not connected")
-
-        if coordinate_direction not in (-1, 1):
-            raise ValueError(f"coordinate_direction must be -1 or 1, got {coordinate_direction}")
 
         if axis is Axis.DEC and speed is EZeus2_Speed.SIDEREAL:
             raise ValueError("DEC axis cannot use SIDEREAL speed")
@@ -504,11 +521,4 @@ class EZeus2(Mount):
             self.stop_axis(axis)
             return
 
-        e_axis = self._axis_to_e_axis(axis)
-        coordinate_sign = self._settings.ra_coordinate_sign if axis == Axis.RA else self._settings.dec_coordinate_sign
-        forward_step_sign = self._forward_step_sign(axis)
-        forward_coordinate_sign = forward_step_sign * coordinate_sign
-
-        direction = EZeus2_Direction.FORWARD if coordinate_direction == forward_coordinate_sign else EZeus2_Direction.REVERSE
-
-        self._protocol.drive(e_axis, direction, speed)
+        self._protocol.drive(self._axis_to_e_axis(axis), direction, speed)
