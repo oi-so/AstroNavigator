@@ -12,18 +12,20 @@ class PierSide(Enum):
     UNKNOWN = "UNKNOWN"
 
 
+@dataclass(frozen=True, slots=True)
+class MountAxisPosition:
+    ra_axis_deg: float
+    dec_axis_deg: float
 
-@dataclass(slots=True)
+
+@dataclass(frozen=True, slots=True)
 class SlewPath:
     start: Position
     target: Position
-    waypoint: list[Position]
 
-    ra_direction: int
-    dec_direction: int
 
-    ra_steps: int
-    dec_steps: int
-
-    pier_side: PierSide
+    target_pier_side: PierSide
     meridian_flip: bool
+
+    ra_delta_steps: int
+    dec_delta_steps: int

@@ -3,12 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 
-from astronavigator.mount.mount import (
-    Axis,
-    ConnectionState,
-    Mount,
-    MountDevice,
-)
+from astronavigator.mount.mount import Axis, ConnectionState, Mount, MountDevice
+from astronavigator.mount.slew_path import PierSide
 from astronavigator.sky.position import Position
 
 
@@ -109,11 +105,11 @@ class SimulatorMount(Mount):
         self._require_connected()
         self._is_tracking = tracking
 
-    def sync(self, position: Position) -> None:
+    def sync(self, position: Position, *, pier_side: PierSide | None = None) -> None:
         self._require_connected()
         self._position = position.normalized()
 
-    def slew_to(self, position: Position) -> None:
+    def slew_to(self, position: Position, *, pier_side: PierSide | None = None) -> None:
         self._require_connected()
         self._position = position.normalized()
 

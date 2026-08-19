@@ -8,7 +8,9 @@ from PySide6.QtWidgets import QMessageBox
 
 
 from astronavigator.gui.dialog.mount_selection_dialog import MountSelectionDialog
+from astronavigator.gui.dialog.mount_sync_dialog import MountSyncDialog
 from astronavigator.mount.mount import Mount
+from astronavigator.mount.slew_path import PierSide
 from astronavigator.sky.coordinate_format import DeclinationFormat, RightAscensionFormat
 
 if TYPE_CHECKING:
@@ -51,7 +53,7 @@ class MainActions(QObject):
         # TODO: 接続状態が変わったかチェックするアルゴリズムを移す
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._update_mount_state)
-        self._timer.start(500)
+        self._timer.start(MOUNT_UPDATE_INTERVAL_MS)
 
 
     def _update_mount_state(self):
@@ -92,17 +94,19 @@ class MainActions(QObject):
 
 
     def _goto_mount(self):
-        if self._application.scene.selection.selected and self._application.scene.mount:
-            scene = self._application.scene
-            selected = scene.selection.selected
-            mount = scene.mount
-            if selected is None or mount is None:
-                msg = "導入する対象が選択されていません。" if selected is None else "マウントが接続されていません。"
-                QMessageBox.warning(None, "導入エラー", msg)
-                return
-
+        scene = self._application.scene
+        selected = scene.selection.selected
+        mount = scene.mount
+        if selected is None or mount is None:
+            msg = "導入する対象が選択されていません。" if selected is None else "マウントが接続されていません。"
+            QMessageBox.warning(None, "導入エラー", msg)
+            return
+        
+        try:
             position = selected.get_position(time=scene.time, observer=scene.observer)
-            self._application.scene.mount.slew_to(position)
+            mount.slew_to(position)
+        except RuntimeError as e:
+            QMessageBox.critical(None, "導入エラー", f"位置合わせを確認してください: {e}")
 
 
     def _sync_mount(self):
@@ -116,9 +120,30 @@ class MainActions(QObject):
 
         try:
             position = selected.get_position(time=self._application.scene.time, observer=self._application.scene.observer)
-            self._application.scene_controller.sync_mount(position)
 
-            QMessageBox.information(None, "同期完了", f"{selected.name} の位置をマウントに同期しました。\n赤経: {position.get_ra(RightAscensionFormat.HMS)}, 赤緯: {position.get_dec(DeclinationFormat.DMS)}")
+            ra_text = position.get_ra(RightAscensionFormat.HMS)
+            dec_text = position.get_dec(DeclinationFormat.DMS)
+
+            pier_side: PierSide | None = None
+
+            if mount.requires_pier_side_for_sync:
+                dialog = MountSyncDialog(selected.name, ra_text, dec_text)
+                if dialog.exec() != MountSyncDialog.DialogCode.Accepted:
+                    return
+                pier_side = dialog.selected_pier_side
+                if pier_side is None:
+                    return
+
+            self._application.scene_controller.sync_mount(position, pier_side=pier_side)
+
+            side_text = f"架台姿勢: {pier_side.value}" if pier_side else ""
+
+            QMessageBox.information(
+                None, 
+                "同期完了", 
+                f"{selected.name} の位置をマウントに同期しました。"
+                f"\n赤経: {position.get_ra(RightAscensionFormat.HMS)}, 赤緯: {position.get_dec(DeclinationFormat.DMS)}\n"
+                f"{side_text}")
         except Exception as e:
             QMessageBox.critical(None, "同期エラー", f"マウントの同期に失敗しました: {e}")
 

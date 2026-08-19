@@ -1,5 +1,7 @@
 # First Rendering
 
+> この章は初期描画を実装した時点の記録である。2026年8月12日時点の実装状況と次の計画は `10_dynamic_objects_and_catalogs.md` を参照する。
+
 ## 1. 目的
 SceneからSkyObjectを取得し、Projectionを経由してRendererがSkyViewへ描画できることを確認する。
 初期実装では LinearProjection を採用する。これは開発・デバッグを容易にするための単純な線形投影であり、将来的に OrthographicProjection などの球面投影へ置き換えることを前提とする。
@@ -125,6 +127,10 @@ Sceneを画面へ描画する。
 (ISS・惑星・月など)
 は別クラスへ分離する予定。
 
+初期実装時点では固定天体のみを想定していた。
+
+現在は共通インターフェースとして `get_position(time, observer)` と `get_magnitude(time, observer)` が用意され、ISS・惑星・月などの動的天体を実装できる。ただし、利用側から時刻・観測地点を渡す処理は未完成である。
+
 ## 5. 決定事項
 - Positionは内部ではRA/Dec管理、必要に応じて他の座標系へ変換
 - Magnitudeはfloatではなく、Magnitudeクラスで管理
@@ -161,18 +167,21 @@ D --> E[画面中央に白い星が表示];
 - Projectionは座標変換のみ担当する
 - GUIはRendererへ描画を依頼するだけ
 
-## 8. 現在の制約
-- Projectionは中心座標のみ対応
-- OrthographicProjectionのみ存在
-- Starのみ描画確認済み
-- 星表は未実装
-- Camera移動は未実装
+## 8. 初期実装時点の制約
 
-- 複数のSkyObjectを描画し、等級によって大きさが変えれるようになった
+- Projectionは中心座標のみ対応していた
+- Starのみ描画確認済みだった
+- 星表は未実装だった
+- Camera移動は未実装だった
 
-## 9. 次の実装予定
+これらの多くは後続実装で解消され、現在は StereographicProjection、HYG、カメラ移動、Layer描画などに対応している。
+
+## 9. 当時の次の実装予定
+
 - Projectionの本実装
 - RA/Dec→画面座標
 - Camera移動
 - マウスドラッグ
 - Layer描画
+
+上記は後続章で実装済みである。

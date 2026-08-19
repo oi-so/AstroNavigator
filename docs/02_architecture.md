@@ -141,10 +141,12 @@ Renderer は天文学計算や望遠鏡制御を担当しない。
 
 現在の投影方式は ProjectionManager が保持する。
 
+- StereographicProjection
+  - 標準投影。天球をステレオ投影し、広角から狭角まで同じ操作系で表示する
 - LinearProjection
-  - 赤経赤緯を直接2D表示する
+  - 赤経赤緯を直接2D表示する開発・確認用投影
 - HorizontalLinearProjection
-  - Skyfield を使って赤経赤緯を方位高度へ変換し、2D表示する
+  - 赤経赤緯を方位高度へ変換する旧来の開発・比較用投影
 
 座標系グリッドは CoordinateGrid が座標系ごとに生成する。
 GridLayer はグリッド線を描画するだけで、座標変換は Projection に委譲する。
