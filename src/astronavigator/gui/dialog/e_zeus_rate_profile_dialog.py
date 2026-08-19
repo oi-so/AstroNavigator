@@ -27,6 +27,58 @@ RATE_ROWS = (
 )
 
 
+SIDEREAL_DAY_SECONDS = 86164.0905
+SIDEREAL_RATE_DEG_PER_SEC = (
+    360.0 / SIDEREAL_DAY_SECONDS
+)
+
+
+# 暫定値
+DEFAULT_RATE_VALUES = {
+    (
+        Axis.RA,
+        EZeus2_Speed.SIDEREAL,
+        EZeus2_Direction.FORWARD,
+    ): -SIDEREAL_RATE_DEG_PER_SEC,
+
+    (
+        Axis.RA,
+        EZeus2_Speed.MEDIUM,
+        EZeus2_Direction.FORWARD,
+    ): -0.086418186,
+
+    (
+        Axis.RA,
+        EZeus2_Speed.MEDIUM,
+        EZeus2_Direction.REVERSE,
+    ): 0.086418186,
+
+    (
+        Axis.RA,
+        EZeus2_Speed.FAST,
+        EZeus2_Direction.FORWARD,
+    ): -0.321745469,
+
+    (
+        Axis.RA,
+        EZeus2_Speed.FAST,
+        EZeus2_Direction.REVERSE,
+    ): 0.197527282,
+
+    (
+        Axis.DEC,
+        EZeus2_Speed.FAST,
+        EZeus2_Direction.FORWARD,
+    ): 0.216770834,
+
+    (
+        Axis.DEC,
+        EZeus2_Speed.FAST,
+        EZeus2_Direction.REVERSE,
+    ): -0.257688621,
+}
+
+
 class EZeusRateProfileDialog(QDialog):
     def __init__(self, profile: EZeusRateProfile | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -39,8 +91,11 @@ class EZeusRateProfileDialog(QDialog):
         self._rate_inputs: list[QDoubleSpinBox] = []
 
         self._name = QLineEdit()
+
         if profile is not None:
             self._name.setText(profile.name)
+        else:
+            self._name.setText("E-ZEUS II 暫定値")
 
         form = QFormLayout()
         form.addRow("プロファイル名", self._name)
@@ -77,13 +132,16 @@ class EZeusRateProfileDialog(QDialog):
             axis, speed, direction = key
             option = existing_options.get(key)
 
+            default_rate = DEFAULT_RATE_VALUES.get(key) if profile is None else None
+
+            has_initial_value = option is not None or default_rate is not None
+
             enabled_item = QTableWidgetItem()
             enabled_item.setFlags(
                 Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable
             )
             enabled_item.setCheckState(
-                Qt.CheckState.Checked if option is not None
-                else Qt.CheckState.Unchecked
+                Qt.CheckState.Checked if has_initial_value else Qt.CheckState.Unchecked
             )
             self._table.setItem(row, 0, enabled_item)
 
@@ -98,6 +156,13 @@ class EZeusRateProfileDialog(QDialog):
 
             if option is not None:
                 rate_input.setValue(option.axis_rate_deg_per_sec)
+            elif default_rate is not None:
+                rate_input.setValue(default_rate)
+            else:
+                rate_input.setValue(0.0)
+
+            if default_rate is not None:
+                rate_input.setToolTip("2026-08-19の実機試験結果から計算した暫定値です。")
 
             self._table.setCellWidget(row, 4, rate_input)
             self._rate_inputs.append(rate_input)
