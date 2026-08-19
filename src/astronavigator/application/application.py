@@ -261,7 +261,7 @@ class Application:
         horizontal_calculator = SkyfieldHorizontalPositionCalculator(skyfield_context)
         planner = TrackingPlanner(predictor, horizontal_calculator)
         plan = planner.create_plan(target, self._scene.observer, time_provider, config)
-        backend = SimulatorTrackingBackend(mount)
+        backend = self._create_tracking_backend(mount, run_mode, config)
         controller = TrackingController(predictor, backend, time_provider, TrackingSafetyPolicy())
         controller.set_adjustment(adjustment)
         safety_result = controller.prepare(
@@ -300,11 +300,11 @@ class Application:
     def _create_tracking_safety_context(self, run_mode: TrackingRunMode | None = None) -> TrackingSafetyContext:
         mount = self._scene.mount
         is_simulator = isinstance(mount, SimulatorMount) if mount is not None else False
-        mount_synchronized = mount is not None and is_simulator or getattr(mount, "is_synced", True)
-
         if run_mode is None:
             provider = self._tracking_time_provider
             run_mode = provider.mode if provider is not None else TrackingRunMode.OBSERVATION
+
+        mount_synchronized = mount is not None and (is_simulator or bool(getattr(mount, "is_synced", True)))
 
         return TrackingSafetyContext(
             run_mode=run_mode,

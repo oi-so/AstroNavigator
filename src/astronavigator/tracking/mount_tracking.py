@@ -124,3 +124,12 @@ class MountTrackingBackend(ABC):
     @abstractmethod
     def update(self, elapsed_sec: float) -> None:
         ...
+
+
+
+    @property
+    def preposition_complete(self) -> bool:
+        """
+        事前導入が完了しているかを返す。
+        """
+        return True

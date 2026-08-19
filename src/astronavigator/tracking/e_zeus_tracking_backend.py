@@ -186,3 +186,11 @@ class EZeusTrackingBackend(MountTrackingBackend):
     def _validate_rate(name: str, rate: float) -> None:
         if not math.isfinite(rate):
             raise ValueError(f"{name} must be a finite number.")
+
+
+    @property
+    def preposition_complete(self) -> bool:
+        if not self._mount.is_connected:
+            return False
+
+        return not self._mount.is_slewing

@@ -131,7 +131,8 @@ class TrackingController:
 
         self._state = TrackingState.PREPOSITIONING
         self._backend.preposition(plan.preposition)
-        self._state = TrackingState.WAITING
+        if self._backend.preposition_complete:
+            self._state = TrackingState.WAITING
 
         return result
 
@@ -143,6 +144,12 @@ class TrackingController:
 
         target, observer, plan, config = self._require_prepared_values()
         snapshot = self._time_provider.get_snapshot()
+
+        if self._state is TrackingState.PREPOSITIONING:
+            if not self._backend.preposition_complete:
+                return TrackingControllerUpdate( state=self._state)
+
+            self._state = TrackingState.WAITING
 
         if plan.end_time_utc is not None and snapshot.utc >= plan.end_time_utc:
             self._complete()
@@ -209,7 +216,7 @@ class TrackingController:
         )
 
     def stop(self) -> None:
-        if self._backend.is_active:
+        if self.is_active or self._backend.is_active:
             self._backend.stop()
 
         self._state = TrackingState.COMPLETED
@@ -268,17 +275,12 @@ class TrackingController:
         )
 
     def _complete(self) -> None:
-        self._state = TrackingState.STOPPING
-
-        if self._backend.is_active:
+            self._state = TrackingState.STOPPING
             self._backend.stop()
-
-        self._state = TrackingState.COMPLETED
+            self._state = TrackingState.COMPLETED
 
     def _fail(self) -> None:
-        if self._backend.is_active:
-            self._backend.stop()
-
+        self._backend.stop()
         self._state = TrackingState.FAILED
 
     @staticmethod

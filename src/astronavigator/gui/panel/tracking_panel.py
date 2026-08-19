@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QComboBox, QDialog, QDoubleSpinBox, QFormLayout, Q
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
 from astronavigator.gui.dialog.e_zeus_rate_profile_dialog import EZeusRateProfileDialog
+from astronavigator.mount.e_zeus.e_zeus2 import EZeus2
 from astronavigator.tracking.tracking_adjustment import TrackingAdjustment
 from astronavigator.tracking.tracking_config import TrackingConfig
 from astronavigator.tracking.tracking_controller import TrackingControllerUpdate
@@ -170,6 +171,42 @@ class TrackingPanel(QWidget):
         return spin_box
 
     def _on_start_clicked(self) -> None:
+        mount = self._application.scene.mount
+        run_mode = self._mode.currentData()
+    
+        if isinstance(mount, EZeus2):
+            if run_mode is not TrackingRunMode.OBSERVATION:
+                QMessageBox.warning(
+                    self,
+                    "追尾開始エラー",
+                    "E-ZEUS II実機では観測モードを選択してください。",
+                )
+                return
+
+            profile_id = self._rate_profile.currentData()
+            if profile_id is None:
+                QMessageBox.warning(
+                    self,
+                    "追尾開始エラー",
+                    "E-ZEUS IIレートプロファイルを選択してください。",
+                )
+                return
+
+            result = QMessageBox.warning(
+                self,
+                "E-ZEUS II実機追尾",
+                "実機へ事前導入と連続駆動命令を送信します。\n\n"
+                "・架台はSync済みですか？\n"
+                "・鏡筒やケーブルは衝突しませんか？\n"
+                "・すぐ停止できる状態ですか？\n\n"
+                "現在の速度値には暫定値が含まれています。",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Cancel,
+            )
+
+            if result is not QMessageBox.StandardButton.Yes:
+                return
+
         try:
             config = TrackingConfig(
                 entry_altitude_deg=self._entry_altitude.value(),
@@ -225,6 +262,15 @@ class TrackingPanel(QWidget):
         self._update_target()
 
     def _on_mount_changed(self, event) -> None:
+        mount = self._application.scene.mount
+
+        if isinstance(mount, EZeus2):
+            observation_index = self._mode.findData(
+                TrackingRunMode.OBSERVATION
+            )
+            if observation_index >= 0:
+                self._mode.setCurrentIndex(observation_index)
+
         self._update_buttons()
 
     def _on_tracking_state_changed(self, event) -> None:
@@ -297,8 +343,19 @@ class TrackingPanel(QWidget):
         self._new_profile_button.setEnabled(not active)
 
         has_profile = self._rate_profile.currentData() is not None
+        self._start_button.setEnabled(
+            not active
+            and selected is not None
+            and selected.is_dynamic
+            and mount is not None
+            and mount.is_connected
+            and (not isinstance(mount, EZeus2) or has_profile)
+        )
         self._edit_profile_button.setEnabled(not active and has_profile)
         self._delete_profile_button.setEnabled(not active and has_profile)
+
+        is_e_zeus = isinstance(mount, EZeus2)
+        self._mode.setEnabled(not active and not is_e_zeus)
 
 
     def _reload_rate_profiles(self, selected_id: str | None = None) -> None:
