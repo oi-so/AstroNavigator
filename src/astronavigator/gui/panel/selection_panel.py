@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
 from astronavigator.sky.sky_object import SkyObject
+from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
 
 
 
@@ -17,8 +18,8 @@ class SelectionPanel(QWidget):
 
         self._name_value = QLabel("-")
         self._type_value = QLabel("-")
-        self._ra_value = QLabel("-")
-        self._dec_value = QLabel("-")
+        self._ra_dec_value = QLabel("-")
+        self._alt_az_value = QLabel("-")
         self._magnitude_value = QLabel("-")
         self._add_info_value = QLabel("-")
 
@@ -47,8 +48,8 @@ class SelectionPanel(QWidget):
 
         self._add_field(content_layout, "名前", self._name_value)
         self._add_field(content_layout, "種類", self._type_value)
-        self._add_field(content_layout, "RA", self._ra_value)
-        self._add_field(content_layout, "Dec", self._dec_value)
+        self._add_field(content_layout, "赤経 / 赤緯", self._ra_dec_value)
+        self._add_field(content_layout, "高度 / 方位", self._alt_az_value)
         self._add_field(content_layout, "等級", self._magnitude_value)
         self._add_field(content_layout, "追加情報", self._add_info_value)
 
@@ -107,7 +108,7 @@ class SelectionPanel(QWidget):
 
     def _on_object_context_changed(self, event) -> None:
         selected = self._application.scene.selection.selected
-        if selected is None or not selected.is_dynamic:
+        if selected is None:
             return
         self._update_selection(selected)
 
@@ -150,8 +151,8 @@ class SelectionPanel(QWidget):
         if sky_object is None:
             self._name_value.setText("-")
             self._type_value.setText("-")
-            self._ra_value.setText("-")
-            self._dec_value.setText("-")
+            self._ra_dec_value.setText("-")
+            self._alt_az_value.setText("-")
             self._magnitude_value.setText("-")
             self._add_info_value.setText("-")
         else:
@@ -159,11 +160,20 @@ class SelectionPanel(QWidget):
             settings = scene.gui_settings
             position = sky_object.get_position(time=scene.time, observer=scene.observer)
             magnitude = sky_object.get_magnitude(time=scene.time, observer=scene.observer)
+            if scene.skyfield is None:
+                self._alt_az_value.setText("-")
+            else:
+                horizontal_position = CoordinateTransformer.equatorial_to_horizontal_at(
+                    position=position,
+                    time=scene.time,
+                    observer=scene.observer,
+                    context=scene.skyfield
+                )
+                self._alt_az_value.setText(f"{horizontal_position.altitude_deg:.2f}°  /  {horizontal_position.azimuth_deg:.2f}°")
 
             self._name_value.setText(sky_object.name)
             self._type_value.setText(sky_object.object_type.value)
-            self._ra_value.setText(position.get_ra(settings.ra_format))
-            self._dec_value.setText(position.get_dec(settings.dec_format))
+            self._ra_dec_value.setText(f"{position.get_ra(settings.ra_format)}  /  {position.get_dec(settings.dec_format)}")
             self._magnitude_value.setText(f"{magnitude:.2f}")
 
             add_info = sky_object.get_add_info()
