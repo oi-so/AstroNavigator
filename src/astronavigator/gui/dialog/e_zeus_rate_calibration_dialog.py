@@ -16,25 +16,15 @@ from PySide6.QtWidgets import (
 )
 
 from astronavigator.mount.e_zeus.e_zeus2 import EZeus2
-from astronavigator.tracking.e_zeus_rate_calibrator import (
-    EZeusRateCalibrator,
-)
-from astronavigator.tracking.e_zeus_rate_profile import (
-    EZeusRateProfile,
-)
+from astronavigator.tracking.e_zeus_rate_calibrator import EZeusRateCalibrator
+from astronavigator.tracking.e_zeus_rate_profile import EZeusRateProfile
 
 
 class EZeusRateCalibrationDialog(QDialog):
-    def __init__(
-        self,
-        mount: EZeus2,
-        parent: QWidget | None = None,
-    ) -> None:
+    def __init__(self, mount: EZeus2, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
-        self.setWindowTitle(
-            "E-ZEUS II 自動レート測定"
-        )
+        self.setWindowTitle("E-ZEUS II 自動レート測定")
         self.resize(520, 420)
 
         self._mount = mount
@@ -42,8 +32,7 @@ class EZeusRateCalibrationDialog(QDialog):
         self._calibrator: EZeusRateCalibrator | None = None
 
         self._name = QLineEdit(
-            "E-ZEUS II 自動校正 "
-            + datetime.now().strftime("%Y-%m-%d %H:%M")
+            "E-ZEUS II 自動校正 " + datetime.now().strftime("%Y-%m-%d %H:%M")
         )
 
         self._status = QLabel("測定を開始できます。")
@@ -67,8 +56,7 @@ class EZeusRateCalibrationDialog(QDialog):
 
         warning = QLabel(
             "測定中はRA・Decの両軸が短時間動きます。\n"
-            "所要時間は約1分です。鏡筒・架台・"
-            "ケーブルが衝突しないことを確認してください。"
+            "所要時間は約1分です。鏡筒・架台・ケーブルが衝突しないことを確認してください。"
         )
         warning.setWordWrap(True)
 
@@ -105,40 +93,22 @@ class EZeusRateCalibrationDialog(QDialog):
             "実機を動かします",
             "E-ZEUS IIの全速度帯を短時間駆動します。\n"
             "周囲の安全を確認しましたか？",
-            QMessageBox.StandardButton.Yes
-            | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Cancel,
         )
 
         if result != QMessageBox.StandardButton.Yes:
             return
 
-        self._calibrator = EZeusRateCalibrator(
-            self._mount,
-            name,
-            self,
-        )
+        self._calibrator = EZeusRateCalibrator(self._mount, name, self)
 
-        self._progress.setRange(
-            0,
-            self._calibrator.total_steps,
-        )
+        self._progress.setRange(0,self._calibrator.total_steps)
 
-        self._calibrator.progress.connect(
-            self._on_progress
-        )
-        self._calibrator.measurement_completed.connect(
-            self._log.append
-        )
-        self._calibrator.finished.connect(
-            self._on_finished
-        )
-        self._calibrator.failed.connect(
-            self._on_failed
-        )
-        self._calibrator.cancelled.connect(
-            self._on_cancelled
-        )
+        self._calibrator.progress.connect(self._on_progress)
+        self._calibrator.measurement_completed.connect(self._log.append)
+        self._calibrator.finished.connect(self._on_finished)
+        self._calibrator.failed.connect(self._on_failed)
+        self._calibrator.cancelled.connect(self._on_cancelled)
 
         self._start_button.setEnabled(False)
         self._name.setEnabled(False)
@@ -148,20 +118,12 @@ class EZeusRateCalibrationDialog(QDialog):
         except Exception as error:
             self._on_failed(str(error))
 
-    def _on_progress(
-        self,
-        current: int,
-        total: int,
-        message: str,
-    ) -> None:
+    def _on_progress(self, current: int,total: int, message: str) -> None:
         self._progress.setRange(0, total)
         self._progress.setValue(current)
         self._status.setText(message)
 
-    def _on_finished(
-        self,
-        profile: EZeusRateProfile,
-    ) -> None:
+    def _on_finished(self, profile: EZeusRateProfile) -> None:
         self._profile = profile
         self._status.setText("自動測定が完了しました。")
         self._progress.setValue(
@@ -187,17 +149,12 @@ class EZeusRateCalibrationDialog(QDialog):
         )
 
     def _cancel(self) -> None:
-        if (
-            self._calibrator is not None
-            and self._calibrator.is_active
-        ):
+        if self._calibrator is not None and self._calibrator.is_active:
             self._calibrator.cancel()
             return
 
         self.reject()
 
     def _on_cancelled(self) -> None:
-        self._status.setText(
-            "測定を中止し、架台を停止しました。"
-        )
+        self._status.setText("測定を中止し、架台を停止しました。")
         self.reject()

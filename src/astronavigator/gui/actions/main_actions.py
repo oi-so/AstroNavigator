@@ -12,6 +12,9 @@ from astronavigator.gui.dialog.mount_sync_dialog import MountSyncDialog
 from astronavigator.mount.mount import Mount
 from astronavigator.mount.slew_path import PierSide
 from astronavigator.sky.coordinate_format import DeclinationFormat, RightAscensionFormat
+from astronavigator.mount.meridian_flip import decide_meridian_flip, calculate_hour_angle_deg, opposite_pier_side
+from astronavigator.scene.time import Time
+
 
 if TYPE_CHECKING:
     from astronavigator.application.application import Application
@@ -97,14 +100,25 @@ class MainActions(QObject):
         scene = self._application.scene
         selected = scene.selection.selected
         mount = scene.mount
+
         if selected is None or mount is None:
             msg = "導入する対象が選択されていません。" if selected is None else "マウントが接続されていません。"
             QMessageBox.warning(None, "導入エラー", msg)
             return
         
         try:
-            position = selected.get_position(time=scene.time, observer=scene.observer)
-            mount.slew_to(position)
+            observation_time = scene.time
+            position = selected.get_position(time=observation_time, observer=scene.observer)
+
+            target_pier_side: PierSide | None = None
+
+            if mount.can_set_pier_side:
+                target_pier_side = self._select_goto_pier_side(selected.name, position.ra_deg, observation_time)
+
+                if target_pier_side is None:
+                    return
+                
+            mount.slew_to(position, pier_side=target_pier_side)
         except RuntimeError as e:
             QMessageBox.critical(None, "導入エラー", f"位置合わせを確認してください: {e}")
 
@@ -171,3 +185,68 @@ class MainActions(QObject):
             self._timer.start(MOUNT_UPDATE_INTERVAL_MS)
         else:
             self._timer.stop()
+
+
+    def _select_goto_pier_side(self, target_name: str, target_ra_deg: float, observation_time: Time) -> PierSide | None:
+        scene = self._application.scene
+        mount = scene.mount
+
+        if mount is None:
+            raise RuntimeError("Mount is not connected.")
+
+        if scene.skyfield is None:
+            raise RuntimeError("Skyfield timescale is not available.")
+
+        hour_angle_deg = calculate_hour_angle_deg(
+            ra_deg=target_ra_deg,
+            utc=observation_time.utc,
+            longitude_deg=scene.observer.longitude,
+            timescale=scene.skyfield.timescale
+        )
+
+        decision = decide_meridian_flip(
+            hour_angle_deg=hour_angle_deg,
+            current_pier_side=mount.pier_side
+        )
+
+        hour_angle_hours = hour_angle_deg / 15.0
+
+        if decision.is_near_meridian:
+            user_select = QMessageBox.question(
+                None,
+                "子午線反転の確認",
+                (
+                    f"{target_name} は子午線近くにあります。\n\n"
+                    f"RA: {hour_angle_deg:.2f}° ({hour_angle_hours:.2f}h)\n"
+                    f"現在の架台姿勢: {mount.pier_side.value}\n"
+                    f"推奨される架台姿勢: {decision.preferred_pier_side.value}\n\n"
+                    "子午線反転を行いますか？"
+                ),
+                (
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
+                ),
+                QMessageBox.StandardButton.Cancel
+            )
+
+            if user_select == QMessageBox.StandardButton.Cancel:
+                return None
+
+            if user_select == QMessageBox.StandardButton.Yes:
+                return opposite_pier_side(mount.pier_side)
+
+            return mount.pier_side
+
+        if decision.is_flip_required:
+            QMessageBox.information(
+                None,
+                "子午線反転",
+                (
+                    f"{target_name} を導入するために子午線反転します。\n\n"
+                    f"RA: {hour_angle_deg:.2f}° ({hour_angle_hours:.2f}h)\n"
+                    f"現在の架台姿勢: {mount.pier_side.value}\n"
+                    f"導入後の架台姿勢: {decision.preferred_pier_side.value}\n\n"
+                )
+            )
+
+            return decision.preferred_pier_side
+    
