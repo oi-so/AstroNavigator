@@ -110,7 +110,7 @@ class EZeusRateCalibrationDialog(QDialog):
             QMessageBox.StandardButton.Cancel,
         )
 
-        if result is not QMessageBox.StandardButton.Yes:
+        if result != QMessageBox.StandardButton.Yes:
             return
 
         self._calibrator = EZeusRateCalibrator(

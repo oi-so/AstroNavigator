@@ -63,7 +63,6 @@ class MountPanel(QWidget):
 
     def _on_update_mount_state(self, event) -> None:
         self._update_mount(event.payload)
-        self._update_buttons()
 
 
     def _update_buttons(self) -> None:

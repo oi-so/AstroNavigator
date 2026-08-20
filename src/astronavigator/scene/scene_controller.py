@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import calendar
 from zoneinfo import ZoneInfo
-from PySide6.QtCore import QPoint, QPointF, QSize
+from PySide6.QtCore import QPoint, QSize
 from datetime import datetime, timezone, timedelta
 
 from astronavigator.catalog.catalog import Catalog
@@ -151,10 +151,17 @@ class SceneController:
         self._event_bus.publish(EventType.SCENE_UPDATED, catalog)
 
     def connect_mount(self, mount: Mount) -> None:
+        try:
+            mount.connect()
+            mount.set_tracking(True)
+            mount.update_status()
+        except Exception:
+            try:
+                mount.disconnect()
+            except Exception:
+                pass
+            raise
         self._scene.mount = mount
-        mount.connect()
-        mount.set_tracking(True)
-        mount.update_status()
         self._event_bus.publish(EventType.MOUNT_CONNECTED, mount)
 
     def disconnect_mount(self) -> None:

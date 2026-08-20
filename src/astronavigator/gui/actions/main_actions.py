@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from astronavigator.application.application import Application
 
 
-MOUNT_UPDATE_INTERVAL_MS = 200
+MOUNT_UPDATE_INTERVAL_MS = 500
 
 
 class MainActions(QObject):
@@ -164,3 +164,10 @@ class MainActions(QObject):
 
     def _open_settings(self):
         raise NotImplementedError("Open settings action not implemented yet.")
+
+
+    def set_mount_polling_enabled(self, enabled: bool) -> None:
+        if enabled:
+            self._timer.start(MOUNT_UPDATE_INTERVAL_MS)
+        else:
+            self._timer.stop()

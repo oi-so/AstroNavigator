@@ -55,85 +55,87 @@ class _Measurement:
     rate_deg_per_sec: float
     moved_steps: int
 
+CALIBRATION_TIME = 0.5
+
 
 CALIBRATION_STEPS = (
     EZeusCalibrationStep(
         Axis.RA,
         EZeus2_Speed.SIDEREAL,
         EZeus2_Direction.FORWARD,
-        5.0,
+        CALIBRATION_TIME,
     ),
     EZeusCalibrationStep(
         Axis.RA,
         EZeus2_Speed.SLOW,
         EZeus2_Direction.FORWARD,
-        2.0,
+        CALIBRATION_TIME,
     ),
     EZeusCalibrationStep(
         Axis.RA,
         EZeus2_Speed.SLOW,
         EZeus2_Direction.REVERSE,
-        2.0,
+        CALIBRATION_TIME,
     ),
     EZeusCalibrationStep(
         Axis.RA,
         EZeus2_Speed.MEDIUM,
         EZeus2_Direction.FORWARD,
-        0.5,
+        CALIBRATION_TIME,
     ),
     EZeusCalibrationStep(
         Axis.RA,
         EZeus2_Speed.MEDIUM,
         EZeus2_Direction.REVERSE,
-        0.5,
+        CALIBRATION_TIME,
     ),
     EZeusCalibrationStep(
         Axis.RA,
         EZeus2_Speed.FAST,
         EZeus2_Direction.FORWARD,
-        0.25,
+        CALIBRATION_TIME,
     ),
     EZeusCalibrationStep(
         Axis.RA,
         EZeus2_Speed.FAST,
         EZeus2_Direction.REVERSE,
-        0.25,
+        CALIBRATION_TIME,
     ),
     EZeusCalibrationStep(
         Axis.DEC,
         EZeus2_Speed.SLOW,
         EZeus2_Direction.FORWARD,
-        2.0,
+        CALIBRATION_TIME,
     ),
     EZeusCalibrationStep(
         Axis.DEC,
         EZeus2_Speed.SLOW,
         EZeus2_Direction.REVERSE,
-        2.0,
+        CALIBRATION_TIME,
     ),
     EZeusCalibrationStep(
         Axis.DEC,
         EZeus2_Speed.MEDIUM,
         EZeus2_Direction.FORWARD,
-        0.5,
+        CALIBRATION_TIME,
     ),
     EZeusCalibrationStep(
         Axis.DEC,
         EZeus2_Speed.MEDIUM,
         EZeus2_Direction.REVERSE,
-        0.5,
+        CALIBRATION_TIME,
     ),
     EZeusCalibrationStep(
         Axis.DEC,
         EZeus2_Speed.FAST,
         EZeus2_Direction.FORWARD,
-        0.25,
+        CALIBRATION_TIME,
     ),
     EZeusCalibrationStep(
         Axis.DEC,
         EZeus2_Speed.FAST,
         EZeus2_Direction.REVERSE,
-        0.25,
+        CALIBRATION_TIME,
     ),
 )
 

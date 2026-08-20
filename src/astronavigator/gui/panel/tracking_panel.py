@@ -208,7 +208,7 @@ class TrackingPanel(QWidget):
                 QMessageBox.StandardButton.Cancel,
             )
 
-            if result is not QMessageBox.StandardButton.Yes:
+            if result != QMessageBox.StandardButton.Yes:
                 return
 
         try:
@@ -438,7 +438,7 @@ class TrackingPanel(QWidget):
             "プロファイル削除",
             "選択したプロファイルを削除しますか？",
         )
-        if result is not QMessageBox.StandardButton.Yes:
+        if result != QMessageBox.StandardButton.Yes:
             return
 
         repository = self._application.e_zeus_rate_profile_repository
@@ -502,3 +502,15 @@ class TrackingPanel(QWidget):
         self._reload_rate_profiles(
             profile.profile_id
         )
+
+        self._application.main_actions.set_mount_polling_enabled(False)
+
+        try:
+            dialog = EZeusRateCalibrationDialog(mount, self)
+            result = dialog.exec()
+        finally:
+            self._application.main_actions.set_mount_polling_enabled(True)
+            self._application.scene_controller.refresh_mount_state()
+
+        if result != QDialog.DialogCode.Accepted:
+            return
