@@ -522,3 +522,30 @@ class EZeus2(Mount):
             return
 
         self._protocol.drive(self._axis_to_e_axis(axis), direction, speed)
+
+
+
+    def get_raw_position_steps(self) -> tuple[int, int]:
+        if not self.is_connected:
+            raise RuntimeError("Mount is not connected")
+
+        return self._protocol.get_position()
+
+
+    def get_steps_per_revolution(self, axis: Axis) -> int:
+        if not self.is_connected:
+            raise RuntimeError("Mount is not connected")
+
+        value = self._settings.ra_steps_per_rev if axis is Axis.RA else self._settings.dec_steps_per_rev
+
+        if value is None or value <= 0:
+            raise RuntimeError("Steps per revolution not set")
+
+        return value
+
+
+    def get_coordinate_sign(self, axis: Axis) -> int:
+        sign = self._settings.ra_coordinate_sign if axis is Axis.RA else self._settings.dec_coordinate_sign
+        if sign not in (-1, 1):
+            raise RuntimeError(f"Invalid coordinate sign for {axis.name}: {sign}")
+        return sign

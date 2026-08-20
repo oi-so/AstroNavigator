@@ -308,7 +308,7 @@ class Application:
 
         return TrackingSafetyContext(
             run_mode=run_mode,
-            is_real_mount=mount is not None,
+            is_real_mount=mount is not None and not is_simulator,
             mount_connected=mount is not None and mount.is_connected,
             mount_synchronized=mount_synchronized,
             communication_healthy=mount is not None and mount.state is not ConnectionState.ERROR,

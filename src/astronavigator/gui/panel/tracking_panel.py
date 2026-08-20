@@ -11,6 +11,7 @@ from astronavigator.tracking.tracking_adjustment import TrackingAdjustment
 from astronavigator.tracking.tracking_config import TrackingConfig
 from astronavigator.tracking.tracking_controller import TrackingControllerUpdate
 from astronavigator.tracking.tracking_state import TrackingRunMode, TrackingState
+from astronavigator.gui.dialog.e_zeus_rate_calibration_dialog import EZeusRateCalibrationDialog
 
 
 STATE_NAMES = {
@@ -134,11 +135,13 @@ class TrackingPanel(QWidget):
         self._new_profile_button = QPushButton("新規")
         self._edit_profile_button = QPushButton("編集")
         self._delete_profile_button = QPushButton("削除")
+        self._auto_profile_button = QPushButton("自動測定")
 
         self._rate_profile.currentIndexChanged.connect(self._on_rate_profile_changed)
         self._new_profile_button.clicked.connect(self._on_new_profile)
         self._edit_profile_button.clicked.connect(self._on_edit_profile)
         self._delete_profile_button.clicked.connect(self._on_delete_profile)
+        self._auto_profile_button.clicked.connect(self._on_auto_profile)
 
         profile_widget = QWidget()
         profile_layout = QHBoxLayout(profile_widget)
@@ -147,6 +150,7 @@ class TrackingPanel(QWidget):
         profile_layout.addWidget(self._new_profile_button)
         profile_layout.addWidget(self._edit_profile_button)
         profile_layout.addWidget(self._delete_profile_button)
+        profile_layout.addWidget(self._auto_profile_button)
 
         settings_form.addRow("E-ZEUSレート", profile_widget)
 
@@ -357,6 +361,12 @@ class TrackingPanel(QWidget):
         is_e_zeus = isinstance(mount, EZeus2)
         self._mode.setEnabled(not active and not is_e_zeus)
 
+        self._auto_profile_button.setEnabled(
+            not active
+            and isinstance(mount, EZeus2)
+            and mount.is_connected
+        )
+
 
     def _reload_rate_profiles(self, selected_id: str | None = None) -> None:
         repository = self._application.e_zeus_rate_profile_repository
@@ -440,3 +450,55 @@ class TrackingPanel(QWidget):
         has_profile = self._rate_profile.currentData() is not None
         self._edit_profile_button.setEnabled(has_profile)
         self._delete_profile_button.setEnabled(has_profile)
+
+
+    def _on_auto_profile(self) -> None:
+        mount = self._application.scene.mount
+
+        if not isinstance(mount, EZeus2):
+            QMessageBox.warning(
+                self,
+                "自動測定",
+                "E-ZEUS IIを接続してください。",
+            )
+            return
+
+        if not mount.is_synced:
+            QMessageBox.warning(
+                self,
+                "自動測定",
+                "自動測定の前にSyncしてください。",
+            )
+            return
+
+        controller = self._application.tracking_controller
+        if controller is not None and controller.is_active:
+            QMessageBox.warning(
+                self,
+                "自動測定",
+                "追尾中は自動測定できません。",
+            )
+            return
+
+        dialog = EZeusRateCalibrationDialog(
+            mount,
+            self,
+        )
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        profile = dialog.profile
+        repository = (
+            self._application
+            .e_zeus_rate_profile_repository
+        )
+
+        repository.save_profile(
+            profile,
+            select=True,
+        )
+
+        self._reload_rate_profiles(
+            profile.profile_id
+        )
