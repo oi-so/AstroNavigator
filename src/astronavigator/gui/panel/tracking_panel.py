@@ -143,16 +143,24 @@ class TrackingPanel(QWidget):
         self._delete_profile_button.clicked.connect(self._on_delete_profile)
         self._auto_profile_button.clicked.connect(self._on_auto_profile)
 
-        profile_widget = QWidget()
-        profile_layout = QHBoxLayout(profile_widget)
-        profile_layout.setContentsMargins(0, 0, 0, 0)
-        profile_layout.addWidget(self._rate_profile)
-        profile_layout.addWidget(self._new_profile_button)
-        profile_layout.addWidget(self._edit_profile_button)
-        profile_layout.addWidget(self._delete_profile_button)
-        profile_layout.addWidget(self._auto_profile_button)
+        profile_buttons_widget = QWidget()
+        profile_buttons_layout = QHBoxLayout(profile_buttons_widget)
+        profile_buttons_layout.setContentsMargins(0, 0, 0, 0)
+        profile_buttons_layout.setSpacing(4)
+        profile_buttons_layout.addWidget(self._new_profile_button)
+        profile_buttons_layout.addWidget(self._edit_profile_button)
+        profile_buttons_layout.addWidget(self._delete_profile_button)
+        profile_buttons_layout.addWidget(self._auto_profile_button)
 
-        settings_form.addRow("E-ZEUSレート", profile_widget)
+        profile_widget = QWidget()
+        profile_container_layout = QVBoxLayout(profile_widget)
+        profile_container_layout.setContentsMargins(0, 0, 0, 0)
+        profile_container_layout.setSpacing(4)
+        profile_container_layout.addWidget(QLabel("E-ZEUSレート"))
+        profile_container_layout.addWidget(self._rate_profile)
+        profile_container_layout.addWidget(profile_buttons_widget)
+
+        settings_form.addRow(profile_widget)
 
         event_bus = self._application.event_bus
         event_bus.subscribe(EventType.SELECTION_CHANGED, self._on_selection_changed)
