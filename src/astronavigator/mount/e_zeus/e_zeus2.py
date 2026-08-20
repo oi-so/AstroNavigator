@@ -20,7 +20,6 @@ PIER_SIDE_STEP_TOLERANCE = 2
 # - 子午線反転
 # - SideOfPier対応
 # - SlewPath対応
-# - RA/DECの符号確認
 # - can_なんとかの実装
 
 
@@ -64,9 +63,10 @@ class EZeus2(Mount):
 
     @property
     def is_tracking(self) -> bool:
-        status = self._protocol.get_status()
-        self._apply_status(status)
-        return status[EZeus2StatusIndex.RA_STATUS] == "I" and status[EZeus2StatusIndex.RA_SPEED] == EZeus2_Speed.SIDEREAL.value
+        status = self._e_zeus2_status
+        if status is None:
+            return False
+        return status[EZeus2StatusIndex.RA_STATUS] == "T" and status[EZeus2StatusIndex.RA_SPEED] == EZeus2_Speed.SIDEREAL.value
 
     @property
     def driver_name(self) -> str:
@@ -80,8 +80,9 @@ class EZeus2(Mount):
 
     @property
     def is_slewing(self) -> bool:
-        status = self._protocol.get_status()
-        self._apply_status(status)
+        status = self._e_zeus2_status
+        if status is None:
+            return False
         return self._status_is_slewing(status)
 
     @property

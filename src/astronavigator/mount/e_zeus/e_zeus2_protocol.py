@@ -74,11 +74,13 @@ class EZeus2Protocol:
     def _send(self, cmd: str) -> str:
         if self.serial is None:
             raise RuntimeError("Serial port is not open")
+
         self.serial.reset_input_buffer()
         self.serial.write(cmd.encode("ascii") + b"\r")
-
-        resp = self.serial.readline().decode("ascii", errors="replace").strip()
-        return resp
+        self.serial.flush()
+        raw = self.serial.readline()
+        # print(f"cmd={cmd!r}, raw={raw!r}")
+        return raw.decode("ascii", errors="replace").strip()
 
 
     def _check_ack(self, resp: str) -> EZeus2Error:
