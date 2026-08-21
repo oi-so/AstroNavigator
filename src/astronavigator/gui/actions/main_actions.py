@@ -121,6 +121,8 @@ class MainActions(QObject):
             mount.slew_to(position, pier_side=target_pier_side)
         except RuntimeError as e:
             QMessageBox.critical(None, "導入エラー", f"位置合わせを確認してください: {e}")
+        except Exception as e:
+            QMessageBox.critical(None, "導入エラー", f"マウントの導入に失敗しました: {e}")
 
 
     def _sync_mount(self):
@@ -217,7 +219,7 @@ class MainActions(QObject):
                 "子午線反転の確認",
                 (
                     f"{target_name} は子午線近くにあります。\n\n"
-                    f"RA: {hour_angle_deg:.2f}° ({hour_angle_hours:.2f}h)\n"
+                    f"RA: {hour_angle_deg:+.2f}° ({hour_angle_hours:.2f}h)\n"
                     f"現在の架台姿勢: {mount.pier_side.value}\n"
                     f"推奨される架台姿勢: {decision.preferred_pier_side.value}\n\n"
                     "子午線反転を行いますか？"
@@ -242,11 +244,11 @@ class MainActions(QObject):
                 "子午線反転",
                 (
                     f"{target_name} を導入するために子午線反転します。\n\n"
-                    f"RA: {hour_angle_deg:.2f}° ({hour_angle_hours:.2f}h)\n"
+                    f"RA: {hour_angle_deg:+.2f}° ({hour_angle_hours:.2f}h)\n"
                     f"現在の架台姿勢: {mount.pier_side.value}\n"
                     f"導入後の架台姿勢: {decision.preferred_pier_side.value}\n\n"
                 )
             )
 
-            return decision.preferred_pier_side
+        return decision.preferred_pier_side
     

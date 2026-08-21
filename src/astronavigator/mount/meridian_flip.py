@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import math
 from typing import Any
 
@@ -27,12 +27,16 @@ def normalize_signed_degrees(degrees: float) -> float:
 
 
 def calculate_local_sidereal_time_deg(utc: datetime, longitude_deg: float, timescale: Any) -> float:
-    if utc.tzinfo:
-        raise ValueError("UTC datetime must be naive (no timezone info).")
+    if utc.tzinfo is None or utc.utcoffset() is None:
+        raise ValueError(
+            "UTC datetime must be timezone-aware."
+        )
 
-    skyfield_time = timescale.from_datetime(utc)
+    utc_datetime = utc.astimezone(timezone.utc)
+    skyfield_time = timescale.from_datetime(utc_datetime)
 
-    greenwich_sidereal_deg = skyfield_time.gmst * 15.0
+    greenwich_sidereal_deg = skyfield_time.gast * 15.0
+
     return (greenwich_sidereal_deg + longitude_deg) % 360.0
 
 
