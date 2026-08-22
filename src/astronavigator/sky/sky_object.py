@@ -19,6 +19,14 @@ from astronavigator.sky.spectral_type import SpectralType
 from astronavigator.sky.dso_type import DeepSkyObjectType
 
 
+@dataclass(slots=True, frozen=True)
+class SatelliteBrightness:
+    magnitude: Magnitude
+    is_sunlit: bool
+    range_km: float
+    phase_angle_deg: float
+
+
 @dataclass(slots=True)
 class SkyObject(ABC):
     id: str
@@ -60,11 +68,17 @@ class Star(SkyObject):
 class Satellite(SkyObject):
     model: EarthSatellite
     timescale: Any
+    ephemeris: Any
+
+    standard_magnitude: float = 10.0
 
     is_dynamic: ClassVar[bool] = True
 
     _cache_key: tuple[object, ...] | None = field(default=None, init=False, repr=False)
     _cached_position: Position | None = field(default=None, init=False, repr=False)
+
+    _brightness_cache_key: tuple[object, ...] | None = field(default=None, init=False, repr=False)
+    _cached_brightness: SatelliteBrightness | None = field(default=None, init=False, repr=False)
 
     def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         if time is None or observer is None:
@@ -88,7 +102,76 @@ class Satellite(SkyObject):
         return position
 
     def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
-        return Magnitude(10)  # TODO: 衛星の等級計算
+        if time is None or observer is None:
+            raise ValueError("Time and observer must be provided for Satellite magnitude calculation.")
+
+        return self.get_brightness_info(time, observer).magnitude
+
+
+    def get_brightness_info(self, time: Time, observer: Observer) -> SatelliteBrightness:
+        time_bucket = int(time.utc.timestamp() * 20.0) # 0.05sごとにキャッシュ
+        cache_key = (time_bucket, observer.latitude, observer.longitude, observer.elevation)
+
+        if cache_key == self._brightness_cache_key and self._cached_brightness is not None:
+            return self._cached_brightness
+
+        skyfield_time = self.timescale.from_datetime(time.utc)
+        observing_site = wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
+
+        satellite_geocentric = self.model.at(skyfield_time)
+        observer_geocentric = observing_site.at(skyfield_time)
+
+        earth = self.ephemeris["earth"]
+        sun = self.ephemeris["sun"]
+
+        sun_geocentric = (sun - earth).at(skyfield_time)
+
+        satellite_vector = satellite_geocentric.position.km
+        observer_vector = observer_geocentric.position.km
+        sun_vector = sun_geocentric.position.km
+
+        to_observer = (
+            observer_vector[0] - satellite_vector[0],
+            observer_vector[1] - satellite_vector[1],
+            observer_vector[2] - satellite_vector[2],
+        )
+
+        to_sun = (
+            sun_vector[0] - satellite_vector[0],
+            sun_vector[1] - satellite_vector[1],
+            sun_vector[2] - satellite_vector[2],
+        )
+
+        observer_distance = math.sqrt(to_observer[0] ** 2 + to_observer[1] ** 2 + to_observer[2] ** 2)
+        sun_distance = math.sqrt(to_sun[0] ** 2 + to_sun[1] ** 2 + to_sun[2] ** 2)
+
+        cos = to_observer[0] * to_sun[0] + to_observer[1] * to_sun[1] + to_observer[2] * to_sun[2]
+        cos /= (observer_distance * sun_distance)
+        cos = max(-1.0, min(1.0, cos))
+        phase_angle = math.acos(cos)
+
+        is_sunlit = bool(satellite_geocentric.is_sunlit(self.ephemeris))
+
+        if not is_sunlit:
+            magnitude = Magnitude(float(99.0))
+        else:
+            phase_function = math.sin(phase_angle) + (math.pi - phase_angle) * math.cos(phase_angle)
+            phase_function = max(1e-12, phase_function)
+
+            magnitude_value = self.standard_magnitude + 5.0 * math.log10(observer_distance) - 2.5 * math.log10(phase_function)
+            magnitude = Magnitude(float(magnitude_value))
+
+        result = SatelliteBrightness(
+            magnitude=magnitude,
+            is_sunlit=is_sunlit,
+            range_km=observer_distance,
+            phase_angle_deg=math.degrees(phase_angle)
+        )
+
+        self._brightness_cache_key = cache_key
+        self._cached_brightness = result
+
+        return result
 
 
 @dataclass(slots=True)

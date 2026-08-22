@@ -12,6 +12,8 @@ from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.sky_object import Satellite
 
 
+STANDARD_MAGNITUDE = 10.0
+
 class OmmCsvParser(CatalogParser[Catalog]):
     def __init__(self, skyfield: SkyfieldContext, catalog_name: str = "OMM"):
         self._skyfield = skyfield
@@ -39,11 +41,13 @@ class OmmCsvParser(CatalogParser[Catalog]):
                 satellite = Satellite(
                     id=f"norad:{norad_id}",
                     name=name or f"NORAD {norad_id}",
-                    aliases=tuple(aliases),
                     object_type=ObjectType.SATELLITE,
                     hip=None,
                     model=model,
                     timescale=self._skyfield.timescale,
+                    standard_magnitude=STANDARD_MAGNITUDE,
+                    ephemeris=self._skyfield.ephemeris,
+                    aliases=tuple(aliases),
                 )
 
                 objects_by_id[satellite.id] = satellite
