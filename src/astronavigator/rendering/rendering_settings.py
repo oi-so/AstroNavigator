@@ -39,6 +39,9 @@ class RenderingSettings:
     label_limiting_magnitude: float = 15.0
     show_catalog_names: bool = False
 
+    show_constellation_lines: bool = True
+    show_constellation_labels: bool = True
+
     ra_format: RightAscensionFormat = RightAscensionFormat.HMS
 
     color_settings: ColorSettings = field(default_factory=ColorSettings)

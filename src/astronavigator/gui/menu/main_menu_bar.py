@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QDockWidget, QMenuBar, QWidget
 
 from astronavigator.application.application import Application
-from astronavigator.gui.dialog.layer_settings_dialog import LayerSettingsDialog
+from astronavigator.gui.dialog.rendering_settings_dialog import RenderingSettingsDialog
 
 
 class MainMenuBar(QMenuBar):
@@ -57,10 +57,10 @@ class MainMenuBar(QMenuBar):
 
     def _create_settings_menu(self) -> None:
         self._settings_menu = self.addMenu("設定")
-        self._layer_settings_action = self._settings_menu.addAction("レイヤー設定")
-        self._layer_settings_action.triggered.connect(self._open_layer_settings_dialog)
+        self._layer_settings_action = self._settings_menu.addAction("表示設定...")
+        self._layer_settings_action.triggered.connect(self._show_rendering_settings)
 
 
-    def _open_layer_settings_dialog(self) -> None:
-        dialog = LayerSettingsDialog(self._application, self.window())
+    def _show_rendering_settings(self) -> None:
+        dialog = RenderingSettingsDialog(self._application, self.window())
         dialog.exec()

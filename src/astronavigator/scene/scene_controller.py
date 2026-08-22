@@ -9,6 +9,7 @@ from astronavigator.catalog.catalog import Catalog
 from astronavigator.event.event_type import EventType
 from astronavigator.mount.mount import Mount
 from astronavigator.mount.slew_path import PierSide
+from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
@@ -230,3 +231,30 @@ class SceneController:
 
     def end_camera_drag(self) -> None:
         self._drag_projection_context = None
+
+
+    def set_grid_visible(self, coordinate_system: CoordinateSystem, visible: bool) -> None:
+        settings = self._scene.rendering_settings.grid_settings
+        settings.is_visible[coordinate_system] = visible
+        self._event_bus.publish(EventType.LAYER_CHANGED, coordinate_system)
+
+    def set_constellation_lines_visible(self, visible: bool) -> None:
+        self._scene.rendering_settings.show_constellation_lines = visible
+        self._event_bus.publish(EventType.LAYER_CHANGED, None)
+
+    def set_constellation_labels_visible(self, visible: bool) -> None:
+        self._scene.rendering_settings.show_constellation_labels = visible
+        self._event_bus.publish(EventType.LAYER_CHANGED, None)
+
+    def set_limiting_magnitude(self, magnitude: float) -> None:
+        self._scene.rendering_settings.limiting_magnitude = magnitude
+        self._event_bus.publish(EventType.LAYER_CHANGED, None)
+
+
+    def set_label_limiting_magnitude(self, magnitude: float) -> None:
+        self._scene.rendering_settings.label_limiting_magnitude = magnitude
+        self._event_bus.publish(EventType.LAYER_CHANGED, None)
+
+    def set_wide_label_limiting_magnitude(self, magnitude: float) -> None:
+        self._scene.rendering_settings.wide_label_limiting_magnitude = magnitude
+        self._event_bus.publish(EventType.LAYER_CHANGED, None)
