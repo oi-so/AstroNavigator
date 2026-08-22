@@ -33,6 +33,7 @@ class ColorSettings:
 @dataclass(slots=True)
 class RenderingSettings:
     limiting_magnitude: float = 15.0 # 等級制限
+    satellite_limiting_magnitude: float = 7.0 # 人工衛星の等級制限
 
     show_labels: bool = True
     wide_label_limiting_magnitude: float = 1.0

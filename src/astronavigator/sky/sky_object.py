@@ -27,6 +27,14 @@ class SatelliteBrightness:
     range_km: float
     phase_angle_deg: float
 
+@dataclass(slots=True, frozen=True)
+class SatelliteObservation:
+    position: Position
+    altitude_deg: float
+    range_km: float
+    satellite_vector_km: tuple[float, float, float]
+    satellite_geocentric: object
+
 
 @dataclass(slots=True)
 class SkyObject(ABC):
@@ -81,26 +89,14 @@ class Satellite(SkyObject):
     _brightness_cache_key: tuple[object, ...] | None = field(default=None, init=False, repr=False)
     _cached_brightness: SatelliteBrightness | None = field(default=None, init=False, repr=False)
 
+    _observation_cache_key: tuple[object, ...] | None = field(default=None, init=False, repr=False)
+    _cached_observation: SatelliteObservation | None = field(default=None, init=False, repr=False)
+
     def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
         if time is None or observer is None:
             raise ValueError("Time and observer must be provided for Satellite position calculation.")
 
-        time_bucket = int(time.utc.timestamp() * 20.0) # 0.05sごとにキャッシュ
-        cache_key = (time_bucket, observer.latitude, observer.longitude, observer.elevation)
-
-        if cache_key == self._cache_key and self._cached_position is not None:
-            return self._cached_position
-
-        skyfield_time = self.timescale.from_datetime(time.utc)
-        observing_site = wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
-        topocentric = (self.model - observing_site).at(skyfield_time)
-        ra, dec, _ = topocentric.radec()
-
-        position = Position(float(ra.degrees), float(dec.degrees)).normalized()
-
-        self._cache_key = cache_key
-        self._cached_position = position
-        return position
+        return self.get_observation(time, observer).position
 
     def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
         if time is None or observer is None:
@@ -116,12 +112,10 @@ class Satellite(SkyObject):
         if cache_key == self._brightness_cache_key and self._cached_brightness is not None:
             return self._cached_brightness
 
-        skyfield_time = self.timescale.from_datetime(time.utc)
-        observing_site = wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
 
-        topos = (self.model - observing_site).at(skyfield_time)
-        alt, _, distance = topos.altaz()
-        range_km = float(distance.km)
+        observation = self.get_observation(time, observer)
+        alt = observation.altitude_deg
+        range_km = observation.range_km
         if float(alt.degrees) < 0.0:
             result = SatelliteBrightness(
                 magnitude=Magnitude(float(99.0)),
@@ -133,12 +127,6 @@ class Satellite(SkyObject):
             self._brightness_cache_key = cache_key
             self._cached_brightness = result
             return result
-
-        satellite_geocentric = self.model.at(skyfield_time)
-        observer_geocentric = observing_site.at(skyfield_time)
-
-        earth = self.ephemeris["earth"]
-        sun = self.ephemeris["sun"]
 
         sun_geocentric = (sun - earth).at(skyfield_time)
 
@@ -189,6 +177,49 @@ class Satellite(SkyObject):
         self._cached_brightness = result
 
         return result
+
+    def get_observation(self, time: Time, observer: Observer) -> SatelliteObservation:
+        time_bucket = int(time.utc.timestamp() * 20.0) # 0.05sごとにキャッシュ
+        cache_key = (time_bucket, observer.latitude, observer.longitude, observer.elevation)
+
+        if cache_key == self._observation_cache_key and self._cached_observation is not None:
+            return self._cached_observation
+
+        skyfield_time = self.timescale.from_datetime(time.utc)
+        observing_site = wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
+
+        satellite_geocentric = self.model.at(skyfield_time)
+        observer_geocentric = observing_site.at(skyfield_time)
+
+        satellite_vector = satellite_geocentric.position.km
+        observer_vector = observer_geocentric.position.km
+
+        x = float(satellite_vector[0] - observer_vector[0])
+        y = float(satellite_vector[1] - observer_vector[1])
+        z = float(satellite_vector[2] - observer_vector[2]) 
+
+        range_km = math.sqrt(x ** 2 + y ** 2 + z ** 2)
+
+        ra_deg = math.degrees(math.atan2(y, x)) % 360.0
+        dec_deg = math.degrees(math.asin(z / range_km))
+
+        rotation = observing_site.rotation_at(skyfield_time)
+
+        up = rotation[2, 0] * x + rotation[2, 1] * y + rotation[2, 2] * z
+        altitude_deg = math.degrees(math.asin(float(up) / range_km))
+
+        observation = SatelliteObservation(
+            position=Position(ra_deg, dec_deg).normalized(),
+            altitude_deg=altitude_deg,
+            range_km=range_km,
+            satellite_vector_km=(float(x), float(y), float(z)),
+            satellite_geocentric=satellite_geocentric
+        )
+
+        self._observation_cache_key = cache_key
+        self._cached_observation = observation
+
+        return observation
 
 
 @dataclass(slots=True)

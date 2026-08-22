@@ -119,6 +119,23 @@ class ObjectLayer(Layer):
         self._draw_object(obj, point, context, magnitude)
         self._render_objects.append(RenderedObject(obj, point))
 
+    def _render_satellite(self, satellite: Satellite, painter: QPainter, context: RendererContext) -> None:
+        observation = satellite.get_observation(context.scene.time, context.scene.observer)
+        if observation.altitude_deg < 0.0:
+            return
+
+        converted = context.projection.convert_position(observation.position, context.projection_context)
+        point = context.projection.unproject(converted, context.projection_context, context.viewport.size())
+
+        if point is None:
+            return
+
+        brightness = satellite.get_brightness_info(context.scene.time, context.scene.observer)
+        if brightness.magnitude.value > context.scene.rendering_settings.satellite_limiting_magnitude:
+            return
+
+        self._draw_satellite(painter, satellite, context.scene, point)
+
 
     def _draw_object(self, obj: SkyObject, point: QPointF, context: RendererContext, magnitude: Magnitude) -> None:
         match obj:
