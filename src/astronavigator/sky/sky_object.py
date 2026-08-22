@@ -22,6 +22,7 @@ from astronavigator.sky.dso_type import DeepSkyObjectType
 @dataclass(slots=True, frozen=True)
 class SatelliteBrightness:
     magnitude: Magnitude
+    is_above_horizon: bool
     is_sunlit: bool
     range_km: float
     phase_angle_deg: float
@@ -118,6 +119,21 @@ class Satellite(SkyObject):
         skyfield_time = self.timescale.from_datetime(time.utc)
         observing_site = wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
 
+        topos = (self.model - observing_site).at(skyfield_time)
+        alt, _, distance = topos.altaz()
+        range_km = float(distance.km)
+        if float(alt.degrees) < 0.0:
+            result = SatelliteBrightness(
+                magnitude=Magnitude(float(99.0)),
+                is_above_horizon=False,
+                is_sunlit=False,
+                range_km=range_km,
+                phase_angle_deg=0.0
+            )
+            self._brightness_cache_key = cache_key
+            self._cached_brightness = result
+            return result
+
         satellite_geocentric = self.model.at(skyfield_time)
         observer_geocentric = observing_site.at(skyfield_time)
 
@@ -164,6 +180,7 @@ class Satellite(SkyObject):
         result = SatelliteBrightness(
             magnitude=magnitude,
             is_sunlit=is_sunlit,
+            is_above_horizon=True,
             range_km=observer_distance,
             phase_angle_deg=math.degrees(phase_angle)
         )
