@@ -26,6 +26,7 @@ class SkyView(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         self._event_bus.subscribe(EventType.TIME_CHANGED, self._on_time_changed)
+        self._event_bus.subscribe(EventType.LAYER_CHANGED, self._on_layer_changed)
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -102,4 +103,7 @@ class SkyView(QWidget):
 
 
     def _on_time_changed(self, event) -> None:
+        self.update()
+
+    def _on_layer_changed(self, event) -> None:
         self.update()
