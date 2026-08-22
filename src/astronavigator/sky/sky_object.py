@@ -4,11 +4,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 import math
 from typing import ClassVar, Any
+from skyfield import almanac
 from skyfield.api import wgs84, EarthSatellite
 from skyfield.magnitudelib import planetary_magnitude
+from datetime import datetime, timedelta
 
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.time import Time
+from astronavigator.sky.moon_phase import MoonPhaseInfo
 from astronavigator.sky.object_type import ObjectType
 from astronavigator.sky.position import Position
 from astronavigator.sky.magnitude import Magnitude
@@ -234,9 +237,156 @@ class Sun(SolarSystemBody):
 
 @dataclass(slots=True)
 class Moon(SolarSystemBody):
+    _phase_cache_key: int | None = field(default=None, init=False, repr=False)
+    _cached_phase_info: MoonPhaseInfo | None = field(default=None, init=False, repr=False)
+    _cached_bright_limb_position: Position | None = field(default=None, init=False, repr=False)
+    _previous_new_moon_utc: datetime | None = field(default=None, init=False, repr=False)
+    _next_new_moon_utc: datetime | None = field(default=None, init=False, repr=False)
+
     def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
-        # TODO: 月の等級計算
-        return Magnitude(-12.7)
+        return Magnitude(-12.74)
+
+    def get_phase_info(self, time: Time, observer: Observer) -> MoonPhaseInfo:
+        cache_key = int(time.utc.timestamp() // 60)  # 1分ごとにキャッシュ
+        if cache_key == self._phase_cache_key and self._cached_phase_info is not None:
+            return self._cached_phase_info
+
+        skyfield_time = self.timescale.from_datetime(time.utc)
+        illuminated_fraction = float(almanac.fraction_illuminated(self.ephemeris, "moon", skyfield_time))
+        phase_angle_deg = float(almanac.moon_phase(self.ephemeris, skyfield_time).degrees) % 360.0
+        previous_new_moon = self._get_previous_new_moon(time.utc)
+        age_days = (time.utc - previous_new_moon).total_seconds() / 86400.0
+
+        phase_info = MoonPhaseInfo(
+            illuminated_fraction=illuminated_fraction,
+            age_days=age_days,
+            phase_angle_deg=phase_angle_deg,
+            phase_name=self._get_phase_name(phase_angle_deg),
+            is_waxing=phase_angle_deg < 180.0,
+        )
+
+        self._phase_cache_key = cache_key
+        self._cached_phase_info = phase_info
+        self._cached_bright_limb_position = None
+
+        return phase_info
+
+
+    def get_bright_limb_position(self, time: Time, observer: Observer) -> Position:
+        self.get_phase_info(time, observer)
+        if self._cached_bright_limb_position is not None:
+            return self._cached_bright_limb_position
+
+        moon_apparent = self._get_apparent(time, observer)
+        skyfield_time = self.timescale.from_datetime(time.utc)
+        geographic_position = wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
+
+        earth = self.ephemeris["earth"]
+        sun = self.ephemeris["sun"]
+        topos = earth + geographic_position
+
+        sun_apparent = topos.at(skyfield_time).observe(sun).apparent()
+
+        moon_ra, moon_dec, _ = moon_apparent.radec()
+        sun_ra, sun_dec, _ = sun_apparent.radec()
+
+        moon_vector = self._position_to_vector(float(moon_ra.radians), float(moon_dec.radians))
+        sun_vector = self._position_to_vector(float(sun_ra.radians), float(sun_dec.radians))
+
+        dot = sum(moon_component * sun_component for moon_component, sun_component in zip(moon_vector, sun_vector, strict=True))
+        tan = (
+            sun_vector[0] - dot * moon_vector[0],
+            sun_vector[1] - dot * moon_vector[1],
+            sun_vector[2] - dot * moon_vector[2],
+        )
+
+        tanget_length = math.sqrt(tan[0] ** 2 + tan[1] ** 2 + tan[2] ** 2)
+
+        if tanget_length < 1e-10:
+            position = Position(float(moon_ra.degrees), float(moon_dec.degrees) + 0.25).normalized()
+            self._cached_bright_limb_position = position
+            return position
+
+        tan = (tan[0] / tanget_length, tan[1] / tanget_length, tan[2] / tanget_length)
+        offset_rad = math.radians(0.25)
+
+        reference_vector = (
+            math.cos(offset_rad) * moon_vector[0] + math.sin(offset_rad) * tan[0],
+            math.cos(offset_rad) * moon_vector[1] + math.sin(offset_rad) * tan[1],
+            math.cos(offset_rad) * moon_vector[2] + math.sin(offset_rad) * tan[2],
+        )
+
+        position = self._vector_to_position(reference_vector)
+        self._cached_bright_limb_position = position
+
+        return position
+
+    def _get_previous_new_moon(self, utc: datetime) -> datetime:
+        if self._previous_new_moon_utc is not None and self._next_new_moon_utc is not None and self._previous_new_moon_utc <= utc < self._next_new_moon_utc:
+            return self._previous_new_moon_utc
+
+        start = self.timescale.from_datetime(utc - timedelta(days=40))
+        end = self.timescale.from_datetime(utc + timedelta(days=40))
+
+        phase_times, phase_types = almanac.find_discrete(start, end, almanac.moon_phases(self.ephemeris))
+        new_moons = [phase_time.utc_datetime() for phase_time, phase_type in zip(phase_times, phase_types, strict=True) if int(phase_type) == 0]
+
+        previous_new_moons = [value for value in new_moons if value <= utc]
+        next_new_moons = [value for value in new_moons if value > utc]
+
+        if not previous_new_moons or not next_new_moons:
+            raise RuntimeError("Failed to find previous or next new moon.")
+
+        self._previous_new_moon_utc = max(previous_new_moons)
+        self._next_new_moon_utc = min(next_new_moons)
+
+        return self._previous_new_moon_utc
+
+    @staticmethod
+    def _get_phase_name(phase_angle_deg: float) -> str:
+        if phase_angle_deg < 22.5:
+            return "新月"
+        elif phase_angle_deg < 67.5:
+            return "三日月"
+        elif phase_angle_deg < 112.5:
+            return "上弦"
+        elif phase_angle_deg < 157.5:
+            return "十三夜"
+        elif phase_angle_deg < 202.5:
+            return "満月"
+        elif phase_angle_deg < 247.5:
+            return "十六夜"
+        elif phase_angle_deg < 292.5:
+            return "下弦"
+        elif phase_angle_deg < 337.5:
+            return "二十六夜"
+        else:
+            return "新月"
+
+    @staticmethod
+    def _position_to_vector(ra_deg: float, dec_deg: float) -> tuple[float, float, float]:
+        ra_rad = math.radians(ra_deg)
+        dec_rad = math.radians(dec_deg)
+        cos_dec = math.cos(dec_rad)
+
+        return (
+            cos_dec * math.cos(ra_rad),
+            cos_dec * math.sin(ra_rad),
+            math.sin(dec_rad)
+        )
+
+    @staticmethod
+    def _vector_to_position(vector: tuple[float, float, float]) -> Position:
+        x, y, z = vector
+        r = math.sqrt(x ** 2 + y ** 2 + z ** 2)
+        x /= r
+        y /= r
+        z /= r
+
+        ra_deg = math.degrees(math.atan2(y, x)) % 360.0
+        dec_deg = math.degrees(math.asin(max(-1.0, min(1.0, z))))
+
+        return Position(ra_deg, dec_deg).normalized()
 
 @dataclass(slots=True)
 class Planet(SolarSystemBody):
