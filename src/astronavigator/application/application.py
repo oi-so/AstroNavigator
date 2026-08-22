@@ -192,7 +192,7 @@ class Application:
             self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, update.state)
         mount = self._scene.mount
         if mount is not None:
-            self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount.position)
+            self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
 
 
     @property
