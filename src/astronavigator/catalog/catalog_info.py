@@ -68,3 +68,11 @@ VISUAL_SATELLITES_OMM = CatalogInfo(
     save_path=Path(Path.cwd() / "data" / "satellites" / "visual.csv"),
     max_age=timedelta(hours=12),
 )
+
+
+MPC_COMETS = CatalogInfo(
+    name="MPC Comets",
+    url="https://www.minorplanetcenter.net/iau/MPCORB/CometEls.txt",
+    save_path=Path.cwd() / "data" / "comets" / "CometEls.txt",
+    max_age=timedelta(hours=12),
+)

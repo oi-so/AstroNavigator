@@ -12,6 +12,7 @@ from astronavigator.catalog.parser.hyg_parser import HygParser
 from astronavigator.catalog.parser.omm_csv_parser import OmmCsvParser
 from astronavigator.catalog.parser.skyfield_parser import SkyfieldParser
 from astronavigator.catalog.parser.ngc_parser import NGCParser
+from astronavigator.catalog.parser.mpc_comet_parser import MpcCometParser
 from astronavigator.catalog.provider.debug_catalog_provider import DebugCatalogProvider
 from astronavigator.catalog.provider.local_file_provider import LocalFileProvider
 from astronavigator.catalog.provider.solar_system_provider import SolarSystemProvider
@@ -27,7 +28,7 @@ from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.event.event_bus import EventBus
-from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG, OPENNGC_ADDENDUM, OPENNGC_NGC, VISUAL_SATELLITES_OMM
+from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG, OPENNGC_ADDENDUM, OPENNGC_NGC, VISUAL_SATELLITES_OMM, MPC_COMETS
 from astronavigator.tracking.e_zeus_rate_profile_repository import EZeusRateProfileRepository
 from astronavigator.tracking.mount_tracking import MountTrackingBackend
 from astronavigator.tracking.simulator_tracking import SimulatorTrackingBackend
@@ -44,7 +45,7 @@ from astronavigator.tracking.target_horizontal_position_calculator import Skyfie
 from astronavigator.tracking.e_zeus_tracking_backend import EZeusTrackingBackend
 
 
-FPS = 60
+FPS = 30
 
 class Application:
     def __init__(self):
@@ -62,6 +63,7 @@ class Application:
         self._load_solar_system()
         self._load_satellites()
         self._load_openngc()
+        # self._load_comets()
 
         self._tracking_controller: TrackingController | None = None
         self._tracking_time_provider: TrackingTimeProvider | None = None
@@ -142,6 +144,20 @@ class Application:
         self._scene_controller.add_catalog(catalog)
 
 
+    def _load_comets(self) -> None:
+        skyfield_context = self._scene.skyfield
+
+        if skyfield_context is None:
+            raise RuntimeError("Skyfield context is not loaded yet.")
+
+        self._catalog_manager.download_catalog(MPC_COMETS)
+        parser = MpcCometParser(skyfield=skyfield_context, catalog_name=MPC_COMETS.name)
+        provider = LocalFileProvider(path=MPC_COMETS.save_path, parser=parser)
+
+        catalog = provider.load()
+        self._scene_controller.add_catalog(catalog)
+
+
     def _update(self):
         current_time = time.monotonic()
         delta_time = current_time - self._last_update_time
@@ -149,6 +165,7 @@ class Application:
 
         self._update_scene_time(delta_time)
         self._update_dynamic_tracking(delta_time)
+        # print(f"Update: {delta_time:.3f} seconds")
 
     def _update_scene_time(self, delta_time: float):
         provider = self._tracking_time_provider

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+import math
 from typing import ClassVar, Any
 from skyfield.api import wgs84, EarthSatellite
 from skyfield.magnitudelib import planetary_magnitude
@@ -89,13 +90,65 @@ class Satellite(SkyObject):
 
 @dataclass(slots=True)
 class Comet(SkyObject):
+    model: Any
+    heliocentric_model: Any
+    ephemeris: Any
+    timescale: Any
+
+    magnitude_g: float
+    magnitude_k: float
+
     is_dynamic: ClassVar[bool] = True
 
+    _cache_key: tuple[object, ...] | None = field(default=None, init=False, repr=False)
+    _cached_apparent: Any = field(default=None, init=False, repr=False)
+    _cached_heliocentric_distance_au: float | None = field(default=None, init=False, repr=False)
+
+    def _update_cache(self, time: Time, observer: Observer) -> None:
+        cache_key = time.utc.replace(microsecond=0), observer.latitude, observer.longitude, observer.elevation
+
+        if cache_key == self._cache_key and self._cached_apparent is not None and self._cached_heliocentric_distance_au is not None:
+            return
+
+        skyfield_time = self.timescale.from_datetime(time.utc)
+        geographic_position = wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
+
+        earth = self.ephemeris["earth"]
+        topos = earth + geographic_position
+        self._cached_apparent = topos.at(skyfield_time).observe(self.model).apparent()
+        self._cached_heliocentric_distance_au = float(self.heliocentric_model.at(skyfield_time).distance().au)
+
+        self._cache_key = cache_key
+
     def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
-        raise NotImplementedError("Comet position calculation is not implemented yet.")
+        if time is None or observer is None:
+            raise ValueError("Time and observer must be provided for Comet position calculation.")
+
+        self._update_cache(time, observer)
+        apparent = self._cached_apparent
+        if apparent is None:
+            raise RuntimeError("Cached apparent position is not available.")
+        ra, dec, _ = apparent.radec()
+        return Position(float(ra.degrees), float(dec.degrees)).normalized()
     
     def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
-        raise NotImplementedError("Comet magnitude calculation is not implemented yet.")
+        if time is None or observer is None:
+            raise ValueError("Time and observer must be provided for Comet magnitude calculation.")
+
+        self._update_cache(time, observer)
+
+        apparent = self._cached_apparent
+        heliocentric_distance_au = self._cached_heliocentric_distance_au
+        if apparent is None or heliocentric_distance_au is None:
+            raise RuntimeError("Cached apparent position or heliocentric distance is not available.")
+
+        observer_distance_au = float(apparent.distance().au)
+        observer_distance_au = max(observer_distance_au, 1e-9)
+        heliocentric_distance_au = max(heliocentric_distance_au, 1e-9)
+        # 概算の等級式 m = g + 5 * log10(Δ) + k * log10(r) (g, kは定数、Δは観測値と彗星の距離、rは太陽と彗星の距離)
+        magnitude = self.magnitude_g + 5.0 * math.log10(observer_distance_au) + self.magnitude_k * math.log10(heliocentric_distance_au)
+
+        return Magnitude(float(magnitude))
 
 
 @dataclass(slots=True)

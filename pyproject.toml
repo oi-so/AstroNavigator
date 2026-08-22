@@ -12,9 +12,10 @@ dependencies = [
     "astropy>=8.0.1",
     "certifi>=2026.6.17",
     "numpy>=2.5.1",
+    "pandas>=3.0.5",
     "pyserial>=3.5",
     "pyside6>=6.11.1",
-    "skyfield>=1.54",
+    "skyfield>=1.55",
     "tzdata>=2026.3",
 ]
 
