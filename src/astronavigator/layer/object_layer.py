@@ -61,6 +61,9 @@ class ObjectLayer(Layer):
 
         self._render_objects: list[RenderedObject] = []
 
+        self._moon_phase_image_fraction: float | None = None
+        self._moon_phase_image: QImage | None = None
+
     # @profile
     def render(self, context: RendererContext) -> None:
         self._render_objects.clear()
@@ -108,33 +111,45 @@ class ObjectLayer(Layer):
             self._render_object(obj, limit_magnitude, viewport_size, context)
 
     def _render_object(self, obj: SkyObject, limit_magnitude: float, viewport_size: QSize, context: RendererContext) -> None:
-        magnitude = obj.get_magnitude(context.scene.time, context.scene.observer)
-        if not magnitude.is_visible(limit_magnitude):
+        scene = context.scene
+        time = scene.time
+        observer = scene.observer
+
+
+        if isinstance(obj, Comet) and not obj.is_active(time):
             return
 
-        point = context.projection.project_object(obj, context.projection_context, viewport_size)
-        if point is None:
-            return
+        if isinstance(obj, Satellite):
+            observation = obj.get_observation(time, observer)
+
+            if observation.altitude_deg < 0.0:
+                return
+
+            point = context.projection.project(observation.position, context.projection_context, viewport_size)
+
+            if point is None:
+                return
+
+            brightness = obj.get_brightness_info(time, observer)
+            magnitude = brightness.magnitude
+            satellite_limit = getattr(scene.rendering_settings, "satellite_limiting_magnitude", limit_magnitude)
+
+            if not magnitude.is_visible(satellite_limit):
+                return
+
+        else:
+            point = context.projection.project_object(obj, context.projection_context, viewport_size)
+
+            if point is None:
+                return
+
+            magnitude = obj.get_magnitude(time, observer)
+
+            if not magnitude.is_visible(limit_magnitude):
+                return
 
         self._draw_object(obj, point, context, magnitude)
         self._render_objects.append(RenderedObject(obj, point))
-
-    def _render_satellite(self, satellite: Satellite, painter: QPainter, context: RendererContext) -> None:
-        observation = satellite.get_observation(context.scene.time, context.scene.observer)
-        if observation.altitude_deg < 0.0:
-            return
-
-        converted = context.projection.convert_position(observation.position, context.projection_context)
-        point = context.projection.unproject(converted, context.projection_context, context.viewport.size())
-
-        if point is None:
-            return
-
-        brightness = satellite.get_brightness_info(context.scene.time, context.scene.observer)
-        if brightness.magnitude.value > context.scene.rendering_settings.satellite_limiting_magnitude:
-            return
-
-        self._draw_satellite(painter, satellite, context.scene, point)
 
 
     def _draw_object(self, obj: SkyObject, point: QPointF, context: RendererContext, magnitude: Magnitude) -> None:
@@ -210,28 +225,25 @@ class ObjectLayer(Layer):
                 bright_direction_x /= -length
                 bright_direction_y /= -length
 
-        image = self._create_moon_phase_image(phase_info.illuminated_fraction, bright_direction_x, bright_direction_y)
+        image = self._get_moon_phase_image(phase_info.illuminated_fraction)
 
-        target_rect = QRectF(
-            point.x() - MOON_RADIUS_PX,
-            point.y() - MOON_RADIUS_PX,
-            2.0 * MOON_RADIUS_PX,
-            2.0 * MOON_RADIUS_PX,
-        )
+        direction_angle_deg = math.degrees(math.atan2(bright_direction_y, bright_direction_x))
+        rotate_rect = QRectF(-MOON_RADIUS_PX, -MOON_RADIUS_PX, MOON_RADIUS_PX * 2.0, MOON_RADIUS_PX * 2.0)
 
         painter = context.painter
         painter.save()
 
         try:
             painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
-            painter.drawImage(target_rect, image)
+            painter.translate(point)
+            painter.rotate(direction_angle_deg)
+            painter.drawImage(rotate_rect, image)
 
-            outline_pen = QPen(QColor(220, 220, 210))
+            outline_pen = QPen(QColor(200, 200, 200))
             outline_pen.setWidthF(MOON_OUTLINE_SIZE)
-
             painter.setPen(outline_pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawEllipse(point, MOON_RADIUS_PX, MOON_RADIUS_PX)
+            painter.drawEllipse(QPointF(0.0, 0.0), MOON_RADIUS_PX, MOON_RADIUS_PX)
         finally:
             painter.restore()
 
@@ -373,3 +385,11 @@ class ObjectLayer(Layer):
                 image.setPixelColor(x, y, color)
 
         return image
+
+
+    def _get_moon_phase_image(self, illuminated_fraction: float) -> QImage:
+        if self._moon_phase_image is None or self._moon_phase_image_fraction != illuminated_fraction:
+            self._moon_phase_image = self._create_moon_phase_image(illuminated_fraction, 1.0, 0.0)
+            self._moon_phase_image_fraction = illuminated_fraction
+
+        return self._moon_phase_image
