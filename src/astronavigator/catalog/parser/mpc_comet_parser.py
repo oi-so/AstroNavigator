@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from skyfield.constants import GM_SUN_DE440_km3_s2
@@ -14,6 +15,7 @@ from astronavigator.sky.sky_object import Comet
 
 
 MAXIMUM_COMET_ABSOLUTE_MAGNITUDE = 15.0
+COMET_ACTIVE_WINDOW_DAYS = 730.0
 
 
 class MpcCometParser(CatalogParser[Catalog]):
@@ -45,6 +47,10 @@ class MpcCometParser(CatalogParser[Catalog]):
                 if magnitude_g > self._max_abs_magnitude:
                     continue
 
+                perihelion_day = float(row["perihelion_day"])
+                day_integer = int(perihelion_day)
+                perihelion_utc = datetime(year=int(row["perihelion_year"]), month=int(row["perihelion_month"]), day=day_integer, tzinfo=timezone.utc) + timedelta(days=perihelion_day - day_integer)
+
                 heliocentric = mpc.comet_orbit(row, self._skyfield.timescale, GM_SUN_DE440_km3_s2)
                 barycentric = sun + heliocentric
 
@@ -60,6 +66,8 @@ class MpcCometParser(CatalogParser[Catalog]):
                     timescale=self._skyfield.timescale,
                     magnitude_g=magnitude_g,
                     magnitude_k=magnitude_k,
+                    perihelion_utc=perihelion_utc,
+                    active_window_days=COMET_ACTIVE_WINDOW_DAYS
                 )
 
                 objects.append(comet)
