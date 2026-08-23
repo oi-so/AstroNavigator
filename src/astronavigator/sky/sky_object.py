@@ -20,6 +20,32 @@ from astronavigator.sky.spectral_type import SpectralType
 from astronavigator.sky.dso_type import DeepSkyObjectType
 
 
+KNOWN_STANDARD_MAGNITUDES = {
+    25544: -1.3, # ISS
+    48274: 0.87, # 中国宇宙ステーション
+}
+
+def resolve_standard_magnitude(norad_id: int, satellite_name: str, catalog_value: float | None = None) -> float:
+    # if catalog_value is not None:
+    #     return catalog_value
+
+    if norad_id in KNOWN_STANDARD_MAGNITUDES:
+        return KNOWN_STANDARD_MAGNITUDES[norad_id]
+
+    upper_name = satellite_name.upper()
+
+    if upper_name.startswith("STARLINK"):
+        if "VISORSAT" in upper_name:
+            return 7.21
+        return 5.89
+
+    if upper_name.startswith("ONEWEB"):
+        return 7.05
+
+    return 10.0
+
+
+
 @dataclass(slots=True, frozen=True)
 class SatelliteBrightness:
     magnitude: Magnitude
@@ -99,6 +125,12 @@ class Satellite(SkyObject):
 
     _shared_frame_cache_key: ClassVar[tuple[object, ...] | None] = None
     _shared_frame_context: ClassVar[SatelliteFrameContext | None] = None
+
+
+    def __post_init__(self):
+        id = self.id.startswith("norad:") and self.id[6:] or self.id
+        id = int(id)
+        self.standard_magnitude = resolve_standard_magnitude(id, self.name)
 
 
     def _get_frame_context(self, time: Time, observer: Observer) -> SatelliteFrameContext:
@@ -260,15 +292,14 @@ class Satellite(SkyObject):
         cos = max(-1.0, min(1.0, cos))
 
         phase_angle = math.acos(cos)
-        is_sunlit = self._is_sunlit(satellite_vector, sun_vector, sun_distance)
+        is_sunlit = self._is_sunlit(satellite_vector, to_sun, sun_distance)
 
         if not is_sunlit:
             magnitude = Magnitude(float(99.0))
         else:
-            phase_function = math.sin(phase_angle) + (math.pi - phase_angle) * math.cos(phase_angle)
-            phase_function = max(1e-12, phase_function)
+            illuminated_fraction = max(1e-6, 0.5 * (1.0 + math.cos(phase_angle)))
 
-            magnitude_value = self.standard_magnitude * 5.9 * math.log10(observer_distance) + 2.5 * math.log10(phase_function)
+            magnitude_value = self.standard_magnitude - 15.75 + 2.5 * math.log10(observer_distance ** 2 * illuminated_fraction)
             magnitude = Magnitude(float(magnitude_value))
 
         result = SatelliteBrightness(
