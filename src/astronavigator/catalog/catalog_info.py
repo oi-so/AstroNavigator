@@ -76,3 +76,11 @@ MPC_COMETS = CatalogInfo(
     save_path=Path.cwd() / "data" / "comets" / "CometEls.txt",
     max_age=timedelta(hours=12),
 )
+
+
+SATELLITE_MAGNITUDES = CatalogInfo(
+    name="Satellite standard magnitudes",
+    url=("https://raw.githubusercontent.com/Stellarium/stellarium-data/master/satellites/satellites.dat"),
+    save_path=(Path.cwd() / "data" / "satellites" / "satellites.dat.gz"),
+    max_age=timedelta(days=7),
+)

@@ -120,19 +120,24 @@ class ObjectLayer(Layer):
             return
 
         if isinstance(obj, Satellite):
-            observation = obj.get_observation(time, observer)
+            snapshot = scene.satellite_render_snapshot
+            if snapshot is None:
+                return
 
+            state = snapshot.states.get(obj.id)
+            if state is None:
+                return
+
+            observation = state.observation
             if observation.altitude_deg < 0.0:
                 return
 
             point = context.projection.project(observation.position, context.projection_context, viewport_size)
-
             if point is None:
                 return
 
-            brightness = obj.get_brightness_info(time, observer)
-            magnitude = brightness.magnitude
-            satellite_limit = getattr(scene.rendering_settings, "satellite_limiting_magnitude", limit_magnitude)
+            magnitude = state.brightness.magnitude
+            satellite_limit = getattr(scene.rendering_settings, "satellite_limit_magnitude", limit_magnitude)
 
             if not magnitude.is_visible(satellite_limit):
                 return

@@ -10,6 +10,7 @@ from astronavigator.catalog.catalog_manager import CatalogManager
 from astronavigator.catalog.parser.constellation_parser import ConstellationJsonParser
 from astronavigator.catalog.parser.hyg_parser import HygParser
 from astronavigator.catalog.parser.omm_csv_parser import OmmCsvParser
+from astronavigator.catalog.parser.satellite_magnitude_parser import SatelliteMagnitudeParser
 from astronavigator.catalog.parser.skyfield_parser import SkyfieldParser
 from astronavigator.catalog.parser.ngc_parser import NGCParser
 from astronavigator.catalog.parser.mpc_comet_parser import MpcCometParser
@@ -28,7 +29,10 @@ from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.event.event_bus import EventBus
-from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG, OPENNGC_ADDENDUM, OPENNGC_NGC, VISUAL_SATELLITES_OMM, MPC_COMETS
+from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG, OPENNGC_ADDENDUM, OPENNGC_NGC, SATELLITE_MAGNITUDES, VISUAL_SATELLITES_OMM, MPC_COMETS
+from astronavigator.sky.object_type import ObjectType
+from astronavigator.sky.satellite_render_cache import SatelliteRenderCache
+from astronavigator.sky.sky_object import Satellite
 from astronavigator.tracking.e_zeus_rate_profile_repository import EZeusRateProfileRepository
 from astronavigator.tracking.mount_tracking import MountTrackingBackend
 from astronavigator.tracking.simulator_tracking import SimulatorTrackingBackend
@@ -64,6 +68,11 @@ class Application:
         self._load_satellites()
         self._load_openngc()
         # self._load_comets()
+
+        self._satellite_render_cache = SatelliteRenderCache()
+        self._satellite_render_cache.snapshot_changed.connect(self._on_satellite_snapshot_changed)
+
+        self._request_satellite_snapshot()
 
         self._tracking_controller: TrackingController | None = None
         self._tracking_time_provider: TrackingTimeProvider | None = None
@@ -122,8 +131,12 @@ class Application:
     def _load_satellites(self):
         if self._scene.skyfield is None:
             raise RuntimeError("Skyfield context is not loaded yet.")
+        self._catalog_manager.download_catalog(SATELLITE_MAGNITUDES)
+        mag_parser = SatelliteMagnitudeParser()
+        standard_magnitudes = mag_parser.parse(SATELLITE_MAGNITUDES.save_path)
+
         self._catalog_manager.download_catalog(VISUAL_SATELLITES_OMM)
-        parser = OmmCsvParser(skyfield=self._scene.skyfield, catalog_name="CelesTrak Visual Satellites")
+        parser = OmmCsvParser(skyfield=self._scene.skyfield, catalog_name="CelesTrak Visual Satellites", standard_magnitudes=standard_magnitudes)
         provider = LocalFileProvider(path=VISUAL_SATELLITES_OMM.save_path, parser=parser)
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
@@ -164,8 +177,9 @@ class Application:
         self._last_update_time = current_time
 
         self._update_scene_time(delta_time)
+        self._request_satellite_snapshot()
         self._update_dynamic_tracking(delta_time)
-        # print(f"Update: {delta_time:.3f} seconds")
+        print(f"Update: {delta_time:.3f} seconds")
 
     def _update_scene_time(self, delta_time: float):
         provider = self._tracking_time_provider
@@ -363,3 +377,18 @@ class Application:
         raise RuntimeError(
             f"{type(mount).__name__} はまだ動的追尾に対応していません。"
         )
+
+
+    def _request_satellite_snapshot(self):
+        objects = self._scene.object_index.find_dynamic_by_type(ObjectType.SATELLITE)
+        satellites = tuple(obj for obj in objects if isinstance(obj, Satellite))
+
+        self._satellite_render_cache.request_update(
+            time=self._scene.time,
+            observer=self._scene.observer,
+            satellites=satellites,
+        )
+
+    def _on_satellite_snapshot_changed(self, snapshot: SatelliteRenderSnapshot):
+        self._scene.satellite_render_snapshot = snapshot
+        self._event_bus.publish(EventType.SCENE_UPDATED, snapshot)

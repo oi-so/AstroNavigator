@@ -26,11 +26,12 @@ KNOWN_STANDARD_MAGNITUDES = {
 }
 
 def resolve_standard_magnitude(norad_id: int, satellite_name: str, catalog_value: float | None = None) -> float:
-    # if catalog_value is not None:
-    #     return catalog_value
+    if catalog_value is not None and math.isfinite(catalog_value):
+        return catalog_value
 
-    if norad_id in KNOWN_STANDARD_MAGNITUDES:
-        return KNOWN_STANDARD_MAGNITUDES[norad_id]
+    known_value = KNOWN_STANDARD_MAGNITUDES.get(norad_id)
+    if known_value is not None:
+        return known_value
 
     upper_name = satellite_name.upper()
 
@@ -113,7 +114,7 @@ class Satellite(SkyObject):
     timescale: Any
     ephemeris: Any
 
-    standard_magnitude: float = 10.0
+    standard_magnitude: float = 7.0
 
     is_dynamic: ClassVar[bool] = True
 
@@ -126,14 +127,7 @@ class Satellite(SkyObject):
     _shared_frame_cache_key: ClassVar[tuple[object, ...] | None] = None
     _shared_frame_context: ClassVar[SatelliteFrameContext | None] = None
 
-
-    def __post_init__(self):
-        id = self.id.startswith("norad:") and self.id[6:] or self.id
-        id = int(id)
-        self.standard_magnitude = resolve_standard_magnitude(id, self.name)
-
-
-    def _get_frame_context(self, time: Time, observer: Observer) -> SatelliteFrameContext:
+    def create_frame_context(self, time: Time, observer: Observer) -> SatelliteFrameContext:
         time_bucket = int(time.utc.timestamp() * 20.0) # 0.05sごとにキャッシュ
         cache_key = (id(self.timescale), id(self.ephemeris), time_bucket, observer.latitude, observer.longitude, observer.elevation)
 
@@ -152,7 +146,7 @@ class Satellite(SkyObject):
         observer_position = observer_geocentric.position.km
         sun_position = sun_geocentric.position.km
 
-        frame_context = SatelliteFrameContext(
+        return SatelliteFrameContext(
             cache_key=cache_key,
             skyfield_time=skyfield_time,
             observer_vector_km=(
@@ -168,18 +162,7 @@ class Satellite(SkyObject):
             equatorial_to_horizontal=observing_site.rotation_at(skyfield_time),
         )
 
-        satellite_type._shared_frame_cache_key = cache_key
-        satellite_type._shared_frame_context = frame_context
-
-        return frame_context
-
-    def get_observation(self, time: Time, observer: Observer) -> SatelliteObservation:
-        frame_context = self._get_frame_context(time, observer)
-        cache_key = frame_context.cache_key
-
-        if cache_key == self._observation_cache_key and self._cached_observation is not None:
-            return self._cached_observation
-
+    def calculate_observation(self, frame_context: SatelliteFrameContext) -> SatelliteObservation:
         satellite_geocentric = self.model.at(frame_context.skyfield_time)
         satellite_position = satellite_geocentric.position.km
         satellite_vector = (
@@ -214,12 +197,19 @@ class Satellite(SkyObject):
 
         altitude_deg = math.degrees(math.asin(max(-1.0, min(1.0, up_km / range_km))))
 
-        observation = SatelliteObservation(
+        return SatelliteObservation(
             position=Position(ra_deg, dec_deg).normalized(),
             altitude_deg=altitude_deg,
             range_km=range_km,
             satellite_vector_km=satellite_vector
         )
+
+    def _get_observation_for_frame(self, frame_context: SatelliteFrameContext) -> SatelliteObservation:
+        cache_key = frame_context.cache_key
+        if cache_key == self._observation_cache_key and self._cached_observation is not None:
+            return self._cached_observation
+
+        observation = self.calculate_observation(frame_context)
 
         self._observation_cache_key = cache_key
         self._cached_observation = observation
@@ -227,40 +217,19 @@ class Satellite(SkyObject):
         return observation
 
 
-    def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
-        if time is None or observer is None:
-            raise ValueError("Time and observer must be provided for Satellite position calculation.")
+    def get_observation(self, time: Time, observer: Observer) -> SatelliteObservation:
+        frame_context = self.create_frame_context(time, observer)
+        return self._get_observation_for_frame(frame_context)
 
-        return self.get_observation(time, observer).position
-
-    def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
-        if time is None or observer is None:
-            raise ValueError("Time and observer must be provided for Satellite magnitude calculation.")
-
-        return self.get_brightness_info(time, observer).magnitude
-
-
-    def get_brightness_info(self, time: Time, observer: Observer) -> SatelliteBrightness:
-        frame_context = self._get_frame_context(time, observer)
-        cache_key = frame_context.cache_key
-
-        if cache_key == self._brightness_cache_key and self._cached_brightness is not None:
-            return self._cached_brightness
-
-        observation = self.get_observation(time, observer)
+    def calculate_brightness(self, frame_context: SatelliteFrameContext, observation: SatelliteObservation) -> SatelliteBrightness:
         if observation.altitude_deg < 0.0:
-            result = SatelliteBrightness(
+            return SatelliteBrightness(
                 magnitude=Magnitude(float(99.0)),
                 is_above_horizon=False,
                 is_sunlit=False,
                 range_km=observation.range_km,
                 phase_angle_deg=0.0
             )
-
-            self._brightness_cache_key = cache_key
-            self._cached_brightness = result
-
-            return result
 
         satellite_vector = observation.satellite_vector_km
         observer_vector = frame_context.observer_vector_km
@@ -302,13 +271,38 @@ class Satellite(SkyObject):
             magnitude_value = self.standard_magnitude - 15.75 + 2.5 * math.log10(observer_distance ** 2 * illuminated_fraction)
             magnitude = Magnitude(float(magnitude_value))
 
-        result = SatelliteBrightness(
+        return SatelliteBrightness(
             magnitude=magnitude,
             is_above_horizon=True,
             is_sunlit=is_sunlit,
             range_km=observer_distance,
             phase_angle_deg=math.degrees(phase_angle)
         )
+        
+
+
+    def get_position(self, time: Time | None = None, observer: Observer | None = None) -> Position:
+        if time is None or observer is None:
+            raise ValueError("Time and observer must be provided for Satellite position calculation.")
+
+        return self.get_observation(time, observer).position
+
+    def get_magnitude(self, time: Time | None = None, observer: Observer | None = None) -> Magnitude:
+        if time is None or observer is None:
+            raise ValueError("Time and observer must be provided for Satellite magnitude calculation.")
+
+        return self.get_brightness_info(time, observer).magnitude
+
+
+    def get_brightness_info(self, time: Time, observer: Observer) -> SatelliteBrightness:
+        frame_context = self.create_frame_context(time, observer)
+        cache_key = frame_context.cache_key
+
+        if cache_key == self._brightness_cache_key and self._cached_brightness is not None:
+            return self._cached_brightness
+
+        observation = self._get_observation_for_frame(frame_context)
+        result = self.calculate_brightness(frame_context, observation)
 
         self._brightness_cache_key = cache_key
         self._cached_brightness = result
