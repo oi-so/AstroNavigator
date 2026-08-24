@@ -127,6 +127,7 @@ class Satellite(SkyObject):
     _shared_frame_cache_key: ClassVar[tuple[object, ...] | None] = None
     _shared_frame_context: ClassVar[SatelliteFrameContext | None] = None
 
+    # @profile
     def create_frame_context(self, time: Time, observer: Observer) -> SatelliteFrameContext:
         time_bucket = int(time.utc.timestamp() * 20.0) # 0.05sごとにキャッシュ
         cache_key = (id(self.timescale), id(self.ephemeris), time_bucket, observer.latitude, observer.longitude, observer.elevation)
@@ -146,7 +147,7 @@ class Satellite(SkyObject):
         observer_position = observer_geocentric.position.km
         sun_position = sun_geocentric.position.km
 
-        return SatelliteFrameContext(
+        frame_context = SatelliteFrameContext(
             cache_key=cache_key,
             skyfield_time=skyfield_time,
             observer_vector_km=(
@@ -162,46 +163,95 @@ class Satellite(SkyObject):
             equatorial_to_horizontal=observing_site.rotation_at(skyfield_time),
         )
 
+        self._shared_frame_cache_key = cache_key
+        self._shared_frame_context = frame_context
+        return frame_context
+
+    # @profile
     def calculate_observation(self, frame_context: SatelliteFrameContext) -> SatelliteObservation:
-        satellite_geocentric = self.model.at(frame_context.skyfield_time)
+        satellite_geocentric = self.model.at(
+            frame_context.skyfield_time
+        )
         satellite_position = satellite_geocentric.position.km
+
         satellite_vector = (
             float(satellite_position[0]),
             float(satellite_position[1]),
-            float(satellite_position[2])
+            float(satellite_position[2]),
         )
 
+        return self.calculate_observation_from_vector(
+            frame_context,
+            satellite_vector,
+        )
+
+
+    def calculate_observation_from_vector(
+        self,
+        frame_context: SatelliteFrameContext,
+        satellite_vector: tuple[float, float, float],
+    ) -> SatelliteObservation:
         observer_vector = frame_context.observer_vector_km
 
-        relative_vector = (
-            satellite_vector[0] - observer_vector[0],
-            satellite_vector[1] - observer_vector[1],
+        relative_x = (
+            satellite_vector[0] - observer_vector[0]
+        )
+        relative_y = (
+            satellite_vector[1] - observer_vector[1]
+        )
+        relative_z = (
             satellite_vector[2] - observer_vector[2]
         )
 
-        relative_x, relative_y, relative_z = relative_vector
-        range_km = math.sqrt(relative_x ** 2 + relative_y ** 2 + relative_z ** 2)
+        range_km = math.sqrt(
+            relative_x * relative_x
+            + relative_y * relative_y
+            + relative_z * relative_z
+        )
 
         if range_km < 1e-6:
-            raise RuntimeError("Satellite is too close to the observer; cannot compute position.")
+            raise RuntimeError(
+                "Satellite is too close to the observer."
+            )
 
-        ra_deg = math.degrees(math.atan2(relative_y, relative_x)) % 360.0
-        dec_deg = math.degrees(math.asin(max(-1.0, min(1.0, relative_z / range_km))))
+        ra_deg = math.degrees(
+            math.atan2(relative_y, relative_x)
+        ) % 360.0
+
+        dec_deg = math.degrees(
+            math.asin(
+                max(
+                    -1.0,
+                    min(1.0, relative_z / range_km),
+                )
+            )
+        )
+
         rotation = frame_context.equatorial_to_horizontal
 
         up_km = (
-            float(rotation[2, 0]) * relative_x +
-            float(rotation[2, 1]) * relative_y +
-            float(rotation[2, 2]) * relative_z
+            float(rotation[2, 0]) * relative_x
+            + float(rotation[2, 1]) * relative_y
+            + float(rotation[2, 2]) * relative_z
         )
 
-        altitude_deg = math.degrees(math.asin(max(-1.0, min(1.0, up_km / range_km))))
+        altitude_deg = math.degrees(
+            math.asin(
+                max(
+                    -1.0,
+                    min(1.0, up_km / range_km),
+                )
+            )
+        )
 
         return SatelliteObservation(
-            position=Position(ra_deg, dec_deg).normalized(),
+            position=Position(
+                ra_deg,
+                dec_deg,
+            ).normalized(),
             altitude_deg=altitude_deg,
             range_km=range_km,
-            satellite_vector_km=satellite_vector
+            satellite_vector_km=satellite_vector,
         )
 
     def _get_observation_for_frame(self, frame_context: SatelliteFrameContext) -> SatelliteObservation:
@@ -221,6 +271,7 @@ class Satellite(SkyObject):
         frame_context = self.create_frame_context(time, observer)
         return self._get_observation_for_frame(frame_context)
 
+    # @profile
     def calculate_brightness(self, frame_context: SatelliteFrameContext, observation: SatelliteObservation) -> SatelliteBrightness:
         if observation.altitude_deg < 0.0:
             return SatelliteBrightness(

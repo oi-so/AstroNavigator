@@ -8,7 +8,7 @@ from astronavigator.rendering.label_layout import BELOW_HORIZON_LABEL_ALPHA
 from astronavigator.rendering.limiting_magnitude import calculate_label_limiting_magnitude
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.rendering.rendering_settings import RenderingSettings
-from astronavigator.sky.sky_object import SkyObject
+from astronavigator.sky.sky_object import Satellite, SkyObject
 from astronavigator.sky.object_type import ObjectType
 
 
@@ -57,8 +57,18 @@ class LabelLayer(Layer):
             )
             dynamic_objects = scene.object_index.find_dynamic_by_type(object_type)
 
+            snapshot = scene.satellite_render_snapshot
             for obj in (*fixed_objects, *dynamic_objects):
-                magnitude = obj.get_magnitude(scene.time, scene.observer)
+                if isinstance(obj, Satellite):
+                    if snapshot is None:
+                        continue
+
+                    if obj.id not in snapshot.states:
+                        continue
+                    magnitude = snapshot.states[obj.id].brightness.magnitude
+                else:
+                    magnitude = obj.get_magnitude(scene.time, scene.observer)
+                
                 if not magnitude.is_visible(limiting_magnitude):
                     continue
 
@@ -75,10 +85,23 @@ class LabelLayer(Layer):
             self._draw_label(obj, context, below_horizon_path, base_color)
 
     def _draw_label(self, obj: SkyObject, context: RendererContext, below_horizon_path: QPainterPath, base_color: QColor) -> None:
+        snapshot = context.scene.satellite_render_snapshot
         painter = context.painter
-        point = context.projection.project_object(
-            obj, context.projection_context, context.viewport.size()
-        )
+
+        if isinstance(obj, Satellite):
+            if snapshot is None:
+                return
+
+            state = snapshot.states.get(obj.id)
+            if state is None:
+                return
+
+            point = context.projection.project(state.observation.position, context.projection_context, context.viewport.size())
+        else:
+            point = context.projection.project_object(
+                obj, context.projection_context, context.viewport.size()
+            )
+            
         if point is None:
             return
 

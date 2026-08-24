@@ -49,7 +49,7 @@ from astronavigator.tracking.target_horizontal_position_calculator import Skyfie
 from astronavigator.tracking.e_zeus_tracking_backend import EZeusTrackingBackend
 
 
-FPS = 30
+FPS = 120
 
 class Application:
     def __init__(self):
@@ -170,7 +170,6 @@ class Application:
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
 
-
     def _update(self):
         current_time = time.monotonic()
         delta_time = current_time - self._last_update_time
@@ -179,7 +178,7 @@ class Application:
         self._update_scene_time(delta_time)
         self._request_satellite_snapshot()
         self._update_dynamic_tracking(delta_time)
-        print(f"Update: {delta_time:.3f} seconds")
+        # print(f"Update: {delta_time:.3f} seconds")
 
     def _update_scene_time(self, delta_time: float):
         provider = self._tracking_time_provider
@@ -391,4 +390,4 @@ class Application:
 
     def _on_satellite_snapshot_changed(self, snapshot: SatelliteRenderSnapshot):
         self._scene.satellite_render_snapshot = snapshot
-        self._event_bus.publish(EventType.SCENE_UPDATED, snapshot)
+        # self._event_bus.publish(EventType.SCENE_UPDATED, snapshot)

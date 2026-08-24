@@ -1,19 +1,22 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from time import perf_counter
 from types import MappingProxyType
-from collections.abc import Mapping
 
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
+import numpy as np
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Signal, Slot
+from sgp4.api import SGP4_ERRORS, SatrecArray, accelerated, jday
+from skyfield.sgp4lib import TEME
 
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.time import Time
-from astronavigator.sky.sky_object import Satellite, SatelliteBrightness, SatelliteFrameContext, SatelliteObservation
+from astronavigator.sky.sky_object import Satellite, SatelliteBrightness, SatelliteObservation
 
 
 SATELLITE_RENDER_UPDATE_HZ = 20.0
-
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,6 +30,7 @@ class SatelliteRenderSnapshot:
     utc: datetime
     observer_key: tuple[float, float, float]
     states: Mapping[str, SatelliteRenderState]
+    calculation_seconds: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +39,7 @@ class _SnapshotRequest:
     time: Time
     observer: Observer
     satellites: tuple[Satellite, ...]
+    satrec_array: SatrecArray
 
 
 class _TaskSignals(QObject):
@@ -48,25 +53,104 @@ class _SnapshotTask(QRunnable):
         self.request = request
         self.signals = _TaskSignals()
 
+    # @profile
     @Slot()
     def run(self) -> None:
+        started_at = perf_counter()
+
         try:
             states: dict[str, SatelliteRenderState] = {}
-            frame_contexts: dict[tuple[int, int], SatelliteFrameContext] = {}
+            satellites = self.request.satellites
 
-            for satellite in self.request.satellites:
-                frame_key = (id(satellite.timescale), id(satellite.ephemeris),)
+            if not satellites:
+                snapshot = SatelliteRenderSnapshot(
+                    utc=self.request.time.utc,
+                    observer_key=(
+                        self.request.observer.latitude,
+                        self.request.observer.longitude,
+                        self.request.observer.elevation,
+                    ),
+                    states=MappingProxyType(states),
+                    calculation_seconds=(
+                        perf_counter() - started_at
+                    ),
+                )
+                self.signals.finished.emit(snapshot)
+                return
 
-                frame_context = frame_contexts.get(frame_key)
+            first_satellite = satellites[0]
 
-                if frame_context is None:
-                    frame_context = (
-                        satellite.create_frame_context(self.request.time, self.request.observer,)
+            frame_context = (
+                first_satellite.create_frame_context(
+                    self.request.time,
+                    self.request.observer,
+                )
+            )
+
+            utc = self.request.time.utc
+
+            julian_day, fraction = jday(
+                utc.year,
+                utc.month,
+                utc.day,
+                utc.hour,
+                utc.minute,
+                utc.second + utc.microsecond / 1_000_000.0,
+            )
+
+            julian_days = np.array([julian_day], dtype=np.float64)
+            fractions = np.array([fraction], dtype=np.float64)
+
+            errors, teme_positions, _ = (
+                self.request.satrec_array.sgp4(julian_days, fractions)
+            )
+
+            # SatrecArrayの結果:
+            # (衛星数, 時刻数, xyz)
+            teme_positions = teme_positions[:, 0, :]
+            errors = errors[:, 0]
+
+            # SkyfieldのEarthSatellite.at()と同じ
+            # TEME -> GCRS変換
+            teme_to_gcrs = np.asarray(
+                TEME.rotation_at(frame_context.skyfield_time),
+                dtype=np.float64,
+            ).T
+
+            gcrs_positions = np.einsum(
+                "ij,nj->ni",
+                teme_to_gcrs,
+                teme_positions,
+                optimize=True,
+            )
+
+            for index, satellite in enumerate(satellites):
+                error_code = int(errors[index])
+
+                if error_code != 0:
+                    message = SGP4_ERRORS.get(
+                        error_code,
+                        f"SGP4 error {error_code}",
                     )
-                    frame_contexts[frame_key] = frame_context
+                    print(
+                        f"Satellite calculation failed: "
+                        f"{satellite.name}: {message}"
+                    )
+                    continue
+
+                vector = gcrs_positions[index]
+
+                satellite_vector = (
+                    float(vector[0]),
+                    float(vector[1]),
+                    float(vector[2]),
+                )
 
                 observation = (
-                    satellite.calculate_observation(frame_context)
+                    satellite.calculate_observation_from_vector(
+                        frame_context,
+                        satellite_vector,
+                    )
                 )
 
                 brightness = (
@@ -83,14 +167,13 @@ class _SnapshotTask(QRunnable):
                     self.request.observer.elevation,
                 ),
                 states=MappingProxyType(states),
+                calculation_seconds=perf_counter() - started_at,
             )
 
             self.signals.finished.emit(snapshot)
 
         except Exception as error:
             self.signals.failed.emit(error)
-
-
 
 
 class SatelliteRenderCache(QObject):
@@ -106,20 +189,36 @@ class SatelliteRenderCache(QObject):
         self._active_task: _SnapshotTask | None = None
         self._latest_request_key: tuple[object, ...] | None = None
 
+        self._satrec_model_key: tuple[int, ...] = ()
+        self._satrec_array: SatrecArray | None = None
+
         self.snapshot: SatelliteRenderSnapshot | None = None
+
+        if not accelerated:
+            print(
+                "Warning: sgp4 C++ acceleration is disabled. "
+                "Satellite rendering may be slow."
+            )
 
     def request_update(self, time: Time, observer: Observer, satellites: tuple[Satellite, ...]) -> None:
         time_bucket = int(time.utc.timestamp() * SATELLITE_RENDER_UPDATE_HZ)
 
+        satellite_ids = tuple(satellite.id for satellite in satellites)
+
         request_key = (
-            time_bucket, observer.latitude, observer.longitude, observer.elevation,
-            tuple(satellite.id for satellite in satellites),
+            time_bucket,
+            observer.latitude,
+            observer.longitude,
+            observer.elevation,
+            satellite_ids,
         )
 
         if request_key == self._latest_request_key:
             return
 
         self._latest_request_key = request_key
+
+        satrec_array = self._get_satrec_array(satellites)
 
         request = _SnapshotRequest(
             key=request_key,
@@ -135,12 +234,26 @@ class SatelliteRenderCache(QObject):
                 timezone=observer.timezone,
             ),
             satellites=satellites,
+            satrec_array=satrec_array,
         )
 
         self._pending_request = request
 
         if not self._busy:
             self._start_pending_request()
+
+    def _get_satrec_array(self, satellites: tuple[Satellite, ...]) -> SatrecArray:
+        model_key = tuple(id(satellite.model.model) for satellite in satellites)
+
+        if self._satrec_array is not None and model_key == self._satrec_model_key:
+            return self._satrec_array
+
+        satrec_array = SatrecArray([satellite.model.model for satellite in satellites])
+
+        self._satrec_model_key = model_key
+        self._satrec_array = satrec_array
+
+        return satrec_array
 
     def _start_pending_request(self) -> None:
         request = self._pending_request
@@ -165,13 +278,14 @@ class SatelliteRenderCache(QObject):
         self._active_task = None
 
         self.snapshot_changed.emit(snapshot)
-        self._start_pending_request()
+        QTimer.singleShot(0, self._start_pending_request)
 
     @Slot(object)
     def _on_failed(self, error: Exception) -> None:
         self._busy = False
         self._active_task = None
 
-        print("Satellite snapshot calculation failed:", error,)
+        print("Satellite snapshot calculation failed:", repr(error),)
 
-        self._start_pending_request()
+        QTimer.singleShot(0, self._start_pending_request)
+

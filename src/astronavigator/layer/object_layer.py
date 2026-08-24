@@ -137,7 +137,7 @@ class ObjectLayer(Layer):
                 return
 
             magnitude = state.brightness.magnitude
-            satellite_limit = getattr(scene.rendering_settings, "satellite_limit_magnitude", limit_magnitude)
+            satellite_limit = getattr(scene.rendering_settings, "satellite_limiting_magnitude", limit_magnitude)
 
             if not magnitude.is_visible(satellite_limit):
                 return
