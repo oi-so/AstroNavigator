@@ -129,15 +129,30 @@ class Satellite(SkyObject):
 
     # @profile
     def create_frame_context(self, time: Time, observer: Observer) -> SatelliteFrameContext:
-        time_bucket = int(time.utc.timestamp() * 20.0) # 0.05sごとにキャッシュ
-        cache_key = (id(self.timescale), id(self.ephemeris), time_bucket, observer.latitude, observer.longitude, observer.elevation)
+        time_bucket = int(time.utc.timestamp() * 20.0)
+        cache_key = (
+            id(self.timescale),
+            id(self.ephemeris),
+            time_bucket,
+            observer.latitude,
+            observer.longitude,
+            observer.elevation,
+        )
 
         satellite_type = type(self)
-        if cache_key == satellite_type._shared_frame_cache_key and satellite_type._shared_frame_context is not None:
+
+        if (
+            cache_key == satellite_type._shared_frame_cache_key
+            and satellite_type._shared_frame_context is not None
+        ):
             return satellite_type._shared_frame_context
 
         skyfield_time = self.timescale.from_datetime(time.utc)
-        observing_site = wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
+        observing_site = wgs84.latlon(
+            observer.latitude,
+            observer.longitude,
+            observer.elevation,
+        )
 
         observer_geocentric = observing_site.at(skyfield_time)
         earth = self.ephemeris["earth"]
@@ -153,18 +168,19 @@ class Satellite(SkyObject):
             observer_vector_km=(
                 float(observer_position[0]),
                 float(observer_position[1]),
-                float(observer_position[2])
+                float(observer_position[2]),
             ),
             sun_vector_km=(
                 float(sun_position[0]),
                 float(sun_position[1]),
-                float(sun_position[2])
+                float(sun_position[2]),
             ),
             equatorial_to_horizontal=observing_site.rotation_at(skyfield_time),
         )
 
-        self._shared_frame_cache_key = cache_key
-        self._shared_frame_context = frame_context
+        satellite_type._shared_frame_cache_key = cache_key
+        satellite_type._shared_frame_context = frame_context
+
         return frame_context
 
     # @profile
