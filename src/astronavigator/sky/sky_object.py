@@ -268,7 +268,7 @@ class Satellite(SkyObject):
         else:
             illuminated_fraction = max(1e-6, 0.5 * (1.0 + math.cos(phase_angle)))
 
-            magnitude_value = self.standard_magnitude - 15.75 + 2.5 * math.log10(observer_distance ** 2 * illuminated_fraction)
+            magnitude_value = self.standard_magnitude - 15.75 + 2.5 * math.log10(observer_distance ** 2 / illuminated_fraction)
             magnitude = Magnitude(float(magnitude_value))
 
         return SatelliteBrightness(

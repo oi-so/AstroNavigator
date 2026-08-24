@@ -133,44 +133,83 @@ def main() -> None:
 
     try:
         # 恒星追尾を停止
-        protocol.stop(to_siderial=False)
-        time.sleep(1.0)
+        # protocol.stop(to_siderial=False)
+        # time.sleep(1.0)
 
-        print("initial status:", protocol.get_status())
-        print("initial position:", protocol.get_position())
+        # print("initial status:", protocol.get_status())
+        # print("initial position:", protocol.get_position())
 
-        ra_steps_per_rev, dec_steps_per_rev = protocol.get_revolution_step()
+        # ra_steps_per_rev, dec_steps_per_rev = protocol.get_revolution_step()
 
-        test_ra_reverse(protocol, ra_steps_per_rev)
+        # test_ra_reverse(protocol, ra_steps_per_rev)
 
 
-        test_direction(
-            protocol,
-            EZeus2_RA_DEC.RA,
-            EZeus2_Direction.FORWARD,
-            ra_steps_per_rev
+        # test_direction(
+        #     protocol,
+        #     EZeus2_RA_DEC.RA,
+        #     EZeus2_Direction.FORWARD,
+        #     ra_steps_per_rev
+        # )
+
+        # test_direction(
+        #     protocol,
+        #     EZeus2_RA_DEC.RA,
+        #     EZeus2_Direction.REVERSE,
+        #     ra_steps_per_rev
+        # )
+
+        # test_direction(
+        #     protocol,
+        #     EZeus2_RA_DEC.DEC,
+        #     EZeus2_Direction.FORWARD,
+        #     dec_steps_per_rev
+        # )
+
+        # test_direction(
+        #     protocol,
+        #     EZeus2_RA_DEC.DEC,
+        #     EZeus2_Direction.REVERSE,
+        #     dec_steps_per_rev
+        # )
+        print("before:", protocol.get_status())
+
+        # 恒星時追尾を止める
+        print("SP0:", repr(protocol.stop(to_siderial=False)))
+
+        print("after SP0:", protocol.get_status())
+
+        # RAをPC連続駆動
+        print(
+            "RA:",
+            repr(
+                protocol.drive(
+                    EZeus2_RA_DEC.RA,
+                    EZeus2_Direction.FORWARD,
+                    EZeus2_Speed.SLOW,
+                )
+            ),
         )
 
-        test_direction(
-            protocol,
-            EZeus2_RA_DEC.RA,
-            EZeus2_Direction.REVERSE,
-            ra_steps_per_rev
+        print("after RA:", protocol.get_status())
+
+        # 続けてDECもPC連続駆動
+        print(
+            "DEC:",
+            repr(
+                protocol.drive(
+                    EZeus2_RA_DEC.DEC,
+                    EZeus2_Direction.FORWARD,
+                    EZeus2_Speed.SLOW,
+                )
+            ),
         )
 
-        test_direction(
-            protocol,
-            EZeus2_RA_DEC.DEC,
-            EZeus2_Direction.FORWARD,
-            dec_steps_per_rev
-        )
+        print("after DEC:", protocol.get_status())
 
-        test_direction(
-            protocol,
-            EZeus2_RA_DEC.DEC,
-            EZeus2_Direction.REVERSE,
-            dec_steps_per_rev
-        )
+        from time import sleep
+        sleep(0.5)
+
+        protocol.stop()
 
     finally:
         protocol.stop(to_siderial=True)
