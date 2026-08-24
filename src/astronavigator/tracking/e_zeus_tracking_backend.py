@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import math
 
 from astronavigator.mount.e_zeus.e_zeus2 import EZeus2
-from astronavigator.mount.e_zeus.e_zeus2_protocol import EZeus2_Direction, EZeus2_Speed
+from astronavigator.mount.e_zeus.e_zeus2_protocol import EZeus2_Direction, EZeus2_Speed, EZeus2CommandRejectedError
 from astronavigator.mount.mount import Axis
 from astronavigator.mount.slew_path import PierSide
 from astronavigator.sky.position import Position
@@ -83,18 +83,21 @@ class EZeusTrackingBackend(MountTrackingBackend):
         requested_ra_axis_rate = ra_rate_deg_per_sec - SIDEREAL_RATE_DEG_PER_SEC
         requested_dec_axis_rate = -dec_rate_deg_per_sec if self._mount.pier_side is PierSide.WEST else dec_rate_deg_per_sec
 
-        ra_option, applied_ra_rate, ra_limited = self._select_option(
+        ra_option, selected_ra, ra_limited = self._select_option(
             axis=Axis.RA, requested_axis_rate=requested_ra_axis_rate, state=self._ra_state
         )
-        dec_option, applied_dec_rate, dec_limited = self._select_option(
+        dec_option, selected_dec, dec_limited = self._select_option(
             axis=Axis.DEC, requested_axis_rate=requested_dec_axis_rate, state=self._dec_state
         )
 
-        self._apply_option(Axis.RA, ra_option, self._ra_state)
-        self._apply_option(Axis.DEC, dec_option, self._dec_state)
+        actual_ra_rate = self._apply_option(Axis.RA, ra_option, self._ra_state)
+        actual_dec_rate = self._apply_option(Axis.DEC, dec_option, self._dec_state)
 
-        applied_ra_sky_rate = applied_ra_rate + SIDEREAL_RATE_DEG_PER_SEC
-        applied_dec_sky_rate = -applied_dec_rate if self._mount.pier_side is PierSide.WEST else applied_dec_rate
+        self._correct_modulation_after_apply(self._ra_state, selected_ra, actual_ra_rate)
+        self._correct_modulation_after_apply(self._dec_state, selected_dec, actual_dec_rate)
+
+        applied_ra_sky_rate = actual_ra_rate + SIDEREAL_RATE_DEG_PER_SEC
+        applied_dec_sky_rate = -actual_dec_rate if self._mount.pier_side is PierSide.WEST else actual_dec_rate
 
         return TrackingRateCommand(
             requested_ra_rate_deg_per_sec=ra_rate_deg_per_sec,
@@ -154,20 +157,57 @@ class EZeusTrackingBackend(MountTrackingBackend):
 
 
 
-    def _apply_option(self, axis: Axis, option: EZeusRateOption | None, state: _AxisModulationState) -> None:
-        speed = EZeus2_Speed.STOP if option is None else option.speed
-        direction = 0 if option is None else option.drive_direction
-
-        if state.active_speed is speed and state.active_drive_direction is direction:
-            return
-
+    def _apply_option(self, axis: Axis, option: EZeusRateOption | None, state: _AxisModulationState) -> float:
         if option is None:
-            self._mount.stop_axis(axis)
-        else:
-            self._mount.drive_axis_discrete(axis, option.drive_direction, option.speed)
+            if state.active_speed is not EZeus2_Speed.STOP:
+                self._mount.stop_axis(axis)
 
-        state.active_speed = speed
-        state.active_drive_direction = direction
+            state.active_speed = EZeus2_Speed.STOP
+            state.active_drive_direction = None
+            return 0.0
+
+        new_speed = option.speed
+        new_direction = option.drive_direction
+
+        if state.active_speed is new_speed and state.active_drive_direction is new_direction:
+            return option.axis_rate_deg_per_sec
+
+        direction_reversal = state.active_speed is not EZeus2_Speed.STOP and state.active_drive_direction is not None and state.active_drive_direction != new_direction
+
+        if direction_reversal:
+            self._mount.stop_axis(axis)
+            state.active_speed = EZeus2_Speed.STOP
+            state.active_drive_direction = None
+            return 0.0
+
+        try:
+            self._mount.drive_axis_discrete(axis, new_direction, new_speed)
+        except EZeus2CommandRejectedError as e:
+            if e.warning_code != "80":
+                raise
+
+            self._mount.stop_axis(axis)
+            state.active_speed = EZeus2_Speed.STOP
+            state.active_drive_direction = None
+            return 0.0
+
+        state.active_speed = new_speed
+        state.active_drive_direction = new_direction
+
+        print(
+            "[EZEUS]",
+            axis,
+            "old=",
+            state.active_drive_direction,
+            state.active_speed,
+            "new=",
+            None if option is None else option.drive_direction,
+            EZeus2_Speed.STOP if option is None else option.speed,
+            "rate=",
+            None if option is None else option.axis_rate_deg_per_sec,
+        )
+
+        return option.axis_rate_deg_per_sec
 
 
     def _require_ready(self) -> None:
@@ -194,3 +234,10 @@ class EZeusTrackingBackend(MountTrackingBackend):
             return False
 
         return not self._mount.is_slewing
+
+
+    def _correct_modulation_after_apply(self, state: _AxisModulationState, selected_rate: float, actual_rate: float) -> None:
+        if math.isclose(selected_rate, actual_rate, abs_tol=1e-12):
+            return
+
+        state.remaining_displacement_deg += (selected_rate - actual_rate) * self._control_interval_sec
