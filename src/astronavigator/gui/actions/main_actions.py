@@ -83,17 +83,35 @@ class MainActions(QObject):
 
 
     def _disconnect_mount(self):
-        self._application.scene_controller.disconnect_mount()
+        try:
+            self._application.stop_dynamic_tracking()
+            self._application.scene_controller.disconnect_mount()
+        except Exception as e:
+            QMessageBox.critical(None, "切断エラー", f"マウントの切断に失敗しました: {e}")
 
     def _abort_slew(self):
-        if self._application.scene.mount:
-            self._application.scene.mount.stop()
-            self._application.scene.mount.set_tracking(True)
+        mount = self._application.scene.mount
+        if mount is None:
+            return
+
+        try:
+            self._application.stop_dynamic_tracking()
+            mount.stop()
+            mount.set_tracking(True)
+        except Exception as e:
+            QMessageBox.critical(None, "導入停止エラー", f"導入の停止に失敗しました: {e}")
 
     def _stop_mount(self):
-        if self._application.scene.mount:
-            self._application.scene.mount.stop()
-            self._application.scene.mount.set_tracking(False)
+        mount = self._application.scene.mount
+        if mount is None:
+            return
+
+        try:
+            self._application.stop_dynamic_tracking()
+            mount.stop()
+            mount.set_tracking(False)
+        except Exception as e:
+            QMessageBox.critical(None, "停止エラー", f"マウントの停止に失敗しました: {e}")
 
 
     def _goto_mount(self):
@@ -164,8 +182,15 @@ class MainActions(QObject):
             QMessageBox.critical(None, "同期エラー", f"マウントの同期に失敗しました: {e}")
 
     def start_mount_tracking(self):
-        if self._application.scene.mount:
-            self._application.scene.mount.set_tracking(True)
+        mount = self._application.scene.mount
+        if mount is None:
+            return
+
+        try:
+            self._application.stop_dynamic_tracking()
+            mount.set_tracking(True)
+        except Exception as e:
+            QMessageBox.critical(None, "追尾エラー", f"マウントの追尾開始に失敗しました: {e}")
 
     def _center_on_selected(self):
         selected = self._application.scene.selection.selected

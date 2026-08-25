@@ -113,12 +113,16 @@ class EZeusTrackingBackend(MountTrackingBackend):
         if not math.isfinite(elapsed_sec) or elapsed_sec < 0.0:
             raise ValueError("elapsed_sec must be a non-negative finite number.")
 
+        if not self._mount.is_connected:
+            return
+
+        self._mount.update_status()
+
 
     def stop(self) -> None:
         if self._mount.is_connected:
-            self._mount.stop_axis(Axis.RA)
-            self._mount.stop_axis(Axis.DEC)
-            self._mount.set_tracking(False)
+            self._mount.stop()
+            self._mount.set_tracking(True)
 
         self._is_active = False
         self._reset_status()
@@ -233,7 +237,7 @@ class EZeusTrackingBackend(MountTrackingBackend):
         if not self._mount.is_connected:
             return False
 
-        return not self._mount.is_slewing
+        return not self._mount.is_slew_in_progress
 
 
     def _correct_modulation_after_apply(self, state: _AxisModulationState, selected_rate: float, actual_rate: float) -> None:
