@@ -36,6 +36,8 @@ class EZeus2MountSettings:
     dec_forward_step_sign: int = 1
 
 
+SLEW_CORRECTION_COUNT = 2
+SLEW_STEP_TOLERANCE = 2
 class EZeus2(Mount):
     def __init__(self, port: str) -> None:
         self._protocol = EZeus2Protocol(port)
@@ -47,6 +49,12 @@ class EZeus2(Mount):
         self._pending_pier_side: PierSide | None = None
         self._pending_target_steps: tuple[int, int] | None = None
         self._pending_slew_observed = False
+
+        self._slew_target: Position | None = None
+        self._slew_target_pier_side: PierSide | None = None
+        self._slew_correction_count = 0
+        self._slew_command_pending = False
+        self._slew_target_steps: tuple[int, int] | None = None
 
     @property
     def state(self) -> ConnectionState:
@@ -118,6 +126,7 @@ class EZeus2(Mount):
         self._protocol.disconnect()
         self._driver_name = None
         self._clear_pending_pier_change()
+        self._clear_slew()
         self._settings.reference_steps = None
         self._settings.reference_axis_position = None
         self._settings.reference_time_utc = None
@@ -222,6 +231,7 @@ class EZeus2(Mount):
     def stop(self) -> None:
         self._protocol.stop()
         self._clear_pending_pier_change()
+        self._clear_slew()
 
     def set_tracking(self, tracking: bool) -> None:
             self._protocol.stop(to_siderial=tracking)
@@ -231,12 +241,34 @@ class EZeus2(Mount):
         self._require_synced()
 
         target_pier_side = self.pier_side if pier_side is None else pier_side
+
         if target_pier_side == PierSide.UNKNOWN:
             raise ValueError("Cannot slew with unknown pier side")
 
+        self._slew_target = position
+        self._slew_target_pier_side = target_pier_side
+        self._slew_correction_count = 0
+        self._slew_command_pending = False
+
+        moved = self._start_slew(position, target_pier_side)
+
+        if not moved:
+            self._clear_slew()
+            self.set_tracking(True)
+
+    def _start_slew(self, position: Position, pier_side: PierSide ) -> bool:
         now = datetime.now(timezone.utc)
-        target_axis_position = self._sky_to_axis_position(position, target_pier_side, now)
+
+        target_axis_position = self._sky_to_axis_position(
+            position,
+            pier_side,
+            now,
+        )
+
         target_ra_steps, target_dec_steps = self._axis_position_to_steps(target_axis_position)
+
+        self._slew_target_steps = (target_ra_steps, target_dec_steps)
+
         current_ra_steps, current_dec_steps = self._protocol.get_position()
 
         ra_steps_per_rev = self._settings.ra_steps_per_rev
@@ -245,32 +277,59 @@ class EZeus2(Mount):
         if ra_steps_per_rev is None or dec_steps_per_rev is None:
             raise RuntimeError("Steps per revolution not set")
 
-        delta_ra_steps = self._step_difference(target_ra_steps, current_ra_steps, ra_steps_per_rev)
-        delta_dec_steps = self._step_difference(target_dec_steps, current_dec_steps, dec_steps_per_rev)
+        delta_ra_steps = self._step_difference(
+            target_ra_steps,
+            current_ra_steps,
+            ra_steps_per_rev,
+        )
+        delta_dec_steps = self._step_difference(
+            target_dec_steps,
+            current_dec_steps,
+            dec_steps_per_rev,
+        )
 
-        pier_side_change = target_pier_side != self.pier_side
+        pier_side_change = pier_side != self.pier_side
 
         if pier_side_change:
-            self._pending_pier_side = target_pier_side
-            self._pending_target_steps = (
-                target_ra_steps,
-                target_dec_steps,
-            )
+            self._pending_pier_side = pier_side
+            self._pending_target_steps = (target_ra_steps, target_dec_steps)
             self._pending_slew_observed = False
+
+        moved = False
 
         try:
             if delta_ra_steps != 0:
-                ra_direction = self._step_delta_to_direction(Axis.RA, delta_ra_steps,)
-                self._protocol.drive(EZeus2_RA_DEC.RA, ra_direction, EZeus2_Speed.FAST, abs(delta_ra_steps))
+                ra_direction = self._step_delta_to_direction(Axis.RA, delta_ra_steps)
+
+                self._protocol.drive(
+                    EZeus2_RA_DEC.RA,
+                    ra_direction,
+                    EZeus2_Speed.FAST,
+                    abs(delta_ra_steps),
+                )
+
+                moved = True
 
             if delta_dec_steps != 0:
                 dec_direction = self._step_delta_to_direction(Axis.DEC, delta_dec_steps)
-                self._protocol.drive(EZeus2_RA_DEC.DEC, dec_direction, EZeus2_Speed.FAST, abs(delta_dec_steps))
+
+                self._protocol.drive(
+                    EZeus2_RA_DEC.DEC,
+                    dec_direction,
+                    EZeus2_Speed.FAST,
+                    abs(delta_dec_steps),
+                )
+
+                moved = True
 
         except Exception:
             if pier_side_change:
                 self._clear_pending_pier_change()
             raise
+
+        self._slew_command_pending = moved
+
+        return moved
 
 
     def _clear_pending_pier_change(self) -> None:
@@ -433,31 +492,75 @@ class EZeus2(Mount):
         return (settings.reference_steps, settings.reference_axis_position, settings.reference_time_utc)
 
 
-
     @staticmethod
     def _status_is_slewing(states: dict) -> bool:
-        return (states[EZeus2StatusIndex.RA_STATUS] != "I" or states[EZeus2StatusIndex.DEC_STATUS] != "I")
+        return (
+            states[EZeus2StatusIndex.RA_STATUS] not in ("I", "T")
+            or states[EZeus2StatusIndex.DEC_STATUS] != "I"
+        )
 
     def _apply_status(self, status: dict) -> None:
         self._e_zeus2_status = status
-        if self._pending_pier_side is None or self._pending_target_steps is None:
+
+        is_slewing = self._status_is_slewing(status)
+
+        if is_slewing:
+            if self._pending_pier_side is not None:
+                self._pending_slew_observed = True
+
             return
 
-        if self._status_is_slewing(status):
-            self._pending_slew_observed = True
-            return
+        if self._pending_pier_side is not None and self._pending_target_steps is not None and self._pending_slew_observed:
+            current_ra_steps, current_dec_steps = self._protocol.get_position()
 
-        if not self._pending_slew_observed:
+            current_axis_position = self._steps_to_axis_position(current_ra_steps, current_dec_steps)
+
+            current_pier_side = self._pier_side_from_axis_position(current_axis_position)
+
+            if current_pier_side != PierSide.UNKNOWN:
+                self._settings.pier_side = current_pier_side
+
+            self._clear_pending_pier_change()
+
+        if self._slew_target is None or self._slew_target_pier_side is None or self._slew_target_steps is None or not self._slew_command_pending:
             return
 
         current_ra_steps, current_dec_steps = self._protocol.get_position()
-        current_axis_position = self._steps_to_axis_position(current_ra_steps, current_dec_steps)
-        current_pier_side = self._pier_side_from_axis_position(current_axis_position)
 
-        if current_pier_side != PierSide.UNKNOWN:
-            self._settings.pier_side = current_pier_side
+        target_ra_steps, target_dec_steps = self._slew_target_steps
 
-        self._clear_pending_pier_change()
+        ra_steps_per_rev = self._settings.ra_steps_per_rev
+        dec_steps_per_rev = self._settings.dec_steps_per_rev
+
+        if ra_steps_per_rev is None or dec_steps_per_rev is None:
+            raise RuntimeError("Steps per revolution not set")
+
+        ra_error_steps = abs(self._step_difference(target_ra_steps, current_ra_steps, ra_steps_per_rev))
+
+        dec_error_steps = abs(self._step_difference(target_dec_steps, current_dec_steps, dec_steps_per_rev))
+
+        if ra_error_steps > SLEW_STEP_TOLERANCE or dec_error_steps > SLEW_STEP_TOLERANCE:
+            return
+
+        self._slew_command_pending = False
+
+        if self._slew_correction_count < SLEW_CORRECTION_COUNT:
+            self._slew_correction_count += 1
+
+            moved = self._start_slew(self._slew_target, self._slew_target_pier_side,)
+
+            if moved:
+                return
+
+        self._clear_slew()
+        self.set_tracking(True)
+
+    def _clear_slew(self) -> None:
+        self._slew_target = None
+        self._slew_target_pier_side = None
+        self._slew_target_steps = None
+        self._slew_correction_count = 0
+        self._slew_command_pending = False
 
     def update_status(self) -> None:
         status = self._protocol.get_status()
