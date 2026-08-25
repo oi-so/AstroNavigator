@@ -28,6 +28,19 @@ class CoordinateTransformer:
         return HorizontalPosition(az.degrees, alt.degrees)
 
     @staticmethod
+    def equatorial_to_horizontal_at(
+        position: Position,
+        time: Time,
+        observer: Observer,
+        context: SkyfieldContext
+    ) -> HorizontalPosition:
+        earth = context.ephemeris["earth"]
+        observer_location = wgs84.latlon(observer.latitude, observer.longitude, observer.elevation)
+        skyfield_time = context.timescale.from_datetime(time.utc)
+        observer_position = (earth + observer_location).at(skyfield_time)
+        return CoordinateTransformer.equatorial_to_horizontal(position, observer_position)
+
+    @staticmethod
     def horizontal_to_equatorial(
         position: HorizontalPosition,
         time: Time,

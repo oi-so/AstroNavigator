@@ -5,7 +5,14 @@ from PySide6.QtWidgets import QFrame, QLabel, QWidget, QVBoxLayout, QHBoxLayout,
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
 from astronavigator.mount.mount import Mount, ConnectionState
+from astronavigator.mount.slew_path import PierSide
 
+
+PIER_SIDE_TEXT = {
+    PierSide.UNKNOWN: "-",
+    PierSide.EAST: "東側",
+    PierSide.WEST: "西側",
+}
 
 
 class MountPanel(QWidget):
@@ -18,6 +25,7 @@ class MountPanel(QWidget):
         self._connection_value = QLabel("-")
         self._ra_value = QLabel("-")
         self._dec_value = QLabel("-")
+        self._pier_side_value = QLabel("-")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 6, 8, 6)
@@ -33,6 +41,7 @@ class MountPanel(QWidget):
         form_layout.addRow("ドライバ", self._connection_value)
         form_layout.addRow("RA", self._ra_value)
         form_layout.addRow("DEC", self._dec_value)
+        form_layout.addRow("鏡筒の向き", self._pier_side_value)
 
         layout.addLayout(form_layout)
         layout.addStretch()
@@ -63,7 +72,6 @@ class MountPanel(QWidget):
 
     def _on_update_mount_state(self, event) -> None:
         self._update_mount(event.payload)
-        self._update_buttons()
 
 
     def _update_buttons(self) -> None:
@@ -86,6 +94,7 @@ class MountPanel(QWidget):
             self._connection_value.setText("-")
             self._ra_value.setText("-")
             self._dec_value.setText("-")
+            self._pier_side_value.setText("-")
             self._stop_button.setEnabled(False)
             self._connect_button.setText("接続")
         else:
@@ -93,6 +102,8 @@ class MountPanel(QWidget):
 
             self._state_value.setText(mount.state.value)
             self._connection_value.setText(mount.driver_name if mount.driver_name else "-")
+
+            self._pier_side_value.setText(PIER_SIDE_TEXT.get(mount.pier_side, "-"))
 
             try:
                 position = self._application.scene.mount_position

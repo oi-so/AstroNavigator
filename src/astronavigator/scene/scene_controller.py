@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import calendar
 from zoneinfo import ZoneInfo
-from PySide6.QtCore import QPoint, QPointF, QSize
+from PySide6.QtCore import QPoint, QSize
 from datetime import datetime, timezone, timedelta
 
 from astronavigator.catalog.catalog import Catalog
 from astronavigator.event.event_type import EventType
 from astronavigator.mount.mount import Mount
+from astronavigator.mount.slew_path import PierSide
+from astronavigator.rendering.grid.coordinate_system import CoordinateSystem
 from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
@@ -150,10 +152,17 @@ class SceneController:
         self._event_bus.publish(EventType.SCENE_UPDATED, catalog)
 
     def connect_mount(self, mount: Mount) -> None:
+        try:
+            mount.connect()
+            mount.set_tracking(True)
+            mount.update_status()
+        except Exception:
+            try:
+                mount.disconnect()
+            except Exception:
+                pass
+            raise
         self._scene.mount = mount
-        mount.connect()
-        mount.set_tracking(True)
-        mount.update_status()
         self._event_bus.publish(EventType.MOUNT_CONNECTED, mount)
 
     def disconnect_mount(self) -> None:
@@ -170,18 +179,22 @@ class SceneController:
             return None
 
         mount.update_status()
-        position = mount.position
+        if not mount.is_synced:
+            self._scene.mount_position = None
+            self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
+            return None
 
+        position = mount.position
         self._scene.mount_position = position
         self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
         return position
 
-    def sync_mount(self, position: Position) -> None:
+    def sync_mount(self, position: Position, *, pier_side: PierSide | None = None) -> None:
         mount = self._scene.mount
         if mount is None:
             raise RuntimeError("Mount is not connected")
 
-        mount.sync(position)
+        mount.sync(position, pier_side=pier_side)
         self._scene.mount_position = position
         self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
         
@@ -218,3 +231,30 @@ class SceneController:
 
     def end_camera_drag(self) -> None:
         self._drag_projection_context = None
+
+
+    def set_grid_visible(self, coordinate_system: CoordinateSystem, visible: bool) -> None:
+        settings = self._scene.rendering_settings.grid_settings
+        settings.is_visible[coordinate_system] = visible
+        self._event_bus.publish(EventType.LAYER_CHANGED, coordinate_system)
+
+    def set_constellation_lines_visible(self, visible: bool) -> None:
+        self._scene.rendering_settings.show_constellation_lines = visible
+        self._event_bus.publish(EventType.LAYER_CHANGED, None)
+
+    def set_constellation_labels_visible(self, visible: bool) -> None:
+        self._scene.rendering_settings.show_constellation_labels = visible
+        self._event_bus.publish(EventType.LAYER_CHANGED, None)
+
+    def set_limiting_magnitude(self, magnitude: float) -> None:
+        self._scene.rendering_settings.limiting_magnitude = magnitude
+        self._event_bus.publish(EventType.LAYER_CHANGED, None)
+
+
+    def set_label_limiting_magnitude(self, magnitude: float) -> None:
+        self._scene.rendering_settings.label_limiting_magnitude = magnitude
+        self._event_bus.publish(EventType.LAYER_CHANGED, None)
+
+    def set_wide_label_limiting_magnitude(self, magnitude: float) -> None:
+        self._scene.rendering_settings.wide_label_limiting_magnitude = magnitude
+        self._event_bus.publish(EventType.LAYER_CHANGED, None)

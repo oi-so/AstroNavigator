@@ -42,3 +42,5 @@ Renderer と Layer は描画だけを担当する。
 
 - LinearProjection で GridLayer が例外なく描画される
 - HorizontalLinearProjection で GridLayer が例外なく描画される
+
+現在の標準投影は `StereographicProjection` である。LinearProjection と HorizontalLinearProjection は開発・比較・回帰確認用として残す。

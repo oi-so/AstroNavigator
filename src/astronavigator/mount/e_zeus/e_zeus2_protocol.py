@@ -39,6 +39,15 @@ class EZeus2StatusIndex(StrEnum):
     DEC_DIRECTION = "dec_direction"
     DEC_SPEED = "dec_speed"
 
+class EZeus2CommandRejectedError(RuntimeError):
+    def __init__(self, command: str, response: str) -> None:
+        self.command = command
+        self.response = response
+
+        self.warning_code = response[1:3] if response.startswith("!") and len(response) >= 3 else None
+
+        super().__init__(f"E-ZEUS2 rejected command: {command!r}, response: {response!r}, warning_code: {self.warning_code!r}")
+
 class EZeus2Protocol:
     def __init__(self, port: str, baudrate: int = 9600, timeout: float = 0.5):
         self._port = port
@@ -74,11 +83,13 @@ class EZeus2Protocol:
     def _send(self, cmd: str) -> str:
         if self.serial is None:
             raise RuntimeError("Serial port is not open")
+
         self.serial.reset_input_buffer()
         self.serial.write(cmd.encode("ascii") + b"\r")
-
-        resp = self.serial.readline().decode("ascii", errors="replace").strip()
-        return resp
+        self.serial.flush()
+        raw = self.serial.readline()
+        # print(f"cmd={cmd!r}, raw={raw!r}")
+        return raw.decode("ascii", errors="replace").strip()
 
 
     def _check_ack(self, resp: str) -> EZeus2Error:
@@ -270,9 +281,7 @@ class EZeus2Protocol:
         error = self._check_ack(resp)
 
         if error == EZeus2Error.ERROR:
-            raise RuntimeError(
-                f"E-ZEUS2 rejected command: {cmd!r}, response: {resp!r}"
-            )
+            raise EZeus2CommandRejectedError(cmd, resp)
 
         if error == EZeus2Error.UNKNOWN_COMMAND:
             raise RuntimeError(

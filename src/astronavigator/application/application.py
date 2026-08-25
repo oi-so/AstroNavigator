@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from pathlib import Path
 import time
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QStandardPaths, QTimer
 
 
 from astronavigator.catalog.catalog import Catalog
@@ -9,23 +10,46 @@ from astronavigator.catalog.catalog_manager import CatalogManager
 from astronavigator.catalog.parser.constellation_parser import ConstellationJsonParser
 from astronavigator.catalog.parser.hyg_parser import HygParser
 from astronavigator.catalog.parser.omm_csv_parser import OmmCsvParser
+from astronavigator.catalog.parser.satellite_magnitude_parser import SatelliteMagnitudeParser
 from astronavigator.catalog.parser.skyfield_parser import SkyfieldParser
 from astronavigator.catalog.parser.ngc_parser import NGCParser
+from astronavigator.catalog.parser.mpc_comet_parser import MpcCometParser
 from astronavigator.catalog.provider.debug_catalog_provider import DebugCatalogProvider
 from astronavigator.catalog.provider.local_file_provider import LocalFileProvider
 from astronavigator.catalog.provider.solar_system_provider import SolarSystemProvider
+from astronavigator.event.event_type import EventType
 from astronavigator.gui.actions.main_actions import MainActions
 from astronavigator.input.input_controller import InputController
+from astronavigator.mount.e_zeus.e_zeus2 import EZeus2
+from astronavigator.mount.mount import ConnectionState, Mount
+from astronavigator.mount.simulator import SimulatorMount
 from astronavigator.rendering.projection.stereographic_projection import StereographicProjection
 from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.rendering.renderer import Renderer
 from astronavigator.scene.scene import Scene
 from astronavigator.scene.scene_controller import SceneController
 from astronavigator.event.event_bus import EventBus
-from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG, OPENNGC_ADDENDUM, OPENNGC_NGC, VISUAL_SATELLITES_OMM
+from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG, OPENNGC_ADDENDUM, OPENNGC_NGC, SATELLITE_MAGNITUDES, VISUAL_SATELLITES_OMM, MPC_COMETS
+from astronavigator.sky.object_type import ObjectType
+from astronavigator.sky.satellite_render_cache import SatelliteRenderCache
+from astronavigator.sky.sky_object import Satellite
+from astronavigator.tracking.e_zeus_rate_profile_repository import EZeusRateProfileRepository
+from astronavigator.tracking.mount_tracking import MountTrackingBackend
+from astronavigator.tracking.simulator_tracking import SimulatorTrackingBackend
+from astronavigator.tracking.target_predictor import TargetPredictor
+from astronavigator.tracking.tracking_adjustment import TrackingAdjustment
+from astronavigator.tracking.tracking_config import TrackingConfig
+from astronavigator.tracking.tracking_controller import TrackingController
+from astronavigator.tracking.tracking_planner import TrackingPlanner
+from astronavigator.tracking.tracking_safety_policy import TrackingSafetyContext, TrackingSafetyPolicy
+from astronavigator.tracking.tracking_state import TrackingRunMode, TrackingState
+from astronavigator.tracking.tracking_time_provider import SystemUtcTimeProvider, TrackingTimeProvider
+from astronavigator.tracking.tracking_time_provider import SimulationTimeProvider
+from astronavigator.tracking.target_horizontal_position_calculator import SkyfieldHorizontalPositionCalculator
+from astronavigator.tracking.e_zeus_tracking_backend import EZeusTrackingBackend
 
 
-FPS = 60
+FPS = 120
 
 class Application:
     def __init__(self):
@@ -43,6 +67,27 @@ class Application:
         self._load_solar_system()
         self._load_satellites()
         self._load_openngc()
+        # self._load_comets()
+
+        self._satellite_render_cache = SatelliteRenderCache()
+        self._satellite_render_cache.snapshot_changed.connect(self._on_satellite_snapshot_changed)
+
+        self._request_satellite_snapshot()
+
+        self._tracking_controller: TrackingController | None = None
+        self._tracking_time_provider: TrackingTimeProvider | None = None
+        self._tracking_config: TrackingConfig | None = None
+        self._tracking_update_accumulator = 0.0
+
+        config_directory = Path(
+            QStandardPaths.writableLocation(
+                QStandardPaths.StandardLocation.AppConfigLocation
+            )
+        )
+
+        self._e_zeus_rate_profile_repository = (
+            EZeusRateProfileRepository(config_directory / "e_zeus_rate_profiles.json")
+        )
 
         self._last_update_time = time.monotonic()
         self._update_timer = QTimer()
@@ -86,8 +131,12 @@ class Application:
     def _load_satellites(self):
         if self._scene.skyfield is None:
             raise RuntimeError("Skyfield context is not loaded yet.")
+        self._catalog_manager.download_catalog(SATELLITE_MAGNITUDES)
+        mag_parser = SatelliteMagnitudeParser()
+        standard_magnitudes = mag_parser.parse(SATELLITE_MAGNITUDES.save_path)
+
         self._catalog_manager.download_catalog(VISUAL_SATELLITES_OMM)
-        parser = OmmCsvParser(skyfield=self._scene.skyfield, catalog_name="CelesTrak Visual Satellites")
+        parser = OmmCsvParser(skyfield=self._scene.skyfield, catalog_name="CelesTrak Visual Satellites", standard_magnitudes=standard_magnitudes)
         provider = LocalFileProvider(path=VISUAL_SATELLITES_OMM.save_path, parser=parser)
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
@@ -108,11 +157,73 @@ class Application:
         self._scene_controller.add_catalog(catalog)
 
 
+    def _load_comets(self) -> None:
+        skyfield_context = self._scene.skyfield
+
+        if skyfield_context is None:
+            raise RuntimeError("Skyfield context is not loaded yet.")
+
+        self._catalog_manager.download_catalog(MPC_COMETS)
+        parser = MpcCometParser(skyfield=skyfield_context, catalog_name=MPC_COMETS.name)
+        provider = LocalFileProvider(path=MPC_COMETS.save_path, parser=parser)
+
+        catalog = provider.load()
+        self._scene_controller.add_catalog(catalog)
+
     def _update(self):
         current_time = time.monotonic()
         delta_time = current_time - self._last_update_time
         self._last_update_time = current_time
+
+        self._update_scene_time(delta_time)
+        self._request_satellite_snapshot()
+        self._update_dynamic_tracking(delta_time)
+        # print(f"Update: {delta_time:.3f} seconds")
+
+    def _update_scene_time(self, delta_time: float):
+        provider = self._tracking_time_provider
+        controller = self._tracking_controller
+        if provider is not None and controller is not None and controller.is_active and provider.mode is TrackingRunMode.OBSERVATION:
+            if self._scene.time.speed != 1.0:
+                self._scene_controller.set_time_speed(1.0)
+            if self._scene.time.is_paused:
+                self._scene_controller.set_time_paused(False)
+            self._scene_controller.set_time(provider.get_snapshot().utc)
+            return
+
         self._scene_controller.advance_time(delta_time)
+
+    def _update_dynamic_tracking(self, delta_time: float):
+        controller = self._tracking_controller
+        config = self._tracking_config
+
+        if controller is None or config is None or not controller.is_active:
+            return
+
+        self._tracking_update_accumulator += delta_time
+        if self._tracking_update_accumulator < config.prediction_interval:
+            return
+
+        tracking_elapsed = self._tracking_update_accumulator
+        self._tracking_update_accumulator = 0.0
+        previous_state = controller.state
+
+        try:
+            update = controller.update(tracking_elapsed, self._create_tracking_safety_context())
+        except Exception as e:
+            controller.stop()
+            self._event_bus.publish(EventType.TRACKING_UPDATED, e)
+            self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, TrackingState.FAILED)
+            return
+
+        self._scene.mount_position = controller.mount_position
+        self._event_bus.publish(EventType.TRACKING_UPDATED, update)
+        if update.state is not previous_state:
+            self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, update.state)
+        mount = self._scene.mount
+        if mount is not None:
+            self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
+
 
     @property
     def scene(self) -> Scene:
@@ -133,3 +244,150 @@ class Application:
     @property
     def input_controller(self) -> InputController:
         return self._input_controller
+
+
+    @property
+    def tracking_controller(self) -> TrackingController | None:
+        return self._tracking_controller
+
+    @property
+    def tracking_state(self) -> TrackingState:
+        if self._tracking_controller is None:
+            return TrackingState.IDLE
+        return self._tracking_controller.state
+
+    @property
+    def e_zeus_rate_profile_repository(self) -> EZeusRateProfileRepository:
+        return self._e_zeus_rate_profile_repository
+
+    def start_dynamic_tracking(self, *, run_mode: TrackingRunMode, config: TrackingConfig, adjustment: TrackingAdjustment):
+        target = self._scene.selection.selected
+        mount = self._scene.mount
+
+        if target is None:
+            raise RuntimeError("No target selected for tracking.")
+        if not target.is_dynamic:
+            raise RuntimeError("Selected target is not dynamic and cannot be tracked.")
+
+        if mount is None or not mount.is_connected:
+            raise RuntimeError("Mount is not connected for tracking.")
+
+        skyfield_context = self._scene.skyfield
+        if skyfield_context is None:
+            raise RuntimeError("Skyfield context is not loaded yet.")
+
+        if self._tracking_controller is not None and self._tracking_controller.is_active:
+            raise RuntimeError("Dynamic tracking is already active.")
+
+        if run_mode is TrackingRunMode.OBSERVATION:
+            time_provider = SystemUtcTimeProvider()
+            self._scene_controller.set_time_speed(1.0)
+            self._scene_controller.set_time_paused(False)
+            self._scene_controller.set_time(time_provider.get_snapshot().utc)
+        else:
+            time_provider = SimulationTimeProvider(lambda: self._scene.time)
+
+        predictor = TargetPredictor()
+        horizontal_calculator = SkyfieldHorizontalPositionCalculator(skyfield_context)
+        planner = TrackingPlanner(predictor, horizontal_calculator)
+        plan = planner.create_plan(target, self._scene.observer, time_provider, config)
+        backend = self._create_tracking_backend(mount, run_mode, config)
+        controller = TrackingController(predictor, backend, time_provider, TrackingSafetyPolicy())
+        controller.set_adjustment(adjustment)
+        safety_result = controller.prepare(
+            target=target, 
+            observer=self._scene.observer, 
+            plan=plan, 
+            config=config, 
+            safety_context=self._create_tracking_safety_context(run_mode)
+        )
+
+        if safety_result.can_start:
+            self._tracking_controller = controller
+            self._tracking_time_provider = time_provider
+            self._tracking_config = config
+            self._tracking_update_accumulator = 0.0
+
+        self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, controller.state)
+
+        return plan, safety_result
+
+
+    def stop_dynamic_tracking(self):
+        controller = self._tracking_controller
+        if controller is None:
+            return 
+        controller.stop()
+        self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, controller.state)
+
+
+    def set_tracking_adjustment(self, adjustment: TrackingAdjustment):
+        controller = self._tracking_controller
+        if controller is None:
+            return
+        controller.set_adjustment(adjustment)
+
+    def _create_tracking_safety_context(self, run_mode: TrackingRunMode | None = None) -> TrackingSafetyContext:
+        mount = self._scene.mount
+        is_simulator = isinstance(mount, SimulatorMount) if mount is not None else False
+        if run_mode is None:
+            provider = self._tracking_time_provider
+            run_mode = provider.mode if provider is not None else TrackingRunMode.OBSERVATION
+
+        mount_synchronized = mount is not None and (is_simulator or bool(getattr(mount, "is_synced", True)))
+
+        return TrackingSafetyContext(
+            run_mode=run_mode,
+            is_real_mount=mount is not None and not is_simulator,
+            mount_connected=mount is not None and mount.is_connected,
+            mount_synchronized=mount_synchronized,
+            communication_healthy=mount is not None and mount.state is not ConnectionState.ERROR,
+            collision_risk=False,
+            mount_limit_reached=False,
+            time_rate=self._scene.time.speed,
+        )
+
+
+
+    def _create_tracking_backend(self, mount: Mount, run_mode: TrackingRunMode, config: TrackingConfig) -> MountTrackingBackend:
+        if isinstance(mount, SimulatorMount):
+            return SimulatorTrackingBackend(mount)
+
+        if isinstance(mount, EZeus2):
+            if run_mode is not TrackingRunMode.OBSERVATION:
+                raise RuntimeError("E-ZEUS II実機では観測モードのみ使用できます。")
+
+            profile_id = config.rate_profile_id
+            if profile_id is None:
+                raise RuntimeError("E-ZEUS IIレートプロファイルを選択してください。")
+
+            profile = self._e_zeus_rate_profile_repository.get_profile(profile_id)
+            if profile is None:
+                raise RuntimeError("選択されたE-ZEUS IIレートプロファイルが見つかりません。")
+
+            return EZeusTrackingBackend(
+                mount=mount,
+                rate_profile=profile,
+                control_interval_sec=(
+                    config.prediction_interval
+                ),
+            )
+
+        raise RuntimeError(
+            f"{type(mount).__name__} はまだ動的追尾に対応していません。"
+        )
+
+
+    def _request_satellite_snapshot(self):
+        objects = self._scene.object_index.find_dynamic_by_type(ObjectType.SATELLITE)
+        satellites = tuple(obj for obj in objects if isinstance(obj, Satellite))
+
+        self._satellite_render_cache.request_update(
+            time=self._scene.time,
+            observer=self._scene.observer,
+            satellites=satellites,
+        )
+
+    def _on_satellite_snapshot_changed(self, snapshot: SatelliteRenderSnapshot):
+        self._scene.satellite_render_snapshot = snapshot
+        # self._event_bus.publish(EventType.SCENE_UPDATED, snapshot)

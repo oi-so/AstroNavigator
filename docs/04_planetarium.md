@@ -66,25 +66,26 @@
 複数同時表示可能とする。
 
 現在の実装では SkyObject の基本位置は赤経赤緯の Position として扱う。
-地平座標表示が必要な場合は、Projection が観測時刻、観測地、SkyfieldContext を使って HorizontalPosition へ変換する。
+StereographicProjection は観測時刻、観測地、SkyfieldContext から地平座標基底を作り、赤経赤緯の天体をその天球上へ投影する。
 
 座標系グリッドは天体表示の投影方式とは独立して表示できる。
-たとえば赤経赤緯の LinearProjection でも方位高度グリッドを表示でき、HorizontalLinearProjection でも赤道座標グリッドを表示できる。
+標準の StereographicProjection でも、赤道座標グリッドと方位高度グリッドを同時に表示できる。
 
 ---
 
 ## 5. 投影法
 
-現在の実装
+現在の標準実装
+
+- StereographicProjection
+  - 天球をステレオ投影する
+  - 狭角では画面全体を使い、全天に近づくと円形表示へ滑らかに移行する
+  - 投影コンテキストに時刻、観測地、SkyfieldContext、観測者位置を保持する
+
+開発・比較用
 
 - LinearProjection
-  - 赤経赤緯を直接2D表示する開発・確認用の線形投影
 - HorizontalLinearProjection
-  - 赤経赤緯を方位高度へ変換して2D表示する線形投影
-
-標準候補
-
-- ステレオ投影
 
 将来的に対応
 
@@ -292,7 +293,7 @@ Plate Solve
 
 ## 14. SkyObject
 
-プラネタリウム上に表示されるすべての要素は `SkyObject` を基底とする。
+天体として検索・選択・導入の対象になるものは `SkyObject` を基底とする。
 
 例：
 
@@ -302,11 +303,13 @@ Plate Solve
 - 太陽
 - 彗星
 - 人工衛星
-- 架台
-- カメラ画角
-- Plate Solve結果
+- DSO
 
 各SkyObjectは現在時刻・観測地点などに応じた位置情報を提供する共通インターフェースを持つ。
+
+架台マーカー、カメラ画角、Plate Solve結果など、天体ではない表示要素は Layer と Scene の状態で表現する。
+
+固定天体は時刻・観測地点によらず同じ Position を返す。動的天体は `get_position(time, observer)` と `get_magnitude(time, observer)` を使用し、引数が不足している場合は誤った座標を黙って返さない。
 
 
 ## 15. Layer
@@ -359,9 +362,61 @@ Scene は以下の要素から構成される。
 - Observer（観測地点）
 - Time（時刻）
 - SkyCamera（視点）
-- Projection（投影法）
-- LayerManager（表示レイヤー）
 - SkyObjects（表示対象）
 - ObjectIndex
+- Selection、Focus
+- RenderingSettings、GuiSettings
+- SkyfieldContext
+- Mountと架台現在位置
 
 Renderer は Scene を入力として描画を行う。
+Projection は Scene ではなく ProjectionManager が保持する。
+LayerManager は現在 Renderer が保持する。
+
+---
+
+## 18. 固定天体と動的天体
+
+固定天体と動的天体は、同じ SkyObject インターフェースを公開するが、検索・更新方法を分ける。
+
+### 固定天体
+
+- 恒星
+- 星座を構成する恒星
+- Messier、NGC、ICなどのDSO
+
+固定天体だけを等級・赤経・赤緯による空間インデックスへ登録する。
+
+### 動的天体
+
+- 太陽
+- 月
+- 惑星
+- 彗星、小惑星
+- ISSを含む人工衛星
+
+初期段階では天体種別ごとの小さなリストから列挙し、現在時刻・観測地点で位置と等級を計算する。太陽系天体は約1秒、ISSは約0.05秒を目安に計算結果をキャッシュする。時刻を大きく変更した場合、観測地点を変更した場合、軌道要素を更新した場合はキャッシュを無効化する。
+
+---
+
+## 19. 直近で採用するデータ源
+
+- 太陽・月・惑星: JPL DE440s と Skyfield
+- Messier・NGC・IC: OpenNGC の `NGC.csv` と `addendum.csv`
+- ISS: CelesTrak の OMM CSV
+
+OpenNGCでは、M31とNGC 224のような複数名称を別天体として重複登録しない。正規IDと aliases を保持し、空白・大文字小文字・カタログ番号表記の差を吸収して検索する。
+
+---
+
+## 20. 直近ロードマップ
+
+1. 動的天体共通処理を修正する
+2. 太陽・月・惑星を表示する
+3. ISS 1機を OMM CSV から読み込み、表示・選択・情報表示・予想経路に対応する
+4. OpenNGCから Messier・NGC・IC を読み込み、別名検索に対応する
+5. E-ZEUS II 実機で固定天体の導入と架台位置表示を再確認する
+6. ISS表示の精度を確認してから、人工衛星追尾へ接続する
+7. テスト、性能測定、スクリーンショット、動画、設計判断を資料化する
+
+全活動衛星、Starlink全機、精密なDSO形状、一般化したプラグイン機構は、上記の最小構成が完成するまで後回しとする。

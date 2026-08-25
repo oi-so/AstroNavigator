@@ -15,4 +15,7 @@ class ConstellationLayer(Layer):
         if not self.visible:
             return
 
+        if not context.scene.rendering_settings.show_constellation_lines:
+            return
+
         self.renderer.render_lines(context)

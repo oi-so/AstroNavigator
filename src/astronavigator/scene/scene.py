@@ -11,6 +11,7 @@ from astronavigator.scene.observer import Observer
 from astronavigator.scene.selection import Selection
 from astronavigator.sky.constellation_line import Constellation
 from astronavigator.sky.position import Position
+from astronavigator.sky.satellite_render_cache import SatelliteRenderSnapshot
 from astronavigator.sky.sky_object import SkyObject
 from astronavigator.scene.time import Time
 from astronavigator.camera.sky_camera import SkyCamera
@@ -34,6 +35,8 @@ class Scene:
 
     rendering_settings: RenderingSettings = field(default_factory=RenderingSettings)
     gui_settings: GuiSettings = field(default_factory=GuiSettings)
+
+    satellite_render_snapshot: SatelliteRenderSnapshot | None = None
 
     skyfield: SkyfieldContext | None = None
 

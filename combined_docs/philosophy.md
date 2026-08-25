@@ -248,7 +248,7 @@ RenderEngine
 
 CatalogProvider
 
-TLEProvider
+OmmProvider
 
 ImageProvider
 
@@ -542,6 +542,10 @@ FOV
 
 ISS
 
+GP
+
+OMM
+
 TLE
 
 DSO
@@ -638,12 +642,14 @@ Renderer、GUI、TrackingなどはSceneを参照して処理を行う。
 - 現在時刻
 - 観測地点
 - SkyCamera
-- LayerManager
 - SkyObject一覧
+- ObjectIndex
 - Selection
 - Focus
-- MountState
-- CameraState
+- RenderingSettings
+- GuiSettings
+- SkyfieldContext
+- Mountと架台現在位置
 
 ### 責務ではないもの
 
@@ -727,6 +733,8 @@ Scene に登録された SkyObject を検索・列挙するための補助構造
 
 ObjectIndex は Scene と同期し、Renderer や検索機能から利用される。
 
+固定座標を前提とする空間・等級インデックスには固定天体だけを登録する。太陽系天体や人工衛星などの動的天体は、ID・名前・種類の検索対象には含めるが、固定座標の空間インデックスには含めない。動的天体の表示候補は種別ごとのリストから列挙し、現在時刻と観測地点で位置を求める。
+
 ---
 
 # 2. Sky
@@ -743,8 +751,6 @@ ObjectIndex は Scene と同期し、Renderer や検索機能から利用され�
 - Satellite
 - Comet
 - DeepSkyObject
-- MountMarker
-- CameraFOV
 
 ### 責務
 
@@ -757,6 +763,22 @@ ObjectIndex は Scene と同期し、Renderer や検索機能から利用され�
 
 - 描画
 - 更新処理
+
+`get_position(time, observer)` と `get_magnitude(time, observer)` を共通インターフェースとする。固定天体は引数を使用せず固定値を返し、動的天体は現在時刻と観測地点を使用する。
+
+### Fixed SkyObject
+
+時刻と観測地点によって赤経赤緯が変わらない天体。
+
+例：Star、DeepSkyObject。
+
+### Dynamic SkyObject
+
+時刻または観測地点によって見かけの位置・等級が変化する天体。
+
+例：Sun、Moon、Planet、Satellite、Comet、Asteroid。
+
+動的天体の位置を利用する呼出し元は、Scene の Time と Observer を必ず渡す。計算結果は天体の変化速度に応じて短時間キャッシュできる。
 
 ---
 
@@ -774,9 +796,9 @@ ObjectIndex は Scene と同期し、Renderer や検索機能から利用され�
 
 ## Moon
 
-衛星。
+地球の月。
 
-地球の月だけでなく木星・土星などの衛星も含む。
+木星・土星などの惑星衛星は、将来 `NaturalSatellite` などの別概念として追加し、人工衛星を表す `Satellite` と混同しない。
 
 ---
 
@@ -791,6 +813,8 @@ ObjectIndex は Scene と同期し、Renderer や検索機能から利用され�
 人工衛星。
 
 ISSやStarlinkなど。
+
+標準入力は GP 軌道要素の OMM CSV とする。従来TLEは互換入力として扱う。
 
 ---
 
@@ -838,15 +862,16 @@ Rendererは天文学や望遠鏡制御を知らない。
 
 ## SkyCamera
 
-天球をどのように観測・投影するかを定義する仮想カメラ。
+天球のどの方向を、どの画角と回転角で見るかを定義する仮想カメラ。
 
 ### 保持する情報
 
 - 視線方向
 - FOV
 - 回転角
-- 投影法
-- TrackingMode
+- 表示限界等級
+
+投影法は ProjectionManager が保持する。
 
 ---
 
@@ -862,6 +887,12 @@ Rendererは天文学や望遠鏡制御を知らない。
 
 現在の実装では Projection は SkyObject と CoordinateGrid の座標を画面座標へ変換する。
 投影方式が扱う座標系とグリッドが生成する座標系が異なる場合も、Projection が必要な座標変換を行う。
+
+## StereographicProjection
+
+現在の標準投影。
+
+天球上の方向ベクトルをステレオ投影で画面へ変換する。投影コンテキストは時刻、観測地点、SkyfieldContext、観測者位置、天球基底を保持する。
 
 ---
 
@@ -886,6 +917,8 @@ Renderer や SceneController は ProjectionManager から Projection と Project
 赤経赤緯を方位高度へ変換してから2D画面へ投影する線形投影。
 
 観測地、時刻、SkyfieldContext を利用する。
+
+LinearProjection と HorizontalLinearProjection は、現在は開発・比較・回帰確認用として扱う。
 
 ---
 
@@ -933,6 +966,8 @@ CoordinateGrid はグリッド線上の座標列を生成する。
 Layerを管理するクラス。
 
 表示順・表示ON/OFFなどを管理する。
+
+現在は Renderer が保持する。
 
 ---
 
@@ -1206,6 +1241,12 @@ AIは本プロジェクトの設計思想を尊重し、
 
 ・GUIからASCOMを直接呼んではいけない
 
+・動的天体の位置・等級を取得するときは Scene の Time と Observer を渡す
+
+・固定座標用の空間インデックスへ動的天体を登録してはいけない
+
+・架台マーカーやカメラ画角など、天体ではない表示要素を安易に SkyObject にしない
+
 
 ## AI Checklist
 
@@ -1232,6 +1273,8 @@ AIは本プロジェクトの設計思想を尊重し、
 □ 用語は99にあるか
 
 □ 用語などがない場合にはmdに追記しているか
+
+□ 動的天体の時刻・観測地点・キャッシュ無効化を考慮したか
 
 
 --- 

@@ -32,6 +32,7 @@ Scene が保持する補助データ（ObjectIndexなど）は、必ず SceneCon
 - `ObjectIndex.find_by_name()`
 - `ObjectIndex.find_by_type()`
 - `ObjectIndex.find_nearest()`
+- `ObjectIndex.find_visible_by_type()`
 
 ---
 
@@ -52,14 +53,14 @@ SkyObject 自体は保持・管理しない。
 - `find_by_id()`
 - `find_by_name()`
 - `find_by_type()`
-- `find_nearest()`
+- `find_visible_by_type()`
 
 #### 責務
 
 - Scene の SkyObject を検索する
 - SkyObject を種類ごとに取得する
 - 名前・IDによる検索
-- 最も近い SkyObject の検索
+- 等級、赤経、赤緯による表示候補の絞り込み
 
 #### 責務ではないこと
 
@@ -171,9 +172,10 @@ Renderer や GUI を変更しなくて済むようにするため。
 
 ## 8. TODO
 
-- 名前検索の高速化
-- ID検索の高速化
-- 空間インデックス
+- `find_nearest()` の実装
+- 別名と表記ゆれに対応した名前検索
+- 固定天体用空間インデックスと動的天体の分離
+- 動的天体の現在位置を使った選択処理
 - 検索候補
 - 部分一致検索
 - 複数カタログ対応

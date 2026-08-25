@@ -93,16 +93,27 @@ GUI
 
 # 6. Current Implementation
 
-現在の実装は、Scene を中心にした 2D プラネタリウム表示を先行している。
+2026年8月12日時点では、`develop` ブランチの Scene を中心にした 2D プラネタリウムと E-ZEUS II 制御を実装している。
 
-- Scene が時刻、観測地、SkyCamera、SkyObject、描画設定を保持する
+- Scene が時刻、観測地、SkyCamera、SkyObject、描画設定、架台状態を保持する
 - SceneController が Scene 変更の公開インターフェースとなる
-- Renderer は Scene を読み取り、LayerManager 経由で各 Layer を描画する
-- SkyObject は天球上の表示対象を表す
-- ProjectionManager が現在の Projection を保持する
-- LinearProjection は赤経赤緯を直接2D表示する
-- HorizontalLinearProjection は赤経赤緯を方位高度へ変換して2D表示する
-- CoordinateGrid は座標系ごとのグリッド線を生成し、Projection が表示座標へ変換する
+- Renderer は Scene を読み取り、LayerManager 経由で Grid、Constellation、Object、Label、Mount、Selection を描画する
+- ProjectionManager は標準投影として `StereographicProjection` を保持する
+- ステレオ投影上で赤道座標・地平座標グリッドを同時に描画できる
+- HYG恒星カタログ、星座線、JPL DE440s天体暦をローカルへ保存して読み込む
+- ObjectIndex は天体種別、等級、赤経、赤緯を使って表示候補を高速に絞り込む
+- 時刻の停止、等速、加減速、任意日時への変更に対応する
+- E-ZEUS II の接続、現在位置取得、導入、同期、停止、恒星時追尾に対応する
+- MountLayer により架台の現在方向を SkyView 上へ表示する
+
+現時点の主な未実装・未完成事項は以下である。
+
+- 太陽、月、惑星の位置・等級計算と描画
+- ISSを含む人工衛星の軌道要素読込み、位置計算、予想経路表示
+- Messier、NGC、ICカタログの読込みと別名検索
+- 動的天体の位置取得時に、すべての呼出し元から時刻と観測地点を渡す処理
+- 固定天体用空間インデックスと動的天体用列挙・キャッシュの分離
+- カタログの更新期限、取得失敗時の前回データ利用、手動更新
 
 ---
 
@@ -179,13 +190,15 @@ ISS追尾はソフトウェア全体の一機能として実装し、通常の�
 
 ## 2. 開発方針
 
-機能の優先順位
+初期完成までの優先順位
 
-1. 精度
-2. 拡張性
-3. 高機能
-4. 操作性
-5. 動作速度
+1. ユーザーが操作できる一連の最小機能
+2. 観測・導入に必要な精度
+3. 安定動作とオフライン利用
+4. 必要箇所の動作速度
+5. 拡張性、操作性、高機能化
+
+初期完成後は、精度、拡張性、操作性、性能を測定しながら段階的に改善する。
 
 ---
 
@@ -205,7 +218,7 @@ ISS追尾はソフトウェア全体の一機能として実装し、通常の�
 
 対象例
 
-- TLE
+- GP軌道要素（OMM CSVを優先し、従来TLEも互換入力として扱う）
 - 彗星軌道
 - 地球接近小天体
 
@@ -329,7 +342,11 @@ ISS追尾プロジェクトで開発した制御機能は順次統合する。
 
 ## 9. 人工衛星
 
-ISSだけではなく、TLEを持つ人工衛星全般を対象とする。
+ISSだけではなく、公開されたGP軌道要素を持つ人工衛星全般を対象とする。
+
+初期実装では ISS 1機に限定し、表示・選択・情報表示・予想経路が正しいことを確認してから対象を広げる。軌道要素は OMM CSV を標準入力とし、従来の TLE は互換入力として扱う。
+
+軌道要素には元期と取得日時を保持し、古い場合は警告する。CelesTrakへの再取得は2時間以上空け、更新に失敗した場合は最後に正常取得したデータを残す。
 
 例
 
@@ -503,10 +520,12 @@ Renderer は天文学計算や望遠鏡制御を担当しない。
 
 現在の投影方式は ProjectionManager が保持する。
 
+- StereographicProjection
+  - 標準投影。天球をステレオ投影し、広角から狭角まで同じ操作系で表示する
 - LinearProjection
-  - 赤経赤緯を直接2D表示する
+  - 赤経赤緯を直接2D表示する開発・確認用投影
 - HorizontalLinearProjection
-  - Skyfield を使って赤経赤緯を方位高度へ変換し、2D表示する
+  - 赤経赤緯を方位高度へ変換する旧来の開発・比較用投影
 
 座標系グリッドは CoordinateGrid が座標系ごとに生成する。
 GridLayer はグリッド線を描画するだけで、座標変換は Projection に委譲する。
@@ -790,25 +809,26 @@ GUIでは特に以下を見つけやすい位置へ配置する。
 複数同時表示可能とする。
 
 現在の実装では SkyObject の基本位置は赤経赤緯の Position として扱う。
-地平座標表示が必要な場合は、Projection が観測時刻、観測地、SkyfieldContext を使って HorizontalPosition へ変換する。
+StereographicProjection は観測時刻、観測地、SkyfieldContext から地平座標基底を作り、赤経赤緯の天体をその天球上へ投影する。
 
 座標系グリッドは天体表示の投影方式とは独立して表示できる。
-たとえば赤経赤緯の LinearProjection でも方位高度グリッドを表示でき、HorizontalLinearProjection でも赤道座標グリッドを表示できる。
+標準の StereographicProjection でも、赤道座標グリッドと方位高度グリッドを同時に表示できる。
 
 ---
 
 ## 5. 投影法
 
-現在の実装
+現在の標準実装
+
+- StereographicProjection
+  - 天球をステレオ投影する
+  - 狭角では画面全体を使い、全天に近づくと円形表示へ滑らかに移行する
+  - 投影コンテキストに時刻、観測地、SkyfieldContext、観測者位置を保持する
+
+開発・比較用
 
 - LinearProjection
-  - 赤経赤緯を直接2D表示する開発・確認用の線形投影
 - HorizontalLinearProjection
-  - 赤経赤緯を方位高度へ変換して2D表示する線形投影
-
-標準候補
-
-- ステレオ投影
 
 将来的に対応
 
@@ -1016,7 +1036,7 @@ Plate Solve
 
 ## 14. SkyObject
 
-プラネタリウム上に表示されるすべての要素は `SkyObject` を基底とする。
+天体として検索・選択・導入の対象になるものは `SkyObject` を基底とする。
 
 例：
 
@@ -1026,11 +1046,13 @@ Plate Solve
 - 太陽
 - 彗星
 - 人工衛星
-- 架台
-- カメラ画角
-- Plate Solve結果
+- DSO
 
 各SkyObjectは現在時刻・観測地点などに応じた位置情報を提供する共通インターフェースを持つ。
+
+架台マーカー、カメラ画角、Plate Solve結果など、天体ではない表示要素は Layer と Scene の状態で表現する。
+
+固定天体は時刻・観測地点によらず同じ Position を返す。動的天体は `get_position(time, observer)` と `get_magnitude(time, observer)` を使用し、引数が不足している場合は誤った座標を黙って返さない。
 
 
 ## 15. Layer
@@ -1083,9 +1105,61 @@ Scene は以下の要素から構成される。
 - Observer（観測地点）
 - Time（時刻）
 - SkyCamera（視点）
-- Projection（投影法）
-- LayerManager（表示レイヤー）
 - SkyObjects（表示対象）
 - ObjectIndex
+- Selection、Focus
+- RenderingSettings、GuiSettings
+- SkyfieldContext
+- Mountと架台現在位置
 
 Renderer は Scene を入力として描画を行う。
+Projection は Scene ではなく ProjectionManager が保持する。
+LayerManager は現在 Renderer が保持する。
+
+---
+
+## 18. 固定天体と動的天体
+
+固定天体と動的天体は、同じ SkyObject インターフェースを公開するが、検索・更新方法を分ける。
+
+### 固定天体
+
+- 恒星
+- 星座を構成する恒星
+- Messier、NGC、ICなどのDSO
+
+固定天体だけを等級・赤経・赤緯による空間インデックスへ登録する。
+
+### 動的天体
+
+- 太陽
+- 月
+- 惑星
+- 彗星、小惑星
+- ISSを含む人工衛星
+
+初期段階では天体種別ごとの小さなリストから列挙し、現在時刻・観測地点で位置と等級を計算する。太陽系天体は約1秒、ISSは約0.05秒を目安に計算結果をキャッシュする。時刻を大きく変更した場合、観測地点を変更した場合、軌道要素を更新した場合はキャッシュを無効化する。
+
+---
+
+## 19. 直近で採用するデータ源
+
+- 太陽・月・惑星: JPL DE440s と Skyfield
+- Messier・NGC・IC: OpenNGC の `NGC.csv` と `addendum.csv`
+- ISS: CelesTrak の OMM CSV
+
+OpenNGCでは、M31とNGC 224のような複数名称を別天体として重複登録しない。正規IDと aliases を保持し、空白・大文字小文字・カタログ番号表記の差を吸収して検索する。
+
+---
+
+## 20. 直近ロードマップ
+
+1. 動的天体共通処理を修正する
+2. 太陽・月・惑星を表示する
+3. ISS 1機を OMM CSV から読み込み、表示・選択・情報表示・予想経路に対応する
+4. OpenNGCから Messier・NGC・IC を読み込み、別名検索に対応する
+5. E-ZEUS II 実機で固定天体の導入と架台位置表示を再確認する
+6. ISS表示の精度を確認してから、人工衛星追尾へ接続する
+7. テスト、性能測定、スクリーンショット、動画、設計判断を資料化する
+
+全活動衛星、Starlink全機、精密なDSO形状、一般化したプラグイン機構は、上記の最小構成が完成するまで後回しとする。
