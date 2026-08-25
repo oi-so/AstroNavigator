@@ -27,6 +27,8 @@ Renderer、GUI、TrackingなどはSceneを参照して処理を行う。
 - GuiSettings
 - SkyfieldContext
 - Mountと架台現在位置
+- SatelliteRenderSnapshot
+- CometRenderSnapshot
 
 ### 責務ではないもの
 
@@ -215,6 +217,15 @@ ISSやStarlinkなど。
 ## MountMarker
 
 架台が向いている方向。
+
+---
+
+## CometRenderSnapshot
+
+彗星描画のために、現在時刻・観測地点に対して事前計算した
+位置と等級のスナップショット。
+
+Scene に保持し、Renderer はこのスナップショットを参照して描画する。
 
 ---
 

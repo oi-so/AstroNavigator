@@ -31,8 +31,10 @@ from astronavigator.scene.scene_controller import SceneController
 from astronavigator.event.event_bus import EventBus
 from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG, OPENNGC_ADDENDUM, OPENNGC_NGC, SATELLITE_MAGNITUDES, VISUAL_SATELLITES_OMM, MPC_COMETS
 from astronavigator.sky.object_type import ObjectType
+from astronavigator.sky.comet_render_cache import CometRenderCache, CometRenderSnapshot
 from astronavigator.sky.satellite_render_cache import SatelliteRenderCache
-from astronavigator.sky.sky_object import Satellite
+from astronavigator.sky.satellite_render_cache import SatelliteRenderSnapshot
+from astronavigator.sky.sky_object import Comet, Satellite
 from astronavigator.tracking.e_zeus_rate_profile_repository import EZeusRateProfileRepository
 from astronavigator.tracking.mount_tracking import MountTrackingBackend
 from astronavigator.tracking.simulator_tracking import SimulatorTrackingBackend
@@ -67,12 +69,15 @@ class Application:
         self._load_solar_system()
         self._load_satellites()
         self._load_openngc()
-        # self._load_comets()
+        self._load_comets()
 
         self._satellite_render_cache = SatelliteRenderCache()
         self._satellite_render_cache.snapshot_changed.connect(self._on_satellite_snapshot_changed)
+        self._comet_render_cache = CometRenderCache()
+        self._comet_render_cache.snapshot_changed.connect(self._on_comet_snapshot_changed)
 
         self._request_satellite_snapshot()
+        self._request_comet_snapshot()
 
         self._tracking_controller: TrackingController | None = None
         self._tracking_time_provider: TrackingTimeProvider | None = None
@@ -177,6 +182,7 @@ class Application:
 
         self._update_scene_time(delta_time)
         self._request_satellite_snapshot()
+        self._request_comet_snapshot()
         self._update_dynamic_tracking(delta_time)
         # print(f"Update: {delta_time:.3f} seconds")
 
@@ -391,3 +397,16 @@ class Application:
     def _on_satellite_snapshot_changed(self, snapshot: SatelliteRenderSnapshot):
         self._scene.satellite_render_snapshot = snapshot
         # self._event_bus.publish(EventType.SCENE_UPDATED, snapshot)
+
+    def _request_comet_snapshot(self):
+        objects = self._scene.object_index.find_dynamic_by_type(ObjectType.COMET)
+        comets = tuple(obj for obj in objects if isinstance(obj, Comet))
+
+        self._comet_render_cache.request_update(
+            time=self._scene.time,
+            observer=self._scene.observer,
+            comets=comets,
+        )
+
+    def _on_comet_snapshot_changed(self, snapshot: CometRenderSnapshot):
+        self._scene.comet_render_snapshot = snapshot

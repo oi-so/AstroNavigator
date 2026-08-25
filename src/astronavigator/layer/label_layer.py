@@ -8,7 +8,7 @@ from astronavigator.rendering.label_layout import BELOW_HORIZON_LABEL_ALPHA
 from astronavigator.rendering.limiting_magnitude import calculate_label_limiting_magnitude
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.rendering.rendering_settings import RenderingSettings
-from astronavigator.sky.sky_object import Satellite, SkyObject
+from astronavigator.sky.sky_object import Comet, Satellite, SkyObject
 from astronavigator.sky.object_type import ObjectType
 
 
@@ -57,15 +57,25 @@ class LabelLayer(Layer):
             )
             dynamic_objects = scene.object_index.find_dynamic_by_type(object_type)
 
-            snapshot = scene.satellite_render_snapshot
+            satellite_snapshot = scene.satellite_render_snapshot
+            comet_snapshot = scene.comet_render_snapshot
             for obj in (*fixed_objects, *dynamic_objects):
                 if isinstance(obj, Satellite):
-                    if snapshot is None:
+                    if satellite_snapshot is None:
                         continue
 
-                    if obj.id not in snapshot.states:
+                    state = satellite_snapshot.states.get(obj.id)
+                    if state is None:
                         continue
-                    magnitude = snapshot.states[obj.id].brightness.magnitude
+                    magnitude = state.brightness.magnitude
+                elif isinstance(obj, Comet):
+                    if comet_snapshot is None:
+                        continue
+
+                    state = comet_snapshot.states.get(obj.id)
+                    if state is None:
+                        continue
+                    magnitude = state.magnitude
                 else:
                     magnitude = obj.get_magnitude(scene.time, scene.observer)
                 
@@ -85,18 +95,28 @@ class LabelLayer(Layer):
             self._draw_label(obj, context, below_horizon_path, base_color)
 
     def _draw_label(self, obj: SkyObject, context: RendererContext, below_horizon_path: QPainterPath, base_color: QColor) -> None:
-        snapshot = context.scene.satellite_render_snapshot
+        satellite_snapshot = context.scene.satellite_render_snapshot
+        comet_snapshot = context.scene.comet_render_snapshot
         painter = context.painter
 
         if isinstance(obj, Satellite):
-            if snapshot is None:
+            if satellite_snapshot is None:
                 return
 
-            state = snapshot.states.get(obj.id)
+            state = satellite_snapshot.states.get(obj.id)
             if state is None:
                 return
 
             point = context.projection.project(state.observation.position, context.projection_context, context.viewport.size())
+        elif isinstance(obj, Comet):
+            if comet_snapshot is None:
+                return
+
+            state = comet_snapshot.states.get(obj.id)
+            if state is None:
+                return
+
+            point = context.projection.project(state.position, context.projection_context, context.viewport.size())
         else:
             point = context.projection.project_object(
                 obj, context.projection_context, context.viewport.size()
