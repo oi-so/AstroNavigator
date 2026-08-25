@@ -447,6 +447,9 @@ class EZeus2(Mount):
             self._pending_slew_observed = True
             return
 
+        if not self._pending_slew_observed:
+            return
+
         current_ra_steps, current_dec_steps = self._protocol.get_position()
         current_axis_position = self._steps_to_axis_position(current_ra_steps, current_dec_steps)
         current_pier_side = self._pier_side_from_axis_position(current_axis_position)

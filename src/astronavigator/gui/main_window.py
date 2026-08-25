@@ -22,7 +22,7 @@ class MainWindow(QMainWindow):
         self._docks: list[QDockWidget] = []
 
         self.setWindowTitle("AstroNavigator")
-        self.resize(1280, 720)
+        self.resize(1920, 1080)
 
         self._create_widgets()
         self._create_docks()
