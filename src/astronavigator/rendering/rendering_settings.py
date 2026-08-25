@@ -24,15 +24,24 @@ class ColorSettings:
         default_factory=lambda: QColor(0, 255, 204, 255)
     )
 
+    mount_marker_color: QColor = field(
+        default_factory=lambda: QColor(255, 170, 0, 255)
+    )
+
 
 
 @dataclass(slots=True)
 class RenderingSettings:
-    limiting_magnitude: float = 6.0
+    limiting_magnitude: float = 15.0 # 等級制限
+    satellite_limiting_magnitude: float = 7.0 # 人工衛星の等級制限
 
     show_labels: bool = True
-    label_limiting_magnitude: float = 2.0
+    wide_label_limiting_magnitude: float = 1.0
+    label_limiting_magnitude: float = 15.0
     show_catalog_names: bool = False
+
+    show_constellation_lines: bool = True
+    show_constellation_labels: bool = True
 
     ra_format: RightAscensionFormat = RightAscensionFormat.HMS
 
@@ -40,3 +49,4 @@ class RenderingSettings:
     grid_settings: GridSettings = field(default_factory=lambda: GridSettings())
 
     selection_radius: int = 15
+    mount_marker_radius: int = 20

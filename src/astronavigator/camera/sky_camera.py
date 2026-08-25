@@ -6,6 +6,9 @@ from enum import Enum, auto
 
 from astronavigator.sky.position import Position
 
+ZOOM_FOV_DEG = 0.10
+WIDE_FOV_DEG = 180.0
+
 
 class CameraReferenceFrame(Enum):
     EQUATORAL = auto()
@@ -18,7 +21,7 @@ class SkyCamera:
     center: Position
     fov_deg: float
     rotation: float
-    limit_magnitude: float = 6.0  # Default limit magnitude for visibility
+    limit_magnitude: float = 25.0
     reference_frame: CameraReferenceFrame = CameraReferenceFrame.AUTO
 
 
@@ -35,4 +38,4 @@ class SkyCamera:
 
     def zoom(self, factor: float):
         self.fov_deg *= factor
-        self.fov_deg = max(5.0, min(180.0, self.fov_deg))  # Clamp FOV between 5 and 180 degrees
+        self.fov_deg = max(ZOOM_FOV_DEG, min(WIDE_FOV_DEG, self.fov_deg))

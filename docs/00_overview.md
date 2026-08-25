@@ -75,16 +75,27 @@ GUI
 
 # 6. Current Implementation
 
-現在の実装は、Scene を中心にした 2D プラネタリウム表示を先行している。
+2026年8月12日時点では、`develop` ブランチの Scene を中心にした 2D プラネタリウムと E-ZEUS II 制御を実装している。
 
-- Scene が時刻、観測地、SkyCamera、SkyObject、描画設定を保持する
+- Scene が時刻、観測地、SkyCamera、SkyObject、描画設定、架台状態を保持する
 - SceneController が Scene 変更の公開インターフェースとなる
-- Renderer は Scene を読み取り、LayerManager 経由で各 Layer を描画する
-- SkyObject は天球上の表示対象を表す
-- ProjectionManager が現在の Projection を保持する
-- LinearProjection は赤経赤緯を直接2D表示する
-- HorizontalLinearProjection は赤経赤緯を方位高度へ変換して2D表示する
-- CoordinateGrid は座標系ごとのグリッド線を生成し、Projection が表示座標へ変換する
+- Renderer は Scene を読み取り、LayerManager 経由で Grid、Constellation、Object、Label、Mount、Selection を描画する
+- ProjectionManager は標準投影として `StereographicProjection` を保持する
+- ステレオ投影上で赤道座標・地平座標グリッドを同時に描画できる
+- HYG恒星カタログ、星座線、JPL DE440s天体暦をローカルへ保存して読み込む
+- ObjectIndex は天体種別、等級、赤経、赤緯を使って表示候補を高速に絞り込む
+- 時刻の停止、等速、加減速、任意日時への変更に対応する
+- E-ZEUS II の接続、現在位置取得、導入、同期、停止、恒星時追尾に対応する
+- MountLayer により架台の現在方向を SkyView 上へ表示する
+
+現時点の主な未実装・未完成事項は以下である。
+
+- 太陽、月、惑星の位置・等級計算と描画
+- ISSを含む人工衛星の軌道要素読込み、位置計算、予想経路表示
+- Messier、NGC、ICカタログの読込みと別名検索
+- 動的天体の位置取得時に、すべての呼出し元から時刻と観測地点を渡す処理
+- 固定天体用空間インデックスと動的天体用列挙・キャッシュの分離
+- カタログの更新期限、取得失敗時の前回データ利用、手動更新
 
 ---
 

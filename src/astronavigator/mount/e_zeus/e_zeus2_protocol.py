@@ -39,6 +39,15 @@ class EZeus2StatusIndex(StrEnum):
     DEC_DIRECTION = "dec_direction"
     DEC_SPEED = "dec_speed"
 
+class EZeus2CommandRejectedError(RuntimeError):
+    def __init__(self, command: str, response: str) -> None:
+        self.command = command
+        self.response = response
+
+        self.warning_code = response[1:3] if response.startswith("!") and len(response) >= 3 else None
+
+        super().__init__(f"E-ZEUS2 rejected command: {command!r}, response: {response!r}, warning_code: {self.warning_code!r}")
+
 class EZeus2Protocol:
     def __init__(self, port: str, baudrate: int = 9600, timeout: float = 0.5):
         self._port = port
@@ -74,11 +83,13 @@ class EZeus2Protocol:
     def _send(self, cmd: str) -> str:
         if self.serial is None:
             raise RuntimeError("Serial port is not open")
+
         self.serial.reset_input_buffer()
         self.serial.write(cmd.encode("ascii") + b"\r")
-
-        resp = self.serial.readline().decode("ascii", errors="replace").strip()
-        return resp
+        self.serial.flush()
+        raw = self.serial.readline()
+        # print(f"cmd={cmd!r}, raw={raw!r}")
+        return raw.decode("ascii", errors="replace").strip()
 
 
     def _check_ack(self, resp: str) -> EZeus2Error:
@@ -132,10 +143,10 @@ class EZeus2Protocol:
         if steps is None:
             cmd = f"DV{axis.value}{direction.value}{speed.value}"
         else:
-            cmd = f"DV{axis.value}{direction.value}{speed.value}{steps:08X}"
+            cmd = f"DV{axis.value}{direction.value}{speed.value}#{steps:08X}"
 
         resp = self._send(cmd)
-        self._check_ack(resp)
+        self._raise_for_error(resp, cmd)
         return resp
 
 
@@ -247,13 +258,32 @@ class EZeus2Protocol:
 
     def quick_check(self) -> str | None:
         try:
-            with serial.Serial(self._port, self._baundrate, timeout=0.3) as ser:
+            with serial.Serial(self._port, self._baundrate, timeout=1) as ser:
+                time.sleep(0.2)
+
                 ser.reset_input_buffer()
                 ser.write(b"VR\r")
-                resp = ser.readline().decode("ascii", errors="replace").strip()
-                if resp.startswith("VR"):
+
+                resp = ser.readline().decode(
+                    "ascii",
+                    errors="replace",
+                ).strip()
+
+                if resp.startswith("E-ZEUS2"):
                     return resp
-                else:
-                    return None
+
+                return None
         except Exception:
             return None
+
+
+    def _raise_for_error(self, resp: str, cmd: str) -> None:
+        error = self._check_ack(resp)
+
+        if error == EZeus2Error.ERROR:
+            raise EZeus2CommandRejectedError(cmd, resp)
+
+        if error == EZeus2Error.UNKNOWN_COMMAND:
+            raise RuntimeError(
+                f"E-ZEUS2 does not recognize command: {cmd!r}, response: {resp!r}"
+            )

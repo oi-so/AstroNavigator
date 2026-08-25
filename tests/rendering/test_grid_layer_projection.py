@@ -5,8 +5,7 @@ from PySide6.QtGui import QImage, QPainter
 
 from astronavigator.catalog.parser.skyfield_parser import SkyfieldParser
 from astronavigator.layer.grid_layer import GridLayer
-from astronavigator.rendering.projection.horizontal_linear_projection import HorizontalLinearProjection
-from astronavigator.rendering.projection.linear_projection import LinearProjection
+from astronavigator.rendering.projection.stereographic_projection import StereographicProjection
 from astronavigator.rendering.render_context import RendererContext
 from astronavigator.scene.scene import Scene
 
@@ -38,9 +37,5 @@ def render_grid_layer(projection) -> None:
         painter.end()
 
 
-def test_grid_layer_renders_with_linear_projection() -> None:
-    render_grid_layer(LinearProjection())
-
-
-def test_grid_layer_renders_with_horizontal_projection() -> None:
-    render_grid_layer(HorizontalLinearProjection())
+def test_grid_layer_renders_with_stereographic_projection() -> None:
+    render_grid_layer(StereographicProjection())
