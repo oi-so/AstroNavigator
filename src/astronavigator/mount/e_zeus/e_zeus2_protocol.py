@@ -91,6 +91,14 @@ class EZeus2Protocol:
         # print(f"cmd={cmd!r}, raw={raw!r}")
         return raw.decode("ascii", errors="replace").strip()
 
+    def _send_checked(self, cmd: str) -> str:
+        resp = self._send(cmd)
+        if not resp:
+            raise RuntimeError(f"No response from E-ZEUS2 for command: {cmd!r}")
+
+        self._raise_for_error(resp, cmd)
+        return resp
+
 
     def _check_ack(self, resp: str) -> EZeus2Error:
         if resp.startswith("!"):
@@ -107,7 +115,7 @@ class EZeus2Protocol:
         RA/DECの現在のステップ位置を16進法8桁で取得
         """
 
-        resp = self._send("GP")
+        resp = self._send_checked("GP")
 
         # GP#HHHHHHHH#hhhhhhhh GPは位置返答、#はモーターの値であることを表す
         ra_hex = resp[3:11]
@@ -145,8 +153,7 @@ class EZeus2Protocol:
         else:
             cmd = f"DV{axis.value}{direction.value}{speed.value}#{steps:08X}"
 
-        resp = self._send(cmd)
-        self._raise_for_error(resp, cmd)
+        resp = self._send_checked(cmd)
         return resp
 
 
@@ -162,15 +169,12 @@ class EZeus2Protocol:
         """
 
         cmd = f"SP{1 if to_siderial else 0}"
-        resp = self._send(cmd)
-        self._check_ack(resp)
+        resp = self._send_checked(cmd)
         return resp
 
 
 
     def get_status(self) -> dict:
-        resp = self._send("ST")
-
         """
         返答は以下のようになっている
         01: ST→状態返答
@@ -182,6 +186,7 @@ class EZeus2Protocol:
         6: F→赤緯が正転、R→赤緯が逆転
         7: 設計モーターのスピード(0=停止、2=低速、3=中速、4=高速) (E-ZEUS2で動作中は必ず0)
         """
+        resp = self._send_checked("ST")
 
         return {
             EZeus2StatusIndex.RA_STATUS: resp[2],
@@ -194,7 +199,7 @@ class EZeus2Protocol:
 
 
     def get_revolution_step(self) -> tuple[int, int]:
-        resp = self._send("RD")
+        resp = self._send_checked("RD")
         ra_hex = resp[3:11]
         dec_hex = resp[12:20]
         return int(ra_hex, 16), int(dec_hex, 16)
@@ -203,14 +208,13 @@ class EZeus2Protocol:
         # モーター停止中か恒星追尾時のみ
         # 現在位置がクリアされる
         cmd = f"RD#{ra_steps:08X}#{dec_steps:08X}"
-        resp = self._send(cmd)
-        self._check_ack(resp)
+        resp = self._send_checked(cmd)
         return resp
 
 
     def get_arrival_margin(self) -> tuple[int, int]:
         """高速移動から導入位置より何ステップ前で速度を遅くするか"""
-        resp = self._send("PA")
+        resp = self._send_checked("PA")
         ra_hex = resp[3:5]
         dec_hex = resp[6:8]
         return int(ra_hex, 16), int(dec_hex, 16)
@@ -219,24 +223,22 @@ class EZeus2Protocol:
     def set_arrival_margin(self, ra_steps: int, dec_steps: int) -> str:
         """高速移動から導入位置より何ステップ前で速度を遅くするか"""
         cmd = f"PA#{ra_steps:02X}#{dec_steps:02X}"
-        resp = self._send(cmd)
-        self._check_ack(resp)
+        resp = self._send_checked(cmd)
         return resp
 
 
     def get_handbox_slowdown(self) -> tuple[int, int]:
-        resp = self._send("SL")
+        resp = self._send_checked("SL")
         return int(resp[3:5], 16), int(resp[6:8], 16)
 
     def set_handbox_slowdown(self, ra_steps: int, dec_steps: int) -> str:
         cmd = f"SL#{ra_steps:02X}#{dec_steps:02X}"
-        resp = self._send(cmd)
-        self._check_ack(resp)
+        resp = self._send_checked(cmd)
         return resp
 
     def get_backlash(self) -> tuple[bool, int, int]:
         """ギアの遊びを想定するらしい"""
-        resp = self._send("BL")
+        resp = self._send_checked("BL")
         active = resp[2] == "A"
         ra_backlash = resp[4:12]
         dec_backlash = resp[13:21]
@@ -246,13 +248,12 @@ class EZeus2Protocol:
     def set_backlash(self, ra_backlash: int, dec_backlash: int) -> str:
         """外部から操作されたり動作中は拒否される。赤緯は普通0"""
         cmd = f"BL#{ra_backlash:08X}#{dec_backlash:08X}"
-        resp = self._send(cmd)
-        self._check_ack(resp)
+        resp = self._send_checked(cmd)
         return resp
 
 
     def get_version(self) -> str:
-        resp = self._send("VR")
+        resp = self._send_checked("VR")
         return resp
 
 

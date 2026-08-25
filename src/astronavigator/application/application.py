@@ -49,7 +49,7 @@ from astronavigator.tracking.target_horizontal_position_calculator import Skyfie
 from astronavigator.tracking.e_zeus_tracking_backend import EZeusTrackingBackend
 
 
-FPS = 120
+FPS = 60
 
 class Application:
     def __init__(self):

@@ -166,11 +166,15 @@ class SceneController:
         self._event_bus.publish(EventType.MOUNT_CONNECTED, mount)
 
     def disconnect_mount(self) -> None:
-        if self._scene.mount:
-            self._scene.mount.disconnect()
-            self._scene.mount = None
-            self._scene.mount_position = None
-            self._event_bus.publish(EventType.MOUNT_DISCONNECTED, None)
+        mount = self._scene.mount
+        if mount is None:
+            return
+
+        mount.stop()
+        mount.disconnect()
+        self._scene.mount = None
+        self._scene.mount_position = None
+        self._event_bus.publish(EventType.MOUNT_DISCONNECTED, mount)
 
     def refresh_mount_state(self) -> Position | None:
         mount = self._scene.mount
