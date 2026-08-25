@@ -89,6 +89,10 @@ class EZeus2(Mount):
         return self._status_is_slewing(status)
 
     @property
+    def is_slew_in_progress(self) -> bool:
+        return self._slew_command_pending or self.is_slewing
+
+    @property
     def pier_side(self) -> PierSide:
         return self._settings.pier_side
 

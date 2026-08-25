@@ -145,9 +145,16 @@ class TrackingController:
         target, observer, plan, config = self._require_prepared_values()
         snapshot = self._time_provider.get_snapshot()
 
+        backend_updated = False
+
         if self._state is TrackingState.PREPOSITIONING:
+            self._backend.update(elapsed_sec)
+            backend_updated = True
+
             if not self._backend.preposition_complete:
-                return TrackingControllerUpdate( state=self._state)
+                return TrackingControllerUpdate(
+                    state=self._state
+                )
 
             self._state = TrackingState.WAITING
 
@@ -202,7 +209,8 @@ class TrackingController:
             timeline_rate=snapshot.rate,
         )
 
-        self._backend.update(elapsed_sec)
+        if not backend_updated:
+            self._backend.update(elapsed_sec)
 
         if self._state is TrackingState.ACQUIRING:
             self._state = TrackingState.TRACKING
