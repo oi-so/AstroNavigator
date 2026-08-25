@@ -228,3 +228,5 @@ data/*
 
 
 __main__.py.lprof
+
+tmp
