@@ -129,7 +129,8 @@ class ObjectLayer(Layer):
                 return
 
             magnitude = state.magnitude
-            if not magnitude.is_visible(limit_magnitude):
+            comet_limit = getattr(scene.rendering_settings, "comet_limiting_magnitude", limit_magnitude)
+            if not magnitude.is_visible(comet_limit):
                 return
 
         elif isinstance(obj, Satellite):

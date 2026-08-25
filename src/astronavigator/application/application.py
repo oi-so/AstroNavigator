@@ -401,11 +401,17 @@ class Application:
     def _request_comet_snapshot(self):
         objects = self._scene.object_index.find_dynamic_by_type(ObjectType.COMET)
         comets = tuple(obj for obj in objects if isinstance(obj, Comet))
+        comet_limit = getattr(
+            self._scene.rendering_settings,
+            "comet_limiting_magnitude",
+            self._scene.rendering_settings.limiting_magnitude,
+        )
 
         self._comet_render_cache.request_update(
             time=self._scene.time,
             observer=self._scene.observer,
             comets=comets,
+            limiting_magnitude=comet_limit,
         )
 
     def _on_comet_snapshot_changed(self, snapshot: CometRenderSnapshot):

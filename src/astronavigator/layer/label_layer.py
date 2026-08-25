@@ -60,6 +60,7 @@ class LabelLayer(Layer):
             satellite_snapshot = scene.satellite_render_snapshot
             comet_snapshot = scene.comet_render_snapshot
             for obj in (*fixed_objects, *dynamic_objects):
+                magnitude_limit = limiting_magnitude
                 if isinstance(obj, Satellite):
                     if satellite_snapshot is None:
                         continue
@@ -76,10 +77,11 @@ class LabelLayer(Layer):
                     if state is None:
                         continue
                     magnitude = state.magnitude
+                    magnitude_limit = getattr(scene.rendering_settings, "comet_limiting_magnitude", limiting_magnitude)
                 else:
                     magnitude = obj.get_magnitude(scene.time, scene.observer)
                 
-                if not magnitude.is_visible(limiting_magnitude):
+                if not magnitude.is_visible(magnitude_limit):
                     continue
 
                 if not self._should_draw_label(obj, scene.rendering_settings):

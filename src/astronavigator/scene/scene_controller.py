@@ -262,3 +262,7 @@ class SceneController:
     def set_wide_label_limiting_magnitude(self, magnitude: float) -> None:
         self._scene.rendering_settings.wide_label_limiting_magnitude = magnitude
         self._event_bus.publish(EventType.LAYER_CHANGED, None)
+
+    def set_comet_limiting_magnitude(self, magnitude: float) -> None:
+        self._scene.rendering_settings.comet_limiting_magnitude = magnitude
+        self._event_bus.publish(EventType.LAYER_CHANGED, None)
