@@ -13,13 +13,8 @@ from astronavigator.mount.slew_path import PierSide, MountAxisPosition
 
 
 SIDEREAL_DAY_SECONDS = 86164.0905
-PIER_SIDE_STEP_TOLERANCE = 2
-
 
 # TODO:
-# - 子午線反転
-# - SideOfPier対応
-# - SlewPath対応
 # - can_なんとかの実装
 
 
@@ -453,23 +448,13 @@ class EZeus2(Mount):
             return
 
         current_ra_steps, current_dec_steps = self._protocol.get_position()
-        target_ra_steps, target_dec_steps = self._pending_target_steps
+        current_axis_position = self._steps_to_axis_position(current_ra_steps, current_dec_steps)
+        current_pier_side = self._pier_side_from_axis_position(current_axis_position)
 
-        ra_steps_per_rev = self._settings.ra_steps_per_rev
-        dec_steps_per_rev = self._settings.dec_steps_per_rev
+        if current_pier_side != PierSide.UNKNOWN:
+            self._settings.pier_side = current_pier_side
 
-        if ra_steps_per_rev is None or dec_steps_per_rev is None:
-            raise RuntimeError("Steps per revolution not set")
-        
-        ra_error = abs(self._step_difference(current_ra_steps, target_ra_steps, ra_steps_per_rev))
-        dec_error = abs(self._step_difference(current_dec_steps, target_dec_steps, dec_steps_per_rev))
-        reached_target = ra_error <= PIER_SIDE_STEP_TOLERANCE and dec_error <= PIER_SIDE_STEP_TOLERANCE
-
-        if reached_target:
-            self._settings.pier_side = self._pending_pier_side
-            self._clear_pending_pier_change()
-        elif self._pending_slew_observed:
-            self._clear_pending_pier_change()
+        self._clear_pending_pier_change()
 
     def update_status(self) -> None:
         status = self._protocol.get_status()
@@ -550,3 +535,14 @@ class EZeus2(Mount):
         if sign not in (-1, 1):
             raise RuntimeError(f"Invalid coordinate sign for {axis.name}: {sign}")
         return sign
+
+
+
+    def _pier_side_from_axis_position(self, axis_position: MountAxisPosition) -> PierSide:
+        dec_axis_deg = axis_position.dec_axis_deg
+        if abs(dec_axis_deg) < 90.0:
+            return PierSide.EAST
+        elif abs(dec_axis_deg) > 90.0:
+            return PierSide.WEST
+        else:
+            return self._settings.pier_side

@@ -18,7 +18,7 @@ from astronavigator.tracking.tracking_time_provider import TrackingTimeProvider
 
 @dataclass(frozen=True, slots=True)
 class TrackingControllerSettings:
-    position_error_gain_per_sec: float = 0.5
+    position_error_gain_per_sec: float = 0.8
     maximum_position_correction_deg_per_sec: float = 1.0
 
     def __post_init__(self) -> None:
@@ -250,22 +250,22 @@ class TrackingController:
         requested_ra_rate = prediction.ra_rate_deg_per_sec * timeline_rate + ra_correction
         requested_dec_rate = prediction.dec_rate_deg_per_sec * timeline_rate + dec_correction
 
-        print(
-            "[TRACK]",
-            f"target_ra={desired_position.ra_deg:.6f}",
-            f"mount_ra={current_mount_position.ra_deg:.6f}",
-            f"ra_error={ra_error:+.6f}",
-            f"ra_target_rate={prediction.ra_rate_deg_per_sec:+.6f}",
-            f"ra_correction={ra_correction:+.6f}",
-            f"ra_request={requested_ra_rate:+.6f}",
-            "|",
-            f"target_dec={desired_position.dec_deg:.6f}",
-            f"mount_dec={current_mount_position.dec_deg:.6f}",
-            f"dec_error={dec_error:+.6f}",
-            f"dec_target_rate={prediction.dec_rate_deg_per_sec:+.6f}",
-            f"dec_correction={dec_correction:+.6f}",
-            f"dec_request={requested_dec_rate:+.6f}",
-        )
+        # print(
+        #     "[TRACK]",
+        #     f"target_ra={desired_position.ra_deg:.6f}",
+        #     f"mount_ra={current_mount_position.ra_deg:.6f}",
+        #     f"ra_error={ra_error:+.6f}",
+        #     f"ra_target_rate={prediction.ra_rate_deg_per_sec:+.6f}",
+        #     f"ra_correction={ra_correction:+.6f}",
+        #     f"ra_request={requested_ra_rate:+.6f}",
+        #     "|",
+        #     f"target_dec={desired_position.dec_deg:.6f}",
+        #     f"mount_dec={current_mount_position.dec_deg:.6f}",
+        #     f"dec_error={dec_error:+.6f}",
+        #     f"dec_target_rate={prediction.dec_rate_deg_per_sec:+.6f}",
+        #     f"dec_correction={dec_correction:+.6f}",
+        #     f"dec_request={requested_dec_rate:+.6f}",
+        # )
 
         return self._backend.apply_rates(
             requested_ra_rate,
