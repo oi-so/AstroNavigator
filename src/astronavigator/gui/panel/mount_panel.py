@@ -63,24 +63,33 @@ class MountPanel(QWidget):
 
         layout.addLayout(button_layout)
 
-
-        self._application.event_bus.subscribe(EventType.MOUNT_CONNECTED, self._on_mount_connected)
-        self._application.event_bus.subscribe(EventType.MOUNT_DISCONNECTED, self._on_mount_disconnected)
-        self._application.event_bus.subscribe(EventType.MOUNT_STATE_CHANGED, self._on_update_mount_state)
+        event_bus = self._application.event_bus
+        event_bus.subscribe(EventType.MOUNT_CONNECTED, self._on_mount_connected)
+        event_bus.subscribe(EventType.MOUNT_DISCONNECTED, self._on_mount_disconnected)
+        event_bus.subscribe(EventType.MOUNT_STATE_CHANGED, self._on_update_mount_state)
+        event_bus.subscribe(EventType.TRACKING_STATE_CHANGED, self._on_tracking_state_changed)
         self._update_mount(self._application.scene.mount)
 
 
     def _on_update_mount_state(self, event) -> None:
         self._update_mount(event.payload)
 
+    def _on_tracking_state_changed(self, event) -> None:
+        self._update_buttons()
+
 
     def _update_buttons(self) -> None:
         mount = self._application.scene.mount
-        if mount is not None:
-            if mount.is_tracking or mount.is_slewing:
-                self._stop_button.setText("停止")
-            else:
-                self._stop_button.setText("追尾")
+        if mount is None:
+            return
+
+        controller = self._application.tracking_controller
+        dynamic_tracking_active = controller is not None and controller.is_active
+
+        if dynamic_tracking_active or mount.is_tracking or mount.is_slewing:
+            self._stop_button.setText("停止")
+        else:
+            self._stop_button.setText("追尾")
 
     def _on_mount_connected(self, event) -> None:
         self._update_mount(event.payload)
@@ -135,8 +144,14 @@ class MountPanel(QWidget):
 
 
     def _on_stop_clicked(self) -> None:
-        if self._application.scene.mount is not None:
-            if self._application.scene.mount.is_tracking or self._application.scene.mount.is_slewing:
-                self._application.main_actions.stop_mount_action.trigger()
-            else:
-                self._application.main_actions.start_mount_tracking_action.trigger()
+        mount = self._application.scene.mount
+        if mount is None:
+            return
+
+        controller = self._application.tracking_controller
+        dynamic_tracking_active = controller is not None and controller.is_active
+
+        if dynamic_tracking_active or mount.is_tracking or mount.is_slewing:
+            self._application.main_actions.stop_mount_action.trigger()
+        else:
+            self._application.main_actions.start_mount_tracking_action.trigger()
