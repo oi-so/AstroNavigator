@@ -36,7 +36,7 @@ class EZeus2MountSettings:
     dec_forward_step_sign: int = 1
 
 
-SLEW_CORRECTION_COUNT = 2
+SLEW_MAX_COUNT = 10
 SLEW_STEP_TOLERANCE = 2
 class EZeus2(Mount):
     def __init__(self, port: str) -> None:
@@ -531,30 +531,58 @@ class EZeus2(Mount):
 
         current_ra_steps, current_dec_steps = self._protocol.get_position()
 
-        target_ra_steps, target_dec_steps = self._slew_target_steps
-
         ra_steps_per_rev = self._settings.ra_steps_per_rev
         dec_steps_per_rev = self._settings.dec_steps_per_rev
 
         if ra_steps_per_rev is None or dec_steps_per_rev is None:
             raise RuntimeError("Steps per revolution not set")
 
-        ra_error_steps = abs(self._step_difference(target_ra_steps, current_ra_steps, ra_steps_per_rev))
+        now = datetime.now(timezone.utc)
 
-        dec_error_steps = abs(self._step_difference(target_dec_steps, current_dec_steps, dec_steps_per_rev))
+        target_axis_position = self._sky_to_axis_position(
+            self._slew_target,
+            self._slew_target_pier_side,
+            now,
+        )
 
-        if ra_error_steps > SLEW_STEP_TOLERANCE or dec_error_steps > SLEW_STEP_TOLERANCE:
-            return
+        target_ra_steps, target_dec_steps = self._axis_position_to_steps(target_axis_position)
+
+        self._slew_target_steps = (target_ra_steps, target_dec_steps)
+
+        ra_error_steps = abs(
+            self._step_difference(
+                target_ra_steps,
+                current_ra_steps,
+                ra_steps_per_rev,
+            )
+        )
+
+        dec_error_steps = abs(
+            self._step_difference(
+                target_dec_steps,
+                current_dec_steps,
+                dec_steps_per_rev,
+            )
+        )
 
         self._slew_command_pending = False
 
-        if self._slew_correction_count < SLEW_CORRECTION_COUNT:
-            self._slew_correction_count += 1
+        if ra_error_steps <= SLEW_STEP_TOLERANCE and dec_error_steps <= SLEW_STEP_TOLERANCE:
+            self._clear_slew()
+            self.set_tracking(True)
+            return
 
-            moved = self._start_slew(self._slew_target, self._slew_target_pier_side,)
+        if self._slew_correction_count >= SLEW_MAX_COUNT:
+            self._clear_slew()
+            self.set_tracking(True)
+            return
 
-            if moved:
-                return
+        self._slew_correction_count += 1
+
+        moved = self._start_slew(self._slew_target, self._slew_target_pier_side)
+
+        if moved:
+            return
 
         self._clear_slew()
         self.set_tracking(True)
