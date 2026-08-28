@@ -46,7 +46,8 @@ class TrackingPanel(QWidget):
 
         self._mode = QComboBox()
         self._mode.addItem("観測（実際のUTC）", TrackingRunMode.OBSERVATION)
-        self._mode.addItem("リハーサル（Scene時刻）", TrackingRunMode.REHEARSAL)
+        self._mode.addItem("リハーサル（Scene時刻・Sim）", TrackingRunMode.REHEARSAL)
+        self._mode.addItem("テスト（Scene時刻・実機）", TrackingRunMode.TEST_TRACKING)
 
         self._entry_altitude = QDoubleSpinBox()
         self._entry_altitude.setRange(0.0, 90.0)
@@ -358,8 +359,7 @@ class TrackingPanel(QWidget):
         self._edit_profile_button.setEnabled(not active and has_profile)
         self._delete_profile_button.setEnabled(not active and has_profile)
 
-        is_e_zeus = isinstance(mount, EZeus2)
-        self._mode.setEnabled(not active and not is_e_zeus)
+        self._mode.setEnabled(not active)
 
         self._auto_profile_button.setEnabled(
             not active

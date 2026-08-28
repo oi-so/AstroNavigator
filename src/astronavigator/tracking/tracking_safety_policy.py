@@ -26,6 +26,8 @@ class TrackingSafetyIssueCode(Enum):
     RA_RATE_LIMIT = auto()
     DEC_RATE_LIMIT = auto()
 
+    TIME_PAUSED = auto()
+
 
 class TrackingSafetySeverity(Enum):
     WARNING = auto()
@@ -55,6 +57,7 @@ class TrackingSafetyContext:
     mount_limit_reached: bool = False
 
     time_rate: float = 1.0
+    time_paused: bool = False
     time_jump_requested: bool = False
 
     available_ra_rate_deg_per_sec: float | None = None
@@ -251,7 +254,7 @@ class TrackingSafetyPolicy:
         if context.is_real_mount and context.time_jump_requested:
             issues.append(
                 TrackingSafetyIssue(
-                    code=TrackingSafetyIssueCode.REAL_MOUNT_TIME_JUMP,
+                    code=TrackingSafetyIssueCode.TIME_PAUSED,
                     severity=TrackingSafetySeverity.STOP if runtime else TrackingSafetySeverity.BLOCKING,
                     message="実機接続中の追尾では、Scene時刻をジャンプできません。",
                 )
