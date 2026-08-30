@@ -285,7 +285,7 @@ class SatelliteRenderCache(QObject):
         self._busy = False
         self._active_task = None
 
-        print("Satellite snapshot calculation failed:", repr(error),)
+        # print("Satellite snapshot calculation failed:", repr(error),)
 
         QTimer.singleShot(0, self._start_pending_request)
 
