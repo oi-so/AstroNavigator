@@ -187,14 +187,6 @@ class TrackingPanel(QWidget):
         run_mode = self._mode.currentData()
     
         if isinstance(mount, EZeus2):
-            if run_mode is not TrackingRunMode.OBSERVATION:
-                QMessageBox.warning(
-                    self,
-                    "追尾開始エラー",
-                    "E-ZEUS II実機では観測モードを選択してください。",
-                )
-                return
-
             profile_id = self._rate_profile.currentData()
             if profile_id is None:
                 QMessageBox.warning(
