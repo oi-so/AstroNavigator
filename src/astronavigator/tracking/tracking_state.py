@@ -13,6 +13,7 @@ class TrackingPlanStatus(Enum):
 class TrackingRunMode(Enum):
     OBSERVATION = auto()
     REHEARSAL = auto()
+    TEST_TRACKING = auto()
 
 
 class MeridianStrategy(Enum):

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
+from dataclasses import replace
 import time
+from datetime import datetime, timezone
 from PySide6.QtCore import QStandardPaths, QTimer
 
 
@@ -35,13 +38,16 @@ from astronavigator.sky.satellite_render_cache import SatelliteRenderCache
 from astronavigator.sky.sky_object import Satellite
 from astronavigator.tracking.e_zeus_rate_profile_repository import EZeusRateProfileRepository
 from astronavigator.tracking.mount_tracking import MountTrackingBackend
+from astronavigator.tracking.replayed_target_predictor import ReplayCoordinateMapper
 from astronavigator.tracking.simulator_tracking import SimulatorTrackingBackend
 from astronavigator.tracking.target_predictor import TargetPredictor
 from astronavigator.tracking.tracking_adjustment import TrackingAdjustment
 from astronavigator.tracking.tracking_config import TrackingConfig
 from astronavigator.tracking.tracking_controller import TrackingController
+from astronavigator.tracking.tracking_plan import TrackingPlan
 from astronavigator.tracking.tracking_planner import TrackingPlanner
-from astronavigator.tracking.tracking_safety_policy import TrackingSafetyContext, TrackingSafetyPolicy
+from astronavigator.tracking.tracking_safety_policy import TrackingSafetyContext, TrackingSafetyPolicy, TrackingSafetyResult
+from astronavigator.tracking.replayed_target_predictor import ReplayCoordinateMapper, ReplayedTargetPredictor
 from astronavigator.tracking.tracking_state import TrackingRunMode, TrackingState
 from astronavigator.tracking.tracking_time_provider import SystemUtcTimeProvider, TrackingTimeProvider
 from astronavigator.tracking.tracking_time_provider import SimulationTimeProvider
@@ -78,6 +84,7 @@ class Application:
         self._tracking_time_provider: TrackingTimeProvider | None = None
         self._tracking_config: TrackingConfig | None = None
         self._tracking_update_accumulator = 0.0
+        self._tracking_replay_mapper: ReplayCoordinateMapper | None = None
 
         config_directory = Path(
             QStandardPaths.writableLocation(
@@ -216,7 +223,16 @@ class Application:
             self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, TrackingState.FAILED)
             return
 
-        self._scene.mount_position = controller.mount_position
+        mount_position = controller.mount_position
+
+        provider = self._tracking_time_provider
+        mapper = self._tracking_replay_mapper
+
+        if provider is not None and provider.mode is TrackingRunMode.TEST_TRACKING and mapper is not None:
+            mount_position = mapper.real_to_simulation(mount_position, datetime.now(timezone.utc))
+
+        self._scene.mount_position = mount_position
+
         self._event_bus.publish(EventType.TRACKING_UPDATED, update)
         if update.state is not previous_state:
             self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, update.state)
@@ -260,7 +276,7 @@ class Application:
     def e_zeus_rate_profile_repository(self) -> EZeusRateProfileRepository:
         return self._e_zeus_rate_profile_repository
 
-    def start_dynamic_tracking(self, *, run_mode: TrackingRunMode, config: TrackingConfig, adjustment: TrackingAdjustment):
+    def start_dynamic_tracking(self, *, run_mode: TrackingRunMode, config: TrackingConfig, adjustment: TrackingAdjustment) -> tuple[TrackingPlan, TrackingSafetyResult]:
         target = self._scene.selection.selected
         mount = self._scene.mount
 
@@ -284,28 +300,57 @@ class Application:
             self._scene_controller.set_time_speed(1.0)
             self._scene_controller.set_time_paused(False)
             self._scene_controller.set_time(time_provider.get_snapshot().utc)
-        else:
-            time_provider = SimulationTimeProvider(lambda: self._scene.time)
+        elif run_mode is TrackingRunMode.TEST_TRACKING:
+            if not isinstance(mount, EZeus2):
+                raise RuntimeError("Test tracking mode is only available for E-ZEUS II mount.")
 
-        predictor = TargetPredictor()
+            if not math.isclose(self._scene.time.speed, 1.0, rel_tol=1e-9):
+                raise RuntimeError("Test tracking mode requires Scene time speed to be 1.0.")
+
+            if self._scene.time.is_paused:
+                raise RuntimeError("Test tracking mode requires Scene time to be running (not paused).")
+
+            time_provider = SimulationTimeProvider(lambda: self._scene.time, TrackingRunMode.TEST_TRACKING)
+        else:
+            time_provider = SimulationTimeProvider(lambda: self._scene.time, TrackingRunMode.REHEARSAL)
+
+        source_predictor = TargetPredictor()
         horizontal_calculator = SkyfieldHorizontalPositionCalculator(skyfield_context)
-        planner = TrackingPlanner(predictor, horizontal_calculator)
+        planner = TrackingPlanner(source_predictor, horizontal_calculator)
         plan = planner.create_plan(target, self._scene.observer, time_provider, config)
+
+        tracking_predictor = source_predictor
+        replay_mapper: ReplayCoordinateMapper | None = None
+
+        if run_mode is TrackingRunMode.TEST_TRACKING:
+            simulation_anchor_utc = time_provider.get_snapshot().utc
+            real_anchor_utc = datetime.now(timezone.utc)
+
+            replay_mapper = ReplayCoordinateMapper(skyfield_context, self._scene.object_index, simulation_anchor_utc, real_anchor_utc)
+            tracking_predictor = ReplayedTargetPredictor(replay_mapper, source_predictor)
+
+            mapped_preposition = tracking_predictor.predict(
+                target, self._scene.observer, plan.start_time_utc, config.prediction_horizon
+            ).current_position
+            plan = replace(plan, preposition=mapped_preposition)
+
         backend = self._create_tracking_backend(mount, run_mode, config)
-        controller = TrackingController(predictor, backend, time_provider, TrackingSafetyPolicy())
+        controller = TrackingController(tracking_predictor, backend, time_provider, TrackingSafetyPolicy())
         controller.set_adjustment(adjustment)
+
         safety_result = controller.prepare(
-            target=target, 
-            observer=self._scene.observer, 
-            plan=plan, 
-            config=config, 
-            safety_context=self._create_tracking_safety_context(run_mode)
+            target=target,
+            observer=self._scene.observer,
+            plan=plan,
+            config=config,
+            safety_context=self._create_tracking_safety_context(run_mode),
         )
 
         if safety_result.can_start:
             self._tracking_controller = controller
             self._tracking_time_provider = time_provider
             self._tracking_config = config
+            self._tracking_replay_mapper = replay_mapper
             self._tracking_update_accumulator = 0.0
 
         self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, controller.state)
@@ -318,6 +363,7 @@ class Application:
         if controller is None:
             return 
         controller.stop()
+        self._tracking_replay_mapper = None
         self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, controller.state)
 
 
@@ -345,17 +391,20 @@ class Application:
             collision_risk=False,
             mount_limit_reached=False,
             time_rate=self._scene.time.speed,
+            time_paused=self._scene.time.is_paused
         )
 
 
 
     def _create_tracking_backend(self, mount: Mount, run_mode: TrackingRunMode, config: TrackingConfig) -> MountTrackingBackend:
         if isinstance(mount, SimulatorMount):
+            if run_mode is TrackingRunMode.TEST_TRACKING:
+                raise RuntimeError("Simulator mount does not support test tracking mode.")
             return SimulatorTrackingBackend(mount)
 
         if isinstance(mount, EZeus2):
-            if run_mode is not TrackingRunMode.OBSERVATION:
-                raise RuntimeError("E-ZEUS II実機では観測モードのみ使用できます。")
+            if run_mode not in (TrackingRunMode.OBSERVATION, TrackingRunMode.TEST_TRACKING):
+                raise RuntimeError(f"E-ZEUS II mount does not support run mode: {run_mode}")
 
             profile_id = config.rate_profile_id
             if profile_id is None:

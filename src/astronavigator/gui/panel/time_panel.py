@@ -109,6 +109,7 @@ class TimePanel(QWidget):
         event_bus = self._application.event_bus
         event_bus.subscribe(EventType.TIME_CHANGED, self._on_time_changed)
         event_bus.subscribe(EventType.TIMEZONE_CHANGED, self._on_timezone_changed)
+        event_bus.subscribe(EventType.TRACKING_STATE_CHANGED, self._on_tracking_state_changed)
         self._update_time(self._application.scene.time)
 
         qt_application = QApplication.instance()
@@ -339,4 +340,10 @@ class TimePanel(QWidget):
 
         return super().eventFilter(watched, event)
 
-    
+
+
+    def _on_tracking_state_changed(self, event) -> None:
+        controller = self._application.tracking_controller
+
+        active = controller is not None and controller.is_active
+        self.setEnabled(not active)

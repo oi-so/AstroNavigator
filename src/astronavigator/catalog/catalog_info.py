@@ -45,17 +45,13 @@ ISS_OMM = CatalogInfo(
 
 OPENNGC_NGC = CatalogInfo(
     name="OpenNGC NGC/IC",    
-    url=(
-        "https://raw.githubusercontent.com/mattiaverga/OpenNGC/v20260501/database_files/NGC.csv"
-    ),
+    url="https://raw.githubusercontent.com/mattiaverga/OpenNGC/v20260501/database_files/NGC.csv",
     save_path=Path.cwd() / "data" / "openngc" / "NGC.csv",
 )
 
 OPENNGC_ADDENDUM = CatalogInfo(
     name="OpenNGC Addendum",
-    url=(
-        "https://raw.githubusercontent.com/mattiaverga/OpenNGC/v20260501/database_files/addendum.csv"
-    ),
+    url="https://raw.githubusercontent.com/mattiaverga/OpenNGC/v20260501/database_files/addendum.csv",
     save_path=(
         Path.cwd() / "data" / "openngc" / "addendum.csv"
     ),
@@ -80,7 +76,7 @@ MPC_COMETS = CatalogInfo(
 
 SATELLITE_MAGNITUDES = CatalogInfo(
     name="Satellite standard magnitudes",
-    url=("https://raw.githubusercontent.com/Stellarium/stellarium-data/master/satellites/satellites.dat"),
+    url="https://raw.githubusercontent.com/Stellarium/stellarium-data/master/satellites/satellites.dat",
     save_path=(Path.cwd() / "data" / "satellites" / "satellites.dat.gz"),
     max_age=timedelta(days=7),
 )
