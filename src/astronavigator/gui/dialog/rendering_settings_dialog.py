@@ -113,8 +113,11 @@ class RenderingSettingsDialog(QDialog):
 
         limiting_magnitude = self._create_magnitude_input(self._settings.limiting_magnitude)
         limiting_magnitude.valueChanged.connect(lambda value: self._controller.set_limiting_magnitude(value))
+        comet_limiting_magnitude = self._create_magnitude_input(self._settings.comet_limiting_magnitude)
+        comet_limiting_magnitude.valueChanged.connect(lambda value: self._controller.set_comet_limiting_magnitude(value))
 
         object_form.addRow("最大等級", limiting_magnitude)
+        object_form.addRow("彗星の最大等級", comet_limiting_magnitude)
 
         label_group = QGroupBox("天体名の表示")
         label_form = QFormLayout(label_group)

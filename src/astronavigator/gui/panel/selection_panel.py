@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QScrollArea, QWidget, QVBoxLayout, QHBoxLayout
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 
 from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
-from astronavigator.sky.sky_object import Moon, SkyObject
+from astronavigator.sky.sky_object import Comet, Moon, SkyObject
 from astronavigator.astronomy.coordinate_transformer import CoordinateTransformer
 
 
@@ -15,6 +15,11 @@ class SelectionPanel(QWidget):
         super().__init__()
 
         self._application = application
+        self._context_dirty = False
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.setInterval(200)
+        self._refresh_timer.timeout.connect(self._refresh_context)
+        self._refresh_timer.start()
 
         self._name_value = QLabel("-")
         self._type_value = QLabel("-")
@@ -102,6 +107,7 @@ class SelectionPanel(QWidget):
 
         event_bus.subscribe(EventType.TIME_CHANGED, self._on_object_context_changed)
         event_bus.subscribe(EventType.OBSERVER_CHANGED, self._on_object_context_changed)
+        event_bus.subscribe(EventType.COMET_SNAPSHOT_UPDATED, self._on_object_context_changed)
 
         self._change_mount_buttons_enabled(self._application.scene.mount.is_connected if self._application.scene.mount else False)
 
@@ -129,10 +135,15 @@ class SelectionPanel(QWidget):
         self._update_goto_button()
 
     def _on_object_context_changed(self, event) -> None:
-        selected = self._application.scene.selection.selected
-        if selected is None:
+        self._context_dirty = True
+
+    def _refresh_context(self) -> None:
+        if not self._context_dirty or not self.isVisible():
             return
-        self._update_selection(selected)
+        self._context_dirty = False
+        selected = self._application.scene.selection.selected
+        if selected is not None:
+            self._update_selection(selected)
 
 
     def _change_mount_buttons_enabled(self, enabled: bool) -> None:
@@ -170,9 +181,10 @@ class SelectionPanel(QWidget):
             self._goto_button.setText("導入")
 
     def _update_selection(self, sky_object: SkyObject | None) -> None:
-        self._illumination_container.show()
-        self._moon_age_container.show()
-        self._moon_phase_container.show()
+        is_moon = isinstance(sky_object, Moon)
+        self._illumination_container.setVisible(is_moon)
+        self._moon_age_container.setVisible(is_moon)
+        self._moon_phase_container.setVisible(is_moon)
         if sky_object is None:
             self._name_value.setText("-")
             self._type_value.setText("-")
@@ -190,8 +202,20 @@ class SelectionPanel(QWidget):
         else:
             scene = self._application.scene
             settings = scene.gui_settings
-            position = sky_object.get_position(time=scene.time, observer=scene.observer)
-            magnitude = sky_object.get_magnitude(time=scene.time, observer=scene.observer)
+            if isinstance(sky_object, Comet):
+                snapshot = scene.comet_render_snapshot
+                state = snapshot.states.get(sky_object.id) if snapshot is not None else None
+                if state is None:
+                    self._name_value.setText(sky_object.name)
+                    self._type_value.setText(sky_object.object_type.value)
+                    for label in (self._ra_dec_value, self._alt_az_value, self._magnitude_value, self._add_info_value):
+                        label.setText("-")
+                    self._change_mount_buttons_enabled(scene.mount.is_connected if scene.mount else False)
+                    return
+                position, magnitude = state.position, state.magnitude
+            else:
+                position = sky_object.get_position(time=scene.time, observer=scene.observer)
+                magnitude = sky_object.get_magnitude(time=scene.time, observer=scene.observer)
             if scene.skyfield is None:
                 self._alt_az_value.setText("-")
             else:
