@@ -14,8 +14,9 @@ from astronavigator.rendering.projection.projection_manager import ProjectionMan
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
 from astronavigator.event.event_bus import EventBus
+from astronavigator.sky.comet_render_cache import CometRenderSnapshot
 from astronavigator.sky.position import Position
-from astronavigator.sky.sky_object import SkyObject
+from astronavigator.sky.sky_object import Comet, SkyObject
 from astronavigator.scene.time import Time
 from astronavigator.catalog.catalog import ConstellationCatalog
 
@@ -27,18 +28,25 @@ class SceneController:
         self._projection_manager = projection_manager
         self._drag_projection_context = None
 
+    def set_comet_render_snapshot(self, snapshot: CometRenderSnapshot | None) -> None:
+        self._scene.comet_render_snapshot = snapshot
+        if isinstance(self._scene.focus.target, Comet):
+            self._update_focus_camera()
+        self._event_bus.publish(EventType.COMET_SNAPSHOT_UPDATED, snapshot)
+
     @property
     def scene(self) -> Scene:
         return self._scene
 
-    def set_time(self, value: datetime) -> None:
+    def set_time(self, value: datetime, *, is_continuous: bool = False) -> None:
         if value.tzinfo is None:
             raise ValueError("The datetime value must be timezone-aware.")
         current_time = self._scene.time
         self._scene.time = Time(
             utc=value.astimezone(timezone.utc),
             speed=current_time.speed,
-            is_paused=current_time.is_paused
+            is_paused=current_time.is_paused,
+            revision=current_time.revision + (not is_continuous),
         )
         self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
 
@@ -217,7 +225,14 @@ class SceneController:
         if target is None:
             return
 
-        position = target.get_position(self._scene.time, self._scene.observer)
+        if isinstance(target, Comet):
+            snapshot = self._scene.comet_render_snapshot
+            state = snapshot.states.get(target.id) if snapshot is not None else None
+            if state is None:
+                return
+            position = state.position
+        else:
+            position = target.get_position(self._scene.time, self._scene.observer)
         self._set_camera_center(position)
 
     def _set_camera_center(self, position: Position) -> None:

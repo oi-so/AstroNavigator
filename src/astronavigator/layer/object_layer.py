@@ -124,13 +124,13 @@ class ObjectLayer(Layer):
             if state is None:
                 return
 
-            point = context.projection.project(state.position, context.projection_context, viewport_size)
-            if point is None:
-                return
-
             magnitude = state.magnitude
             comet_limit = getattr(scene.rendering_settings, "comet_limiting_magnitude", limit_magnitude)
             if not magnitude.is_visible(comet_limit):
+                return
+
+            point = context.projection.project(state.position, context.projection_context, viewport_size)
+            if point is None:
                 return
 
         elif isinstance(obj, Satellite):

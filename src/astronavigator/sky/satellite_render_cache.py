@@ -128,14 +128,8 @@ class _SnapshotTask(QRunnable):
                 error_code = int(errors[index])
 
                 if error_code != 0:
-                    message = SGP4_ERRORS.get(
-                        error_code,
-                        f"SGP4 error {error_code}",
-                    )
-                    print(
-                        f"Satellite calculation failed: "
-                        f"{satellite.name}: {message}"
-                    )
+                    # message = SGP4_ERRORS.get(error_code, f"SGP4 error {error_code}")
+                    # print(f"Satellite calculation failed: " f"{satellite.name}: {message}")
                     continue
 
                 vector = gcrs_positions[index]
@@ -192,6 +186,7 @@ class SatelliteRenderCache(QObject):
         self._satrec_model_key: tuple[int, ...] = ()
         self._satrec_array: SatrecArray | None = None
 
+        self._next_request_at = 0.0
         self.snapshot: SatelliteRenderSnapshot | None = None
 
         if not accelerated:
@@ -201,6 +196,10 @@ class SatelliteRenderCache(QObject):
             )
 
     def request_update(self, time: Time, observer: Observer, satellites: tuple[Satellite, ...]) -> None:
+        now = perf_counter()
+        if now < self._next_request_at:
+            return
+        self._next_request_at = now + 1.0 / SATELLITE_RENDER_UPDATE_HZ
         time_bucket = int(time.utc.timestamp() * SATELLITE_RENDER_UPDATE_HZ)
 
         satellite_ids = tuple(satellite.id for satellite in satellites)

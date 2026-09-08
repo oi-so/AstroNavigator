@@ -6,7 +6,7 @@ from datetime import datetime
 from time import perf_counter
 from types import MappingProxyType
 
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
 
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.time import Time
@@ -15,8 +15,10 @@ from astronavigator.sky.position import Position
 from astronavigator.sky.sky_object import Comet
 
 
-COMET_RENDER_UPDATE_HZ = 2.0
-COMET_RENDER_BATCH_SIZE = 32
+COMET_RENDER_UPDATE_HZ = 10.0
+COMET_RENDER_BATCH_SIZE = 4
+COMET_VISIBLE_REFRESH_SECONDS = 30.0
+COMET_BACKGROUND_REFRESH_SECONDS = 300.0
 COMET_VISIBILITY_MARGIN_MAG = 1.0
 
 
@@ -40,8 +42,6 @@ class _SnapshotRequest:
     time: Time
     observer: Observer
     comets_to_update: tuple[Comet, ...]
-    active_comet_ids: tuple[str, ...]
-    limiting_magnitude: float
 
 
 class _TaskSignals(QObject):
@@ -51,9 +51,9 @@ class _TaskSignals(QObject):
 
 @dataclass(frozen=True, slots=True)
 class _TaskResult:
+    key: tuple[object, ...]
     utc: datetime
     observer_key: tuple[float, float, float]
-    active_comet_ids: tuple[str, ...]
     states: Mapping[str, CometRenderState]
     calculation_seconds: float
 
@@ -74,8 +74,12 @@ class _SnapshotTask(QRunnable):
 
             for comet in self.request.comets_to_update:
                 try:
-                    position = comet.get_position(self.request.time, self.request.observer)
-                    magnitude = comet.get_magnitude(self.request.time, self.request.observer)
+                    position = comet.get_position(
+                        self.request.time, self.request.observer
+                    )
+                    magnitude = comet.get_magnitude(
+                        self.request.time, self.request.observer
+                    )
                 except Exception as error:
                     if len(failed_comets) < 5:
                         failed_comets.append(f"{comet.name}: {repr(error)}")
@@ -87,16 +91,17 @@ class _SnapshotTask(QRunnable):
                 )
 
             if failed_comets:
-                print("Comet calculation failed:", "; ".join(failed_comets))
+                # print("Comet calculation failed:", "; ".join(failed_comets))
+                pass
 
             result = _TaskResult(
+                key=self.request.key,
                 utc=self.request.time.utc,
                 observer_key=(
                     self.request.observer.latitude,
                     self.request.observer.longitude,
                     self.request.observer.elevation,
                 ),
-                active_comet_ids=self.request.active_comet_ids,
                 states=MappingProxyType(states),
                 calculation_seconds=perf_counter() - started_at,
             )
@@ -117,44 +122,47 @@ class CometRenderCache(QObject):
         self._busy = False
         self._pending_request: _SnapshotRequest | None = None
         self._active_task: _SnapshotTask | None = None
-        self._latest_request_key: tuple[object, ...] | None = None
         self._next_priority_batch_start_index = 0
         self._next_background_batch_start_index = 0
         self._state_cache: dict[str, CometRenderState] = {}
 
+        self._updated_at: dict[str, datetime] = {}
+        self._context_key: tuple[object, ...] | None = None
+        self._generation = 0
+        self._next_update_at = 0.0
         self.snapshot: CometRenderSnapshot | None = None
 
-    def request_update(self, time: Time, observer: Observer, comets: tuple[Comet, ...], limiting_magnitude: float) -> None:
-        if self._busy:
+    def request_update(
+        self,
+        time: Time,
+        observer: Observer,
+        comets: tuple[Comet, ...],
+        limiting_magnitude: float,
+        selected_id: str | None = None,
+        focus_id: str | None = None,
+    ) -> None:
+        context_key = (observer.latitude, observer.longitude, observer.elevation)
+        context_key += (time.revision,)
+        if context_key != self._context_key:
+            self._context_key = context_key
+            self._generation += 1
+            self._state_cache.clear()
+            self._updated_at.clear()
+            self.snapshot = None
+            self.snapshot_changed.emit(None)
+
+        # 実時間で休止期間を設け、早送り中も計算スレッドがGUIのCPUを占有しない。
+        if self._busy or perf_counter() < self._next_update_at:
             return
-
-        time_bucket = int(time.utc.timestamp() * COMET_RENDER_UPDATE_HZ)
-        comet_ids = tuple(comet.id for comet in comets)
-        active_comets = tuple(comet for comet in comets if comet.is_active(time))
-        active_comet_ids = tuple(comet.id for comet in active_comets)
-
-        comets_to_update = self._select_update_batch(active_comets, limiting_magnitude)
-
-        request_key = (
-            time_bucket,
-            observer.latitude,
-            observer.longitude,
-            observer.elevation,
-            limiting_magnitude,
-            comet_ids,
+        self._next_update_at = perf_counter() + 1.0 / COMET_RENDER_UPDATE_HZ
+        comets_to_update = self._select_update_batch(
+            comets, limiting_magnitude, time, selected_id, focus_id
         )
-        if request_key == self._latest_request_key:
+        if not comets_to_update:
             return
-
-        self._latest_request_key = request_key
-
         request = _SnapshotRequest(
-            key=request_key,
-            time=Time(
-                utc=time.utc,
-                speed=time.speed,
-                is_paused=time.is_paused,
-            ),
+            key=(self._generation,),
+            time=Time(utc=time.utc, speed=time.speed, is_paused=time.is_paused),
             observer=Observer(
                 latitude=observer.latitude,
                 longitude=observer.longitude,
@@ -162,56 +170,62 @@ class CometRenderCache(QObject):
                 timezone=observer.timezone,
             ),
             comets_to_update=comets_to_update,
-            active_comet_ids=active_comet_ids,
-            limiting_magnitude=limiting_magnitude,
         )
         self._pending_request = request
+        self._start_pending_request()
 
-        if not self._busy:
-            self._start_pending_request()
-
-    def _select_update_batch(self, comets: tuple[Comet, ...], limiting_magnitude: float) -> tuple[Comet, ...]:
-        count = len(comets)
-        if count == 0:
-            self._next_priority_batch_start_index = 0
-            self._next_background_batch_start_index = 0
-            return ()
-
-        priority_comets = tuple(
-            comet
-            for comet in comets
+    def _select_update_batch(
+        self,
+        comets: tuple[Comet, ...],
+        limiting_magnitude: float,
+        time: Time,
+        selected_id: str | None = None,
+        focus_id: str | None = None,
+    ) -> tuple[Comet, ...]:
+        priority: list[Comet] = []
+        background: list[Comet] = []
+        selected: list[Comet] = []
+        for comet in comets:
+            state = self._state_cache.get(comet.id)
+            is_visible = state is not None and state.magnitude.is_visible(
+                limiting_magnitude + COMET_VISIBILITY_MARGIN_MAG
+            )
+            interval = (
+                COMET_VISIBLE_REFRESH_SECONDS
+                if is_visible
+                else COMET_BACKGROUND_REFRESH_SECONDS
+            )
+            if comet.id in (selected_id, focus_id):
+                interval = 1.0
+            updated_at = self._updated_at.get(comet.id)
             if (
-                (cached_state := self._state_cache.get(comet.id)) is not None
-                and cached_state.magnitude.is_visible(limiting_magnitude + COMET_VISIBILITY_MARGIN_MAG)
+                updated_at is not None
+                and abs((time.utc - updated_at).total_seconds()) < interval
+            ):
+                continue
+            if comet.id in (selected_id, focus_id):
+                selected.append(comet)
+            elif is_visible:
+                priority.append(comet)
+            else:
+                background.append(comet)
+        # 明るい彗星が多い場合でも、未計算・暗い彗星の順番を必ず確保する。
+        priority_capacity = COMET_RENDER_BATCH_SIZE - len(selected) - bool(background)
+        selected.extend(
+            self._take_round_robin(tuple(priority), priority_capacity, is_priority=True)
+        )
+        selected.extend(
+            self._take_round_robin(
+                tuple(background),
+                COMET_RENDER_BATCH_SIZE - len(selected),
+                is_priority=False,
             )
         )
-        priority_ids = {comet.id for comet in priority_comets}
-        background_comets = tuple(comet for comet in comets if comet.id not in priority_ids)
-
-        selected: list[Comet] = []
-
-        if priority_comets:
-            selected.extend(
-                self._take_round_robin(
-                    priority_comets,
-                    COMET_RENDER_BATCH_SIZE,
-                    is_priority=True,
-                )
-            )
-
-        remaining_capacity = COMET_RENDER_BATCH_SIZE - len(selected)
-        if remaining_capacity > 0 and background_comets:
-            selected.extend(
-                self._take_round_robin(
-                    background_comets,
-                    remaining_capacity,
-                    is_priority=False,
-                )
-            )
-
         return tuple(selected)
 
-    def _take_round_robin(self, comets: tuple[Comet, ...], take: int, *, is_priority: bool) -> tuple[Comet, ...]:
+    def _take_round_robin(
+        self, comets: tuple[Comet, ...], take: int, *, is_priority: bool
+    ) -> tuple[Comet, ...]:
         if take <= 0 or not comets:
             return ()
 
@@ -223,7 +237,11 @@ class CometRenderCache(QObject):
                 self._next_background_batch_start_index = 0
             return comets
 
-        start = (self._next_priority_batch_start_index if is_priority else self._next_background_batch_start_index) % count
+        start = (
+            self._next_priority_batch_start_index
+            if is_priority
+            else self._next_background_batch_start_index
+        ) % count
         end = start + take
         if end <= count:
             batch = comets[start:end]
@@ -253,10 +271,20 @@ class CometRenderCache(QObject):
 
     @Slot(object)
     def _on_finished(self, result: _TaskResult) -> None:
-        active_id_set = set(result.active_comet_ids)
-        stale_ids = [comet_id for comet_id in self._state_cache if comet_id not in active_id_set]
-        for comet_id in stale_ids:
-            del self._state_cache[comet_id]
+        self._busy = False
+        task = self._active_task
+        self._active_task = None
+        # 計算時間の9倍を休止し、定常時の計算負荷を抑える。
+        self._next_update_at = perf_counter() + max(
+            1.0 / COMET_RENDER_UPDATE_HZ, result.calculation_seconds * 9.0
+        )
+        # 古い観測地点や時刻への要求が完了しても、新しいSceneへ混在させない。
+        if result.key != (self._generation,):
+            return
+        if task is not None:
+            for comet in task.request.comets_to_update:
+                self._updated_at[comet.id] = result.utc
+                self._state_cache.pop(comet.id, None)
 
         self._state_cache.update(result.states)
 
@@ -271,7 +299,6 @@ class CometRenderCache(QObject):
         self._active_task = None
 
         self.snapshot_changed.emit(snapshot)
-        QTimer.singleShot(0, self._start_pending_request)
 
     @Slot(object)
     def _on_failed(self, error: Exception) -> None:
@@ -279,5 +306,3 @@ class CometRenderCache(QObject):
         self._active_task = None
 
         print("Comet snapshot calculation failed:", repr(error))
-
-        QTimer.singleShot(0, self._start_pending_request)

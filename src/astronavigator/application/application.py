@@ -194,7 +194,7 @@ class Application:
                 self._scene_controller.set_time_speed(1.0)
             if self._scene.time.is_paused:
                 self._scene_controller.set_time_paused(False)
-            self._scene_controller.set_time(provider.get_snapshot().utc)
+            self._scene_controller.set_time(provider.get_snapshot().utc, is_continuous=True)
             return
 
         self._scene_controller.advance_time(delta_time)
@@ -412,7 +412,9 @@ class Application:
             observer=self._scene.observer,
             comets=comets,
             limiting_magnitude=comet_limit,
+            selected_id=self._scene.selection.selected.id if self._scene.selection.selected is not None else None,
+            focus_id=self._scene.focus.target.id if self._scene.focus.target is not None else None,
         )
 
-    def _on_comet_snapshot_changed(self, snapshot: CometRenderSnapshot):
-        self._scene.comet_render_snapshot = snapshot
+    def _on_comet_snapshot_changed(self, snapshot: CometRenderSnapshot | None):
+        self._scene_controller.set_comet_render_snapshot(snapshot)
