@@ -9,6 +9,7 @@ class Time:
     utc: datetime
     speed: float = 1.0
     is_paused: bool = False
+    revision: int = 0
 
     def __post_init__(self) -> None:
         if self.utc.tzinfo is None:
@@ -52,5 +53,6 @@ class Time:
 
     def reset_to_now(self) -> None:
         self.utc = datetime.now(timezone.utc)
+        self.revision += 1
         self.speed = 1.0
         self.is_paused = False
