@@ -26,6 +26,7 @@ from astronavigator.input.input_controller import InputController
 from astronavigator.mount.e_zeus.e_zeus2 import EZeus2
 from astronavigator.mount.mount import ConnectionState, Mount
 from astronavigator.mount.simulator import SimulatorMount
+from astronavigator.mount.synscan.synscan_mount import SynScanMount
 from astronavigator.rendering.projection.stereographic_projection import StereographicProjection
 from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.rendering.renderer import Renderer
@@ -42,6 +43,7 @@ from astronavigator.sky.dynamic_render_cache import DynamicRenderCache
 from astronavigator.tracking.e_zeus_rate_profile_repository import EZeusRateProfileRepository
 from astronavigator.tracking.mount_tracking import MountTrackingBackend
 from astronavigator.tracking.simulator_tracking import SimulatorTrackingBackend
+from astronavigator.tracking.synscan_tracking_backend import SynScanTrackingBackend
 from astronavigator.tracking.target_predictor import TargetPredictor
 from astronavigator.tracking.tracking_adjustment import TrackingAdjustment
 from astronavigator.tracking.tracking_config import TrackingConfig
@@ -429,6 +431,12 @@ class Application:
                     config.prediction_interval
                 ),
             )
+
+        if isinstance(mount, SynScanMount):
+            if run_mode is not TrackingRunMode.OBSERVATION:
+                raise RuntimeError(f"SynScan mount does not support run mode: {run_mode}")
+
+            return SynScanTrackingBackend(mount)
 
         raise RuntimeError(
             f"{type(mount).__name__} はまだ動的追尾に対応していません。"

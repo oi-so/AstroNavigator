@@ -27,6 +27,11 @@ class SynScanMountSettings:
     port: int = DEFAULT_SYN_SCAN_APP_PORT
     command_timeout_sec: float = 2.0
     mount_connection_timeout_sec: float = DEFAULT_MOUNT_CONNECTION_TIMEOUT_SEC
+    # MoveAxisで指令できる最大レート(度/秒)。SynScan App ProtocolにはASCOMの
+    # AxisRatesのような対応レート範囲を問い合わせるコマンドがないため、
+    # 実機で確認した安全な値を設定として持つ。
+    maximum_ra_rate_deg_per_sec: float = 2.0
+    maximum_dec_rate_deg_per_sec: float = 2.0
 
     def __post_init__(self) -> None:
         if not self.host:
@@ -39,6 +44,14 @@ class SynScanMountSettings:
             "mount_connection_timeout_sec": self.mount_connection_timeout_sec,
         }
         for name, value in timeout_values.items():
+            if not math.isfinite(value) or value <= 0.0:
+                raise ValueError(f"{name} must be a positive finite number.")
+
+        rate_values = {
+            "maximum_ra_rate_deg_per_sec": self.maximum_ra_rate_deg_per_sec,
+            "maximum_dec_rate_deg_per_sec": self.maximum_dec_rate_deg_per_sec,
+        }
+        for name, value in rate_values.items():
             if not math.isfinite(value) or value <= 0.0:
                 raise ValueError(f"{name} must be a positive finite number.")
 
@@ -68,6 +81,7 @@ class SynScanMount(Mount):
         }
         self._pier_side = PierSide.UNKNOWN
         self._connected_by_this_mount = False
+        self._is_synced = False
 
         self._can_sync = False
         self._can_slew = False
@@ -109,7 +123,19 @@ class SynScanMount(Mount):
 
     @property
     def can_set_pier_side(self) -> bool:
+        # ASCOM CanSetPierSide（SideOfPierを強制的に書き換えられるか）に対応する。
+        # GoTo時に架台姿勢を明示指定できるかどうかとは別概念で、
+        # SynScan App Protocolにその指定手段はないため supports_goto_pier_side は
+        # オーバーライドせず False のままとする。
+        return self._can_set_pier_side
+
+    @property
+    def requires_pier_side_for_sync(self) -> bool:
         return False
+
+    @property
+    def is_synced(self) -> bool:
+        return self._is_synced
 
     @property
     def can_sync(self) -> bool:
@@ -167,6 +193,7 @@ class SynScanMount(Mount):
                 Axis.DEC: 0.0,
             }
             self._pier_side = PierSide.UNKNOWN
+            self._is_synced = False
             self._state = ConnectionState.DISCONNECTED
 
     def update_status(self) -> None:
@@ -217,15 +244,22 @@ class SynScanMount(Mount):
         *,
         pier_side: PierSide | None = None,
     ) -> None:
+        """指定座標へ導入する。
+
+        SynScan App Protocolの ``SlewToCoordinatesAsync`` には導入先の
+        鏡筒姿勢(pier_side)を明示指定するパラメータが存在せず、子午線反転が
+        必要かどうかはSynScan Pro側が現在時刻と座標から自動的に判断する。
+        そのため ``pier_side`` は要求（GUI側で子午線反転の確認を取った結果）
+        として受け取るのみで、SynScan Proへは伝えない。導入完了後に
+        ``update_status()`` を呼べば実際の鏡筒姿勢を確認できるので、
+        呼び出し側（SceneController等）はGoTo後に想定と実際の
+        ``pier_side`` が一致するかを確認すること。
+        """
+
         self._require_connected()
         if not self._can_slew:
             raise NotImplementedError(
                 "The connected SynScan mount does not support equatorial slew."
-            )
-        if pier_side is not None and pier_side is not PierSide.UNKNOWN:
-            raise NotImplementedError(
-                "Selecting the destination pier side is not implemented for "
-                "SynScanMount. SynScan Pro will select the pier side."
             )
 
         target = position.normalized()
@@ -258,20 +292,48 @@ class SynScanMount(Mount):
             )
 
         target = position.normalized()
-        self._client.command(
-            "SyncToCoordinates",
-            target.ra_hours,
-            target.dec_deg,
-        )
+
+        try:
+            self._client.command(
+                "SyncToCoordinates",
+                target.ra_hours,
+                target.dec_deg,
+            )
+        except SynScanAppConnectionError as error:
+            # SynScan Proの「Interactively confirm SyncTo」設定が有効な場合、
+            # 既存のアライメントモデルが24時間以上古いとアプリ側で確認ポップアップが
+            # 表示され、ユーザーがタップするまでSyncToCoordinatesへの応答が返らない。
+            # この場合ここでタイムアウトする。sync自体は成立していないため
+            # is_synced は変更せず、原因を特定しやすいメッセージに変換して送出する。
+            raise SynScanAppConnectionError(
+                "SynScan Proへの同期(Sync)コマンドが応答しませんでした。"
+                "SynScan Pro側で同期の確認ポップアップ（Interactively confirm SyncTo）が"
+                "表示されていないか確認し、表示されていればタップしてから再度同期してください。"
+            ) from error
+
+        # SynScan Proが "Ok" を返した時点で同期は成立している。
         self._position = target
+        self._is_synced = True
 
     def home(self) -> None:
+        """架台をホームポジション（機構的な原点）へ移動する。
+
+        E-ZEUS IIのようなsync基準の架台と異なり、SynScanは機構的な
+        ホームポジション（FindHome）を持つ。アライメント開始前にhome()を
+        実行しておくと、そこがそのセッションの「初期のマウント位置」となり、
+        以降のGoTo/アライメントはこの既知の基準からの相対動作になる。
+        home()の実行によって鏡筒の実座標とSynScan Pro内部の座標との対応は
+        リセットされるため、それ以前のsync状態は無効になる。
+        """
+
         self._require_connected()
         if not self._can_home:
             raise NotImplementedError(
                 "The connected SynScan mount does not support finding home."
             )
         self._client.command("FindHome")
+        self._is_synced = False
+        self._pier_side = PierSide.UNKNOWN
 
     def _load_capabilities(self) -> None:
         self._can_sync = self._get_boolean("CanSyncGet")

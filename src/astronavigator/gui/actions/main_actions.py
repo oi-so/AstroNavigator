@@ -7,6 +7,7 @@ from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMessageBox
 
 
+from astronavigator.gui.dialog.alignment_wizard_dialog import AlignmentWizardDialog
 from astronavigator.gui.dialog.mount_selection_dialog import MountSelectionDialog
 from astronavigator.gui.dialog.mount_sync_dialog import MountSyncDialog
 from astronavigator.mount.mount import Mount
@@ -38,6 +39,8 @@ class MainActions(QObject):
         self.abort_slew_action = QAction("導入停止", self)
         self.stop_mount_action = QAction("停止", self)
         self.start_mount_tracking_action = QAction("追尾", self)
+        self.home_mount_action = QAction("ホームポジションへ", self)
+        self.alignment_wizard_action = QAction("アライメント...", self)
 
         self.now_action = QAction("現在時刻", self)
         self.settings_action = QAction("設定", self)
@@ -52,6 +55,8 @@ class MainActions(QObject):
         self.now_action.triggered.connect(self._set_now)
         self.settings_action.triggered.connect(self._open_settings)
         self.start_mount_tracking_action.triggered.connect(self.start_mount_tracking)
+        self.home_mount_action.triggered.connect(self._home_mount)
+        self.alignment_wizard_action.triggered.connect(self._open_alignment_wizard)
 
         # TODO: 接続状態が変わったかチェックするアルゴリズムを移す
         self._timer = QTimer(self)
@@ -130,7 +135,7 @@ class MainActions(QObject):
 
             target_pier_side: PierSide | None = None
 
-            if mount.can_set_pier_side:
+            if mount.can_set_pier_side or mount.supports_goto_pier_side:
                 target_pier_side = self._select_goto_pier_side(selected.name, position.ra_deg, observation_time)
 
                 if target_pier_side is None:
@@ -180,6 +185,44 @@ class MainActions(QObject):
                 f"{side_text}")
         except Exception as e:
             QMessageBox.critical(None, "同期エラー", f"マウントの同期に失敗しました: {e}")
+
+    def _home_mount(self):
+        mount = self._application.scene.mount
+
+        if mount is None:
+            QMessageBox.warning(None, "ホームポジションエラー", "マウントが接続されていません。")
+            return
+
+        if not mount.can_home:
+            QMessageBox.warning(None, "ホームポジションエラー", "このマウントはホームポジションへの移動に対応していません。")
+            return
+
+        user_select = QMessageBox.question(
+            None,
+            "ホームポジションの確認",
+            "マウントをホームポジションへ移動します。\n"
+            "これにより現在の同期情報は無効になります。よろしいですか？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if user_select != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            self._application.stop_dynamic_tracking()
+            self._application.scene_controller.home_mount()
+        except Exception as e:
+            QMessageBox.critical(None, "ホームポジションエラー", f"ホームポジションへの移動に失敗しました: {e}")
+
+    def _open_alignment_wizard(self):
+        mount = self._application.scene.mount
+
+        if mount is None:
+            QMessageBox.warning(None, "アライメントエラー", "マウントが接続されていません。")
+            return
+
+        dialog = AlignmentWizardDialog(self._application)
+        dialog.exec()
 
     def start_mount_tracking(self):
         mount = self._application.scene.mount
@@ -237,6 +280,25 @@ class MainActions(QObject):
         )
 
         hour_angle_hours = hour_angle_deg / 15.0
+
+        # SynScan Proは導入先の座標と時刻から子午線反転の要否を自動的に
+        # 判断し、SynScan App Protocol越しには反転先を明示指定できない。
+        # そのため、ユーザーに反転する/しないを選ばせるのではなく、
+        # SynScan Proが自動的に判断することを案内するだけにとどめる。
+        if not mount.supports_goto_pier_side:
+            if decision.is_near_meridian or decision.is_flip_required:
+                QMessageBox.information(
+                    None,
+                    "子午線反転",
+                    (
+                        f"{target_name} は子午線付近です。\n\n"
+                        f"RA: {hour_angle_deg:+.2f}° ({hour_angle_hours:.2f}h)\n"
+                        f"現在の架台姿勢: {mount.pier_side.value}\n\n"
+                        "子午線反転が必要かどうかはSynScan Proが自動的に判断します。"
+                        "導入後、実際の架台姿勢を確認してください。"
+                    )
+                )
+            return PierSide.UNKNOWN
 
         if decision.is_near_meridian:
             user_select = QMessageBox.question(

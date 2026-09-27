@@ -40,6 +40,8 @@ class MainMenuBar(QMenuBar):
         self._mount_menu.addAction(self._actions.disconnect_mount_action)
         self._mount_menu.addAction(self._actions.goto_mount_action)
         self._mount_menu.addAction(self._actions.sync_mount_action)
+        self._mount_menu.addAction(self._actions.home_mount_action)
+        self._mount_menu.addAction(self._actions.alignment_wizard_action)
         self._mount_menu.addAction(self._actions.center_mount_action)
 
     def _create_time_menu(self) -> None:

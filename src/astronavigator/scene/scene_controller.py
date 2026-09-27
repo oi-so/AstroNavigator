@@ -213,6 +213,16 @@ class SceneController:
         mount.sync(position, pier_side=pier_side)
         self._scene.mount_position = position
         self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
+
+    def home_mount(self) -> None:
+        mount = self._scene.mount
+        if mount is None:
+            raise RuntimeError("Mount is not connected")
+
+        mount.home()
+        self._scene.mount_position = None
+        self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
+
         
 
     def center_camera_on_object(self, sky_object: SkyObject) -> None:
