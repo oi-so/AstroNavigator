@@ -40,6 +40,11 @@ def test_snapshot_updates_selection_and_focus_without_catalog_rebuild_or_orbit_c
     controller.set_comet_render_snapshot(
         CometRenderSnapshot(scene.time.utc, (0, 0, 0), {"comet": state}, 0)
     )
+    from astronavigator.sky.dynamic_render_cache import DynamicRenderState
+
+    controller.set_dynamic_render_states(
+        {"comet": DynamicRenderState(state.position, state.magnitude)}
+    )
     panel._refresh_context()
     assert scene.sky_camera.center == state.position
     assert panel._magnitude_value.text() == "5.00"

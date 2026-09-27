@@ -18,7 +18,10 @@ class SelectionLayer(Layer):
         if selected_obj is None:
             return
 
-        if isinstance(selected_obj, Satellite):
+        state = context.scene.dynamic_render_states.get(selected_obj.id)
+        if state is not None:
+            point = context.projection.project(state.position, context.projection_context, context.viewport.size())
+        elif isinstance(selected_obj, Satellite):
             snapshot = context.scene.satellite_render_snapshot
             if snapshot is None:
                 return

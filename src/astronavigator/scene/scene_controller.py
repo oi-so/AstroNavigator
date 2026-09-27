@@ -15,8 +15,9 @@ from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
 from astronavigator.event.event_bus import EventBus
 from astronavigator.sky.comet_render_cache import CometRenderSnapshot
+from astronavigator.sky.dynamic_render_cache import DynamicRenderState
 from astronavigator.sky.position import Position
-from astronavigator.sky.sky_object import Comet, SkyObject
+from astronavigator.sky.sky_object import SkyObject
 from astronavigator.scene.time import Time
 from astronavigator.catalog.catalog import ConstellationCatalog
 
@@ -30,9 +31,11 @@ class SceneController:
 
     def set_comet_render_snapshot(self, snapshot: CometRenderSnapshot | None) -> None:
         self._scene.comet_render_snapshot = snapshot
-        if isinstance(self._scene.focus.target, Comet):
-            self._update_focus_camera()
         self._event_bus.publish(EventType.COMET_SNAPSHOT_UPDATED, snapshot)
+
+    def set_dynamic_render_states(self, states: dict[str, DynamicRenderState]) -> None:
+        self._scene.dynamic_render_states = states
+        self._update_focus_camera()
 
     @property
     def scene(self) -> Scene:
@@ -52,7 +55,8 @@ class SceneController:
 
     def advance_time(self, seconds: float) -> None:
         self._scene.time.advance(seconds)
-        self._update_focus_camera()
+        if self._scene.focus.target is None or not self._scene.focus.target.is_dynamic:
+            self._update_focus_camera()
         self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
 
     def set_time_speed(self, speed: float) -> None:
@@ -225,9 +229,8 @@ class SceneController:
         if target is None:
             return
 
-        if isinstance(target, Comet):
-            snapshot = self._scene.comet_render_snapshot
-            state = snapshot.states.get(target.id) if snapshot is not None else None
+        if target.is_dynamic:
+            state = self._scene.dynamic_render_states.get(target.id)
             if state is None:
                 return
             position = state.position

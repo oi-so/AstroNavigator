@@ -202,7 +202,10 @@ class SelectionPanel(QWidget):
         else:
             scene = self._application.scene
             settings = scene.gui_settings
-            if isinstance(sky_object, Comet):
+            render_state = scene.dynamic_render_states.get(sky_object.id)
+            if render_state is not None:
+                position, magnitude = render_state.position, render_state.magnitude
+            elif isinstance(sky_object, Comet):
                 snapshot = scene.comet_render_snapshot
                 state = snapshot.states.get(sky_object.id) if snapshot is not None else None
                 if state is None:

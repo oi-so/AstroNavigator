@@ -11,6 +11,7 @@ from astronavigator.scene.observer import Observer
 from astronavigator.scene.selection import Selection
 from astronavigator.sky.constellation_line import Constellation
 from astronavigator.sky.comet_render_cache import CometRenderSnapshot
+from astronavigator.sky.dynamic_render_cache import DynamicRenderState
 from astronavigator.sky.position import Position
 from astronavigator.sky.satellite_render_cache import SatelliteRenderSnapshot
 from astronavigator.sky.sky_object import SkyObject
@@ -39,6 +40,8 @@ class Scene:
 
     satellite_render_snapshot: SatelliteRenderSnapshot | None = None
     comet_render_snapshot: CometRenderSnapshot | None = None
+
+    dynamic_render_states: dict[str, DynamicRenderState] = field(default_factory=dict)
 
     skyfield: SkyfieldContext | None = None
 

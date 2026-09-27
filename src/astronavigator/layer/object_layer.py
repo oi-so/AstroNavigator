@@ -115,7 +115,20 @@ class ObjectLayer(Layer):
         time = scene.time
         observer = scene.observer
 
-        if isinstance(obj, Comet):
+        render_state = scene.dynamic_render_states.get(obj.id)
+        if render_state is not None:
+            magnitude = render_state.magnitude
+            magnitude_limit = (
+                scene.rendering_settings.comet_limiting_magnitude if isinstance(obj, Comet)
+                else scene.rendering_settings.satellite_limiting_magnitude if isinstance(obj, Satellite)
+                else limit_magnitude
+            )
+            if not magnitude.is_visible(magnitude_limit):
+                return
+            point = context.projection.project(render_state.position, context.projection_context, viewport_size)
+            if point is None:
+                return
+        elif isinstance(obj, Comet):
             snapshot = scene.comet_render_snapshot
             if snapshot is None:
                 return
