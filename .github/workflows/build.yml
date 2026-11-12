@@ -112,12 +112,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $dist = "dist/AstroNavigator.dist"
-          $executables = @(Get-ChildItem -Path $dist -Filter "*.exe" -File -Recurse)
-          if ($executables.Count -eq 0) {
-            throw "Build failed: no executable was created in $dist."
+          $exe = "dist/AstroNavigator.dist/__main__.exe"
+          if (-not (Test-Path $exe)) {
+            throw "Build failed: $exe was not created."
           }
-          $executables | ForEach-Object { Write-Host "Built executable: $($_.FullName)" }
 
       - name: Package macOS
         if: runner.os == 'macOS'
