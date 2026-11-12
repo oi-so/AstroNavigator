@@ -1,4 +1,6 @@
 from __future__ import annotations
+from collections import deque
+import time
 
 from PySide6.QtWidgets import QWidget
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QPainter, QWheelEvent, Qt, QNativeGestureEvent
@@ -25,16 +27,61 @@ class SkyView(QWidget):
         self._dragging = False
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
+        self._frame_times = deque(maxlen=120)
+        self._last_frame_time = None
+        self._last_fps_print = time.perf_counter()
+
         self._event_bus.subscribe(EventType.TIME_CHANGED, self._on_time_changed)
         self._event_bus.subscribe(EventType.LAYER_CHANGED, self._on_layer_changed)
         self._event_bus.subscribe(EventType.SCENE_UPDATED, self._on_scene_updated)
 
     def paintEvent(self, event) -> None:
+        frame_start = time.perf_counter()
+
         painter = QPainter(self)
         try:
-            self._renderer.render(painter, self._scene, self.rect())
+            render_start = time.perf_counter()
+
+            self._renderer.render(
+                painter,
+                self._scene,
+                self.rect()
+            )
+
+            render_end = time.perf_counter()
         finally:
             painter.end()
+
+        now = time.perf_counter()
+
+        # -------------------------
+        # 実際の描画間隔
+        # -------------------------
+        if self._last_frame_time is not None:
+            self._frame_times.append(
+                now - self._last_frame_time
+            )
+
+        self._last_frame_time = now
+
+        # Renderer.render() 自体の時間
+        render_time = render_end - render_start
+
+        if now - self._last_fps_print >= 1.0 and self._frame_times:
+            average_frame_interval = (
+                sum(self._frame_times)
+                / len(self._frame_times)
+            )
+
+            fps = 1.0 / average_frame_interval
+
+            print(
+                f"FPS: {fps:.1f}, "
+                f"interval: {average_frame_interval * 1000:.2f} ms, "
+                f"render: {render_time * 1000:.2f} ms"
+            )
+
+            self._last_fps_print = now
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         action = KEY_BINDINGS.get(event.key())
