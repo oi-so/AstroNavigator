@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from pathlib import Path
 from dataclasses import replace
+from types import SimpleNamespace
 import time
 from datetime import datetime, timezone
 from PySide6.QtCore import QStandardPaths, QTimer
@@ -71,6 +72,38 @@ class Application:
         self._input_controller = InputController(self._scene_controller)
         self.main_actions = MainActions(self)
         self._catalog_manager = CatalogManager()
+        data_location = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.AppLocalDataLocation
+        )
+        if not data_location:
+            raise RuntimeError("Could not determine the application data directory.")
+        catalog_directory = Path(data_location) / "catalogs"
+        self._catalogs = SimpleNamespace(
+            hyg=replace(HYG, save_path=catalog_directory / "hygdata_v41.csv"),
+            constellations=replace(
+                CONSTELLATIONS, save_path=catalog_directory / "constellationship.json"
+            ),
+            ephemeris=replace(EPHEMERIS, save_path=catalog_directory / "de440s.bsp"),
+            openngc_ngc=replace(
+                OPENNGC_NGC, save_path=catalog_directory / "openngc" / "NGC.csv"
+            ),
+            openngc_addendum=replace(
+                OPENNGC_ADDENDUM,
+                save_path=catalog_directory / "openngc" / "addendum.csv",
+            ),
+            visual_satellites_omm=replace(
+                VISUAL_SATELLITES_OMM,
+                save_path=catalog_directory / "satellites" / "visual.csv",
+            ),
+            mpc_comets=replace(
+                MPC_COMETS, save_path=catalog_directory / "comets" / "CometEls.txt"
+            ),
+            satellite_magnitudes=replace(
+                SATELLITE_MAGNITUDES,
+                save_path=catalog_directory / "satellites" / "satellites.dat.gz",
+            ),
+        )
+
         self._load_hyg()
         self._load_constellations()
         self._load_skyfield()
@@ -117,22 +150,22 @@ class Application:
         self._scene_controller.add_catalog(catalog)
 
     def _load_hyg(self):
-        self._catalog_manager.download_catalog(HYG)
+        self._catalog_manager.download_catalog(self._catalogs.hyg)
         parser = HygParser()
-        provider = LocalFileProvider(path=HYG.save_path, parser=parser)
+        provider = LocalFileProvider(path=self._catalogs.hyg.save_path, parser=parser)
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
 
     def _load_constellations(self):
-        self._catalog_manager.download_catalog(CONSTELLATIONS)
+        self._catalog_manager.download_catalog(self._catalogs.constellations)
         parser = ConstellationJsonParser()
-        provider = LocalFileProvider(path=CONSTELLATIONS.save_path, parser=parser)
+        provider = LocalFileProvider(path=self._catalogs.constellations.save_path, parser=parser)
         catalog = provider.load()
         self._scene_controller.add_constellation_catalog(catalog)
 
     def _load_skyfield(self):
-        self._catalog_manager.download_catalog(EPHEMERIS)
-        provider = LocalFileProvider(path=EPHEMERIS.save_path, parser=SkyfieldParser())
+        self._catalog_manager.download_catalog(self._catalogs.ephemeris)
+        provider = LocalFileProvider(path=self._catalogs.ephemeris.save_path, parser=SkyfieldParser())
         self._scene.skyfield = provider.load()
 
     def _load_solar_system(self):
@@ -146,13 +179,13 @@ class Application:
     def _load_satellites(self):
         if self._scene.skyfield is None:
             raise RuntimeError("Skyfield context is not loaded yet.")
-        self._catalog_manager.download_catalog(SATELLITE_MAGNITUDES)
+        self._catalog_manager.download_catalog(self._catalogs.satellite_magnitudes)
         mag_parser = SatelliteMagnitudeParser()
-        standard_magnitudes = mag_parser.parse(SATELLITE_MAGNITUDES.save_path)
+        standard_magnitudes = mag_parser.parse(self._catalogs.satellite_magnitudes.save_path)
 
-        self._catalog_manager.download_catalog(VISUAL_SATELLITES_OMM)
+        self._catalog_manager.download_catalog(self._catalogs.visual_satellites_omm)
         parser = OmmCsvParser(skyfield=self._scene.skyfield, catalog_name="CelesTrak Visual Satellites", standard_magnitudes=standard_magnitudes)
-        provider = LocalFileProvider(path=VISUAL_SATELLITES_OMM.save_path, parser=parser)
+        provider = LocalFileProvider(path=self._catalogs.visual_satellites_omm.save_path, parser=parser)
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
 
@@ -161,7 +194,7 @@ class Application:
         parser = NGCParser()
         objects_by_id = {}
 
-        for catalog_info in (OPENNGC_NGC, OPENNGC_ADDENDUM):
+        for catalog_info in (self._catalogs.openngc_ngc, self._catalogs.openngc_addendum):
             self._catalog_manager.download_catalog(catalog_info)
             provider = LocalFileProvider(path=catalog_info.save_path, parser=parser)
             catalog = provider.load()
@@ -178,9 +211,9 @@ class Application:
         if skyfield_context is None:
             raise RuntimeError("Skyfield context is not loaded yet.")
 
-        self._catalog_manager.download_catalog(MPC_COMETS)
-        parser = MpcCometParser(skyfield=skyfield_context, catalog_name=MPC_COMETS.name)
-        provider = LocalFileProvider(path=MPC_COMETS.save_path, parser=parser)
+        self._catalog_manager.download_catalog(self._catalogs.mpc_comets)
+        parser = MpcCometParser(skyfield=skyfield_context, catalog_name=self._catalogs.mpc_comets.name)
+        provider = LocalFileProvider(path=self._catalogs.mpc_comets.save_path, parser=parser)
 
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)

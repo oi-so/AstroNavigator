@@ -9,6 +9,8 @@ from astronavigator.gui.main_window import MainWindow
 
 def main() -> int:
     qt_app = QApplication(sys.argv)
+    qt_app.setOrganizationName("oi-so")
+    qt_app.setApplicationName("AstroNavigator")
     application = Application()
 
     window = MainWindow(application)
