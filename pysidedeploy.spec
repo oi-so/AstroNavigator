@@ -24,7 +24,7 @@ plugins =
 [nuitka]
 macos.permissions = NSLocationUsageDescription:LocationAccess
 mode = standalone
-extra_args = --quiet --noinclude-qt-translations --include-package-data=astronavigator:constellation_label.json
+extra_args = --quiet --noinclude-qt-translations --include-package-data=astronavigator:constellation_label.json --assume-yes-for-downloads
 
 [buildozer]
 mode = debug
