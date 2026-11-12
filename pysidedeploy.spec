@@ -4,7 +4,7 @@ project_dir = .
 input_file = src/astronavigator/__main__.py
 exec_directory = dist
 project_file = 
-icon = /Users/oiso/programs/AstroNavigator/.venv/lib/python3.12/site-packages/PySide6/scripts/deploy_lib/pyside_icon.icns
+icon = 
 
 [python]
 python_path = /Users/oiso/programs/AstroNavigator/.venv/bin/python3
@@ -24,7 +24,7 @@ plugins =
 [nuitka]
 macos.permissions = NSLocationUsageDescription:LocationAccess
 mode = standalone
-extra_args = --quiet --noinclude-qt-translations
+extra_args = --quiet --noinclude-qt-translations --include-package-data=astronavigator:constellation_label.json
 
 [buildozer]
 mode = debug
