@@ -115,6 +115,7 @@ jobs:
           $exe = "dist/AstroNavigator.dist/AstroNavigator.exe"
           if (-not (Test-Path $exe)) {
             throw "Build failed: $exe was not created."
+          }
 
       - name: Package macOS
         if: runner.os == 'macOS'
