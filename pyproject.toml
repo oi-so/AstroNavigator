@@ -24,7 +24,7 @@ title = "AstroNavigator"
 input_file = "src/astronavigator/__main__.py"
 exec_directory = "dist"
 mode = "standalone"
-extra_args = "--quiet --noinclude-qt-translations=True --include-package-data=astronavigator:constellation_label.json"
+extra_args = "--quiet --noinclude-qt-translations --include-package-data=astronavigator:constellation_label.json"
 
 
 [tool.setuptools.package-data]

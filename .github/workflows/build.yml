@@ -46,7 +46,10 @@ jobs:
         with:
           arch: x64
 
-      - name: Prepare deployment config
+      
+      - name: Prepare deployment config (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
         run: |
           uv run python - <<'PY'
           import configparser
@@ -56,21 +59,39 @@ jobs:
           config = configparser.ConfigParser(interpolation=None)
           config.read(path)
 
-          # Use the Python environment created by uv
           config["python"]["python_path"] = sys.executable
-
-          # Remove the macOS-specific Qt platform plugin on Windows
-          if sys.platform == "win32":
-              plugins = config["qt"]["plugins"].split(",")
-              plugins = [
-                  p for p in plugins
-                  if p.strip() != "platforms/darwin"
-              ]
-              config["qt"]["plugins"] = ",".join(plugins)
 
           with open(path, "w") as f:
               config.write(f)
           PY
+
+      - name: Prepare deployment config (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $script = @'
+          import configparser
+          import sys
+
+          path = "pysidedeploy.spec"
+          config = configparser.ConfigParser(interpolation=None)
+          config.read(path)
+
+          config["python"]["python_path"] = sys.executable
+
+          plugins = config["qt"]["plugins"].split(",")
+          plugins = [
+              p for p in plugins
+              if p.strip() != "platforms/darwin"
+          ]
+          config["qt"]["plugins"] = ",".join(plugins)
+
+          with open(path, "w") as f:
+              config.write(f)
+          '@
+
+          $script | uv run python -
+
 
       - name: Build application
         run: |
