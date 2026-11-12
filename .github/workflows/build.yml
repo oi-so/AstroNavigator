@@ -97,7 +97,6 @@ jobs:
         run: |
           uv run pyside6-deploy `
             --config-file pysidedeploy.spec `
-            --no-install `
             --force
         shell: pwsh
         if: runner.os == 'Windows'
@@ -107,7 +106,6 @@ jobs:
         run: |
           uv run pyside6-deploy \
             --config-file pysidedeploy.spec \
-            --no-install \
             --force
 
       - name: Package macOS
