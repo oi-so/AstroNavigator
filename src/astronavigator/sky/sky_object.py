@@ -129,7 +129,7 @@ class Satellite(SkyObject):
 
     # @profile
     def create_frame_context(self, time: Time, observer: Observer) -> SatelliteFrameContext:
-        time_bucket = int(time.utc.timestamp() * 20.0)
+        time_bucket = time.utc
         cache_key = (
             id(self.timescale),
             id(self.ephemeris),
@@ -425,7 +425,7 @@ class Comet(SkyObject):
         return difference_days <= self.active_window_days
 
     def _update_cache(self, time: Time, observer: Observer) -> None:
-        cache_key = time.utc.replace(microsecond=0), observer.latitude, observer.longitude, observer.elevation
+        cache_key = time.utc, observer.latitude, observer.longitude, observer.elevation
 
         if cache_key == self._cache_key and self._cached_apparent is not None and self._cached_heliocentric_distance_au is not None:
             return
@@ -521,7 +521,7 @@ class SolarSystemBody(SkyObject):
 
     def _get_apparent(self, time: Time, observer: Observer) -> Any:
         cache_key = (
-            time.utc.replace(microsecond=0), observer.latitude, observer.longitude, observer.elevation
+            time.utc, observer.latitude, observer.longitude, observer.elevation
         )
 
         if cache_key == self._cache_key:

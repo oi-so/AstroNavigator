@@ -61,7 +61,12 @@ class LabelLayer(Layer):
             comet_snapshot = scene.comet_render_snapshot
             for obj in (*fixed_objects, *dynamic_objects):
                 magnitude_limit = limiting_magnitude
-                if isinstance(obj, Satellite):
+                render_state = scene.dynamic_render_states.get(obj.id)
+                if render_state is not None:
+                    magnitude = render_state.magnitude
+                    if isinstance(obj, Comet):
+                        magnitude_limit = scene.rendering_settings.comet_limiting_magnitude
+                elif isinstance(obj, Satellite):
                     if satellite_snapshot is None:
                         continue
 
@@ -101,7 +106,10 @@ class LabelLayer(Layer):
         comet_snapshot = context.scene.comet_render_snapshot
         painter = context.painter
 
-        if isinstance(obj, Satellite):
+        render_state = context.scene.dynamic_render_states.get(obj.id)
+        if render_state is not None:
+            point = context.projection.project(render_state.position, context.projection_context, context.viewport.size())
+        elif isinstance(obj, Satellite):
             if satellite_snapshot is None:
                 return
 

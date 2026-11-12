@@ -19,6 +19,12 @@ dependencies = [
     "tzdata>=2026.3",
 ]
 
+[tool.pyside6.deploy]
+title = "AstroNavigator"
+input_file = "src/astronavigator/__main__.py"
+exec_directory = "dist"
+mode = "standalone"
+
 
 [project.scripts]
 astronavigator = "astronavigator.__main__:main"
@@ -27,6 +33,7 @@ astronavigator = "astronavigator.__main__:main"
 dev = [
     "line-profiler>=5.0.2",
     "mypy>=2.3.0",
+    "nuitka>=4.3.5",
     "pytest>=9.1.1",
     "ruff>=0.15.21",
 ]

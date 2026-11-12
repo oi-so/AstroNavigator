@@ -26,6 +26,7 @@ from astronavigator.input.input_controller import InputController
 from astronavigator.mount.e_zeus.e_zeus2 import EZeus2
 from astronavigator.mount.mount import ConnectionState, Mount
 from astronavigator.mount.simulator import SimulatorMount
+from astronavigator.mount.synscan.synscan_mount import SynScanMount
 from astronavigator.rendering.projection.stereographic_projection import StereographicProjection
 from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.rendering.renderer import Renderer
@@ -38,10 +39,11 @@ from astronavigator.sky.comet_render_cache import CometRenderCache, CometRenderS
 from astronavigator.sky.satellite_render_cache import SatelliteRenderCache
 from astronavigator.sky.satellite_render_cache import SatelliteRenderSnapshot
 from astronavigator.sky.sky_object import Comet, Satellite
+from astronavigator.sky.dynamic_render_cache import DynamicRenderCache
 from astronavigator.tracking.e_zeus_rate_profile_repository import EZeusRateProfileRepository
 from astronavigator.tracking.mount_tracking import MountTrackingBackend
-from astronavigator.tracking.replayed_target_predictor import ReplayCoordinateMapper
 from astronavigator.tracking.simulator_tracking import SimulatorTrackingBackend
+from astronavigator.tracking.synscan_tracking_backend import SynScanTrackingBackend
 from astronavigator.tracking.target_predictor import TargetPredictor
 from astronavigator.tracking.tracking_adjustment import TrackingAdjustment
 from astronavigator.tracking.tracking_config import TrackingConfig
@@ -79,6 +81,7 @@ class Application:
 
         self._satellite_render_cache = SatelliteRenderCache()
         self._satellite_render_cache.snapshot_changed.connect(self._on_satellite_snapshot_changed)
+        self._dynamic_render_cache = DynamicRenderCache()
         self._comet_render_cache = CometRenderCache()
         self._comet_render_cache.snapshot_changed.connect(self._on_comet_snapshot_changed)
 
@@ -188,6 +191,7 @@ class Application:
         self._last_update_time = current_time
 
         self._update_scene_time(delta_time)
+        self._scene_controller.set_dynamic_render_states(self._dynamic_render_cache.calculate(self._scene))
         self._request_satellite_snapshot()
         self._request_comet_snapshot()
         self._update_dynamic_tracking(delta_time)
@@ -307,8 +311,8 @@ class Application:
             self._scene_controller.set_time_paused(False)
             self._scene_controller.set_time(time_provider.get_snapshot().utc)
         elif run_mode is TrackingRunMode.TEST_TRACKING:
-            if not isinstance(mount, EZeus2):
-                raise RuntimeError("Test tracking mode is only available for E-ZEUS II mount.")
+            if not isinstance(mount, (EZeus2, SynScanMount)):
+                raise RuntimeError("Test tracking mode is only available for E-ZEUS II or SynScan mount.")
 
             if not math.isclose(self._scene.time.speed, 1.0, rel_tol=1e-9):
                 raise RuntimeError("Test tracking mode requires Scene time speed to be 1.0.")
@@ -427,6 +431,12 @@ class Application:
                     config.prediction_interval
                 ),
             )
+
+        if isinstance(mount, SynScanMount):
+            if run_mode not in (TrackingRunMode.OBSERVATION, TrackingRunMode.TEST_TRACKING):
+                raise RuntimeError(f"SynScan mount does not support run mode: {run_mode}")
+
+            return SynScanTrackingBackend(mount)
 
         raise RuntimeError(
             f"{type(mount).__name__} はまだ動的追尾に対応していません。"

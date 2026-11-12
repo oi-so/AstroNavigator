@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -73,12 +74,39 @@ class Mount(ABC):
         return False
 
     @property
+    def supports_goto_pier_side(self) -> bool:
+        """導入(slew_to)時に架台姿勢(pier_side)を明示指定できるか。
+
+        ``can_set_pier_side``（ASCOM CanSetPierSide＝SideOfPierを強制的に
+        書き換えられるか）とは異なる概念であることに注意。GoTo先の座標に
+        対してどちらの鏡筒姿勢を使うかを、GoToコマンド自体に含めて
+        指定できるプロトコル/実装でのみ True を返す。
+        """
+        return False
+
+    @property
     def requires_pier_side_for_sync(self) -> bool:
         return False
 
     @property
     def is_synced(self) -> bool:
         return True
+
+    @property
+    def can_home(self) -> bool:
+        return False
+
+    def home(self) -> None:
+        """架台をホームポジションへ移動する。
+
+        アライメント開始前に架台を既知の基準位置へ戻すための操作。
+        SynScanのように機構的なホームポジションを持つ架台のみが対応し、
+        E-ZEUS IIのようにsync基準方式の架台では対応しない
+        （``can_home`` が False のままとなる）。
+        """
+        if not self.can_home:
+            raise NotImplementedError("This mount does not support finding home.")
+        raise NotImplementedError("home() is not implemented for this mount.")
 
 
     @abstractmethod
@@ -156,11 +184,31 @@ class Mount(ABC):
 
     @classmethod
     def discover_all(cls) -> list[MountDevice]:
+        """登録済みの全Mountサブクラスに対してdiscover()を並列に実行する。
+
+        各ドライバのdiscover()はポート走査やネットワークprobeを伴い、
+        それぞれ数秒かかることがある。直列実行だと合計時間が線形に
+        伸びるため、サブクラスごとに別スレッドで実行し、最も遅い
+        ドライバのdiscover時間だけで全体が完了するようにする。
+        """
+        subclasses = cls.__subclasses__()
+        if not subclasses:
+            return []
+
         all_devices: list[MountDevice] = []
-        for subclass in cls.__subclasses__():
-            try:
-                devices = subclass.discover()
-                all_devices.extend(devices)
-            except Exception as e:
-                print(f"Error discovering devices for {subclass.__name__}: {e}")
+
+        with ThreadPoolExecutor(max_workers=len(subclasses)) as executor:
+            future_to_subclass = {
+                executor.submit(subclass.discover): subclass
+                for subclass in subclasses
+            }
+
+            for future in as_completed(future_to_subclass):
+                subclass = future_to_subclass[future]
+                try:
+                    devices = future.result()
+                    all_devices.extend(devices)
+                except Exception as e:
+                    print(f"Error discovering devices for {subclass.__name__}: {e}")
+
         return all_devices

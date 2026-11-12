@@ -7,6 +7,7 @@ from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
 from astronavigator.gui.dialog.e_zeus_rate_profile_dialog import EZeusRateProfileDialog
 from astronavigator.mount.e_zeus.e_zeus2 import EZeus2
+from astronavigator.mount.synscan.synscan_mount import SynScanMount
 from astronavigator.tracking.tracking_adjustment import TrackingAdjustment
 from astronavigator.tracking.tracking_config import TrackingConfig
 from astronavigator.tracking.tracking_controller import TrackingControllerUpdate
@@ -205,6 +206,23 @@ class TrackingPanel(QWidget):
                 "・鏡筒やケーブルは衝突しませんか？\n"
                 "・すぐ停止できる状態ですか？\n\n"
                 "現在の速度値には暫定値が含まれています。",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Cancel,
+            )
+
+            if result != QMessageBox.StandardButton.Yes:
+                return
+
+        elif isinstance(mount, SynScanMount):
+            # 観測・テストのどちらでも実機へ事前導入と連続駆動命令を送るため、
+            # E-ZEUS IIと同様に開始前の確認を取る。
+            result = QMessageBox.warning(
+                self,
+                "SynScan実機追尾",
+                "実機へ事前導入と連続駆動命令を送信します。\n\n"
+                "・SynScan Proでアライメント（同期）は済んでいますか？\n"
+                "・鏡筒やケーブルは衝突しませんか？\n"
+                "・すぐ停止できる状態ですか？",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
                 QMessageBox.StandardButton.Cancel,
             )
