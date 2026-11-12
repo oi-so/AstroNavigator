@@ -311,8 +311,8 @@ class Application:
             self._scene_controller.set_time_paused(False)
             self._scene_controller.set_time(time_provider.get_snapshot().utc)
         elif run_mode is TrackingRunMode.TEST_TRACKING:
-            if not isinstance(mount, EZeus2):
-                raise RuntimeError("Test tracking mode is only available for E-ZEUS II mount.")
+            if not isinstance(mount, (EZeus2, SynScanMount)):
+                raise RuntimeError("Test tracking mode is only available for E-ZEUS II or SynScan mount.")
 
             if not math.isclose(self._scene.time.speed, 1.0, rel_tol=1e-9):
                 raise RuntimeError("Test tracking mode requires Scene time speed to be 1.0.")
@@ -433,7 +433,7 @@ class Application:
             )
 
         if isinstance(mount, SynScanMount):
-            if run_mode is not TrackingRunMode.OBSERVATION:
+            if run_mode not in (TrackingRunMode.OBSERVATION, TrackingRunMode.TEST_TRACKING):
                 raise RuntimeError(f"SynScan mount does not support run mode: {run_mode}")
 
             return SynScanTrackingBackend(mount)

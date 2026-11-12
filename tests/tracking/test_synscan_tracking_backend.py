@@ -84,3 +84,33 @@ def test_stop_zeroes_axes(connected_synced_mount) -> None:
     move_calls = [call for call in client.calls if call[0] == "MoveAxis"]
     assert move_calls[-2][1] == (0, 0.0)
     assert move_calls[-1][1] == (1, 0.0)
+
+
+def _create_backend_without_full_application(mount, run_mode):
+    # Application.__init__ はカタログのダウンロード等を行い重いため、
+    # _create_tracking_backend の分岐だけを検証する目的で __new__ を使う。
+    from astronavigator.application.application import Application
+    from astronavigator.tracking.tracking_config import TrackingConfig
+
+    application = Application.__new__(Application)
+    return application._create_tracking_backend(mount, run_mode, TrackingConfig())
+
+
+def test_synscan_supports_observation_and_test_tracking_modes(connected_synced_mount) -> None:
+    from astronavigator.tracking.tracking_state import TrackingRunMode
+
+    mount, _client = connected_synced_mount
+
+    for run_mode in (TrackingRunMode.OBSERVATION, TrackingRunMode.TEST_TRACKING):
+        backend = _create_backend_without_full_application(mount, run_mode)
+        assert isinstance(backend, SynScanTrackingBackend)
+
+
+def test_synscan_rejects_rehearsal_mode(connected_synced_mount) -> None:
+    from astronavigator.tracking.tracking_state import TrackingRunMode
+
+    mount, _client = connected_synced_mount
+
+    # REHEARSALは実機を動かさないSimulator専用モード。
+    with pytest.raises(RuntimeError):
+        _create_backend_without_full_application(mount, TrackingRunMode.REHEARSAL)
