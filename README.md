@@ -44,3 +44,11 @@ uv sync
 uv run astronavigator
 ```
 
+
+## ダウンロード
+
+[最新バージョンをダウンロード](https://github.com/oi-so/AstroNavigator/releases/latest)
+
+### 対応OS
+- macOS (Apple Silicon)
+- Windows (x64)
