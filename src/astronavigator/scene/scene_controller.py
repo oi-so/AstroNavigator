@@ -14,6 +14,8 @@ from astronavigator.rendering.projection.projection_manager import ProjectionMan
 from astronavigator.scene.observer import Observer
 from astronavigator.scene.scene import Scene
 from astronavigator.event.event_bus import EventBus
+from astronavigator.sky.comet_render_cache import CometRenderSnapshot
+from astronavigator.sky.dynamic_render_cache import DynamicRenderState
 from astronavigator.sky.position import Position
 from astronavigator.sky.sky_object import SkyObject
 from astronavigator.scene.time import Time
@@ -27,24 +29,34 @@ class SceneController:
         self._projection_manager = projection_manager
         self._drag_projection_context = None
 
+    def set_comet_render_snapshot(self, snapshot: CometRenderSnapshot | None) -> None:
+        self._scene.comet_render_snapshot = snapshot
+        self._event_bus.publish(EventType.COMET_SNAPSHOT_UPDATED, snapshot)
+
+    def set_dynamic_render_states(self, states: dict[str, DynamicRenderState]) -> None:
+        self._scene.dynamic_render_states = states
+        self._update_focus_camera()
+
     @property
     def scene(self) -> Scene:
         return self._scene
 
-    def set_time(self, value: datetime) -> None:
+    def set_time(self, value: datetime, *, is_continuous: bool = False) -> None:
         if value.tzinfo is None:
             raise ValueError("The datetime value must be timezone-aware.")
         current_time = self._scene.time
         self._scene.time = Time(
             utc=value.astimezone(timezone.utc),
             speed=current_time.speed,
-            is_paused=current_time.is_paused
+            is_paused=current_time.is_paused,
+            revision=current_time.revision + (not is_continuous),
         )
         self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
 
     def advance_time(self, seconds: float) -> None:
         self._scene.time.advance(seconds)
-        self._update_focus_camera()
+        if self._scene.focus.target is None or not self._scene.focus.target.is_dynamic:
+            self._update_focus_camera()
         self._event_bus.publish(EventType.TIME_CHANGED, self._scene.time)
 
     def set_time_speed(self, speed: float) -> None:
@@ -201,6 +213,16 @@ class SceneController:
         mount.sync(position, pier_side=pier_side)
         self._scene.mount_position = position
         self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
+
+    def home_mount(self) -> None:
+        mount = self._scene.mount
+        if mount is None:
+            raise RuntimeError("Mount is not connected")
+
+        mount.home()
+        self._scene.mount_position = None
+        self._event_bus.publish(EventType.MOUNT_STATE_CHANGED, mount)
+
         
 
     def center_camera_on_object(self, sky_object: SkyObject) -> None:
@@ -217,7 +239,13 @@ class SceneController:
         if target is None:
             return
 
-        position = target.get_position(self._scene.time, self._scene.observer)
+        if target.is_dynamic:
+            state = self._scene.dynamic_render_states.get(target.id)
+            if state is None:
+                return
+            position = state.position
+        else:
+            position = target.get_position(self._scene.time, self._scene.observer)
         self._set_camera_center(position)
 
     def _set_camera_center(self, position: Position) -> None:
@@ -261,4 +289,8 @@ class SceneController:
 
     def set_wide_label_limiting_magnitude(self, magnitude: float) -> None:
         self._scene.rendering_settings.wide_label_limiting_magnitude = magnitude
+        self._event_bus.publish(EventType.LAYER_CHANGED, None)
+
+    def set_comet_limiting_magnitude(self, magnitude: float) -> None:
+        self._scene.rendering_settings.comet_limiting_magnitude = magnitude
         self._event_bus.publish(EventType.LAYER_CHANGED, None)

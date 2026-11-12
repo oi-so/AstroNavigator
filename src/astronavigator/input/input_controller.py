@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from PySide6.QtCore import QPointF, QSize, QPoint
+from PySide6.QtCore import QSize, QPoint
 
 from astronavigator.input.input_action import InputAction
 from astronavigator.scene.scene_controller import SceneController
@@ -39,10 +39,8 @@ class InputController:
 
 
     def handle_wheel(self, delta: float) -> None:
-        if delta > 0:
-            self._scene_controller.zoom_camera(ZOOM_FACTOR)
-        else:
-            self._scene_controller.zoom_camera(1 / ZOOM_FACTOR)
+        if delta:
+            self._scene_controller.zoom_camera(ZOOM_FACTOR ** (delta / 120.0))
 
 
     def handle_pinch(self, scale_delta: float) -> None:

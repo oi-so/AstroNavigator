@@ -73,6 +73,7 @@ dependencies = [
 dev = [
     { name = "line-profiler" },
     { name = "mypy" },
+    { name = "nuitka" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -93,6 +94,7 @@ requires-dist = [
 dev = [
     { name = "line-profiler", specifier = ">=5.0.2" },
     { name = "mypy", specifier = ">=2.3.0" },
+    { name = "nuitka", specifier = ">=4.3.5" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.15.21" },
 ]
@@ -321,6 +323,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/a2/6e/371856a3fb9d31ca8
 wheels = [
     { url = "https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl", hash = "sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505", size = 4963, upload-time = "2025-04-22T14:54:22.983Z" },
 ]
+
+[[package]]
+name = "nuitka"
+version = "4.3.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5f/ec/a9a448d2c429865483fdecf3e4d60e4dcdb8738085337cbd2482ec6468ef/nuitka-4.3.5.tar.gz", hash = "sha256:ca1dabc274b95efa7a46597f464ec27484b30f32cb89872d14d66541284d4f01", size = 4780637, upload-time = "2026-11-08T13:01:00.034Z" }
 
 [[package]]
 name = "numpy"

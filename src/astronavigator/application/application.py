@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
+from dataclasses import replace
+from types import SimpleNamespace
 import time
+from datetime import datetime, timezone
 from PySide6.QtCore import QStandardPaths, QTimer
 
 
@@ -23,6 +27,7 @@ from astronavigator.input.input_controller import InputController
 from astronavigator.mount.e_zeus.e_zeus2 import EZeus2
 from astronavigator.mount.mount import ConnectionState, Mount
 from astronavigator.mount.simulator import SimulatorMount
+from astronavigator.mount.synscan.synscan_mount import SynScanMount
 from astronavigator.rendering.projection.stereographic_projection import StereographicProjection
 from astronavigator.rendering.projection.projection_manager import ProjectionManager
 from astronavigator.rendering.renderer import Renderer
@@ -31,17 +36,23 @@ from astronavigator.scene.scene_controller import SceneController
 from astronavigator.event.event_bus import EventBus
 from astronavigator.catalog.catalog_info import CONSTELLATIONS, EPHEMERIS, HYG, OPENNGC_ADDENDUM, OPENNGC_NGC, SATELLITE_MAGNITUDES, VISUAL_SATELLITES_OMM, MPC_COMETS
 from astronavigator.sky.object_type import ObjectType
+from astronavigator.sky.comet_render_cache import CometRenderCache, CometRenderSnapshot
 from astronavigator.sky.satellite_render_cache import SatelliteRenderCache
-from astronavigator.sky.sky_object import Satellite
+from astronavigator.sky.satellite_render_cache import SatelliteRenderSnapshot
+from astronavigator.sky.sky_object import Comet, Satellite
+from astronavigator.sky.dynamic_render_cache import DynamicRenderCache
 from astronavigator.tracking.e_zeus_rate_profile_repository import EZeusRateProfileRepository
 from astronavigator.tracking.mount_tracking import MountTrackingBackend
 from astronavigator.tracking.simulator_tracking import SimulatorTrackingBackend
+from astronavigator.tracking.synscan_tracking_backend import SynScanTrackingBackend
 from astronavigator.tracking.target_predictor import TargetPredictor
 from astronavigator.tracking.tracking_adjustment import TrackingAdjustment
 from astronavigator.tracking.tracking_config import TrackingConfig
 from astronavigator.tracking.tracking_controller import TrackingController
+from astronavigator.tracking.tracking_plan import TrackingPlan
 from astronavigator.tracking.tracking_planner import TrackingPlanner
-from astronavigator.tracking.tracking_safety_policy import TrackingSafetyContext, TrackingSafetyPolicy
+from astronavigator.tracking.tracking_safety_policy import TrackingSafetyContext, TrackingSafetyPolicy, TrackingSafetyResult
+from astronavigator.tracking.replayed_target_predictor import ReplayCoordinateMapper, ReplayedTargetPredictor
 from astronavigator.tracking.tracking_state import TrackingRunMode, TrackingState
 from astronavigator.tracking.tracking_time_provider import SystemUtcTimeProvider, TrackingTimeProvider
 from astronavigator.tracking.tracking_time_provider import SimulationTimeProvider
@@ -61,23 +72,60 @@ class Application:
         self._input_controller = InputController(self._scene_controller)
         self.main_actions = MainActions(self)
         self._catalog_manager = CatalogManager()
+        data_location = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.AppLocalDataLocation
+        )
+        if not data_location:
+            raise RuntimeError("Could not determine the application data directory.")
+        catalog_directory = Path(data_location) / "catalogs"
+        self._catalogs = SimpleNamespace(
+            hyg=replace(HYG, save_path=catalog_directory / "hygdata_v41.csv"),
+            constellations=replace(
+                CONSTELLATIONS, save_path=catalog_directory / "constellationship.json"
+            ),
+            ephemeris=replace(EPHEMERIS, save_path=catalog_directory / "de440s.bsp"),
+            openngc_ngc=replace(
+                OPENNGC_NGC, save_path=catalog_directory / "openngc" / "NGC.csv"
+            ),
+            openngc_addendum=replace(
+                OPENNGC_ADDENDUM,
+                save_path=catalog_directory / "openngc" / "addendum.csv",
+            ),
+            visual_satellites_omm=replace(
+                VISUAL_SATELLITES_OMM,
+                save_path=catalog_directory / "satellites" / "visual.csv",
+            ),
+            mpc_comets=replace(
+                MPC_COMETS, save_path=catalog_directory / "comets" / "CometEls.txt"
+            ),
+            satellite_magnitudes=replace(
+                SATELLITE_MAGNITUDES,
+                save_path=catalog_directory / "satellites" / "satellites.dat.gz",
+            ),
+        )
+
         self._load_hyg()
         self._load_constellations()
         self._load_skyfield()
         self._load_solar_system()
         self._load_satellites()
         self._load_openngc()
-        # self._load_comets()
+        self._load_comets()
 
         self._satellite_render_cache = SatelliteRenderCache()
         self._satellite_render_cache.snapshot_changed.connect(self._on_satellite_snapshot_changed)
+        self._dynamic_render_cache = DynamicRenderCache()
+        self._comet_render_cache = CometRenderCache()
+        self._comet_render_cache.snapshot_changed.connect(self._on_comet_snapshot_changed)
 
         self._request_satellite_snapshot()
+        self._request_comet_snapshot()
 
         self._tracking_controller: TrackingController | None = None
         self._tracking_time_provider: TrackingTimeProvider | None = None
         self._tracking_config: TrackingConfig | None = None
         self._tracking_update_accumulator = 0.0
+        self._tracking_replay_mapper: ReplayCoordinateMapper | None = None
 
         config_directory = Path(
             QStandardPaths.writableLocation(
@@ -102,22 +150,22 @@ class Application:
         self._scene_controller.add_catalog(catalog)
 
     def _load_hyg(self):
-        self._catalog_manager.download_catalog(HYG)
+        self._catalog_manager.download_catalog(self._catalogs.hyg)
         parser = HygParser()
-        provider = LocalFileProvider(path=HYG.save_path, parser=parser)
+        provider = LocalFileProvider(path=self._catalogs.hyg.save_path, parser=parser)
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
 
     def _load_constellations(self):
-        self._catalog_manager.download_catalog(CONSTELLATIONS)
+        self._catalog_manager.download_catalog(self._catalogs.constellations)
         parser = ConstellationJsonParser()
-        provider = LocalFileProvider(path=CONSTELLATIONS.save_path, parser=parser)
+        provider = LocalFileProvider(path=self._catalogs.constellations.save_path, parser=parser)
         catalog = provider.load()
         self._scene_controller.add_constellation_catalog(catalog)
 
     def _load_skyfield(self):
-        self._catalog_manager.download_catalog(EPHEMERIS)
-        provider = LocalFileProvider(path=EPHEMERIS.save_path, parser=SkyfieldParser())
+        self._catalog_manager.download_catalog(self._catalogs.ephemeris)
+        provider = LocalFileProvider(path=self._catalogs.ephemeris.save_path, parser=SkyfieldParser())
         self._scene.skyfield = provider.load()
 
     def _load_solar_system(self):
@@ -131,13 +179,13 @@ class Application:
     def _load_satellites(self):
         if self._scene.skyfield is None:
             raise RuntimeError("Skyfield context is not loaded yet.")
-        self._catalog_manager.download_catalog(SATELLITE_MAGNITUDES)
+        self._catalog_manager.download_catalog(self._catalogs.satellite_magnitudes)
         mag_parser = SatelliteMagnitudeParser()
-        standard_magnitudes = mag_parser.parse(SATELLITE_MAGNITUDES.save_path)
+        standard_magnitudes = mag_parser.parse(self._catalogs.satellite_magnitudes.save_path)
 
-        self._catalog_manager.download_catalog(VISUAL_SATELLITES_OMM)
+        self._catalog_manager.download_catalog(self._catalogs.visual_satellites_omm)
         parser = OmmCsvParser(skyfield=self._scene.skyfield, catalog_name="CelesTrak Visual Satellites", standard_magnitudes=standard_magnitudes)
-        provider = LocalFileProvider(path=VISUAL_SATELLITES_OMM.save_path, parser=parser)
+        provider = LocalFileProvider(path=self._catalogs.visual_satellites_omm.save_path, parser=parser)
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
 
@@ -146,7 +194,7 @@ class Application:
         parser = NGCParser()
         objects_by_id = {}
 
-        for catalog_info in (OPENNGC_NGC, OPENNGC_ADDENDUM):
+        for catalog_info in (self._catalogs.openngc_ngc, self._catalogs.openngc_addendum):
             self._catalog_manager.download_catalog(catalog_info)
             provider = LocalFileProvider(path=catalog_info.save_path, parser=parser)
             catalog = provider.load()
@@ -163,9 +211,9 @@ class Application:
         if skyfield_context is None:
             raise RuntimeError("Skyfield context is not loaded yet.")
 
-        self._catalog_manager.download_catalog(MPC_COMETS)
-        parser = MpcCometParser(skyfield=skyfield_context, catalog_name=MPC_COMETS.name)
-        provider = LocalFileProvider(path=MPC_COMETS.save_path, parser=parser)
+        self._catalog_manager.download_catalog(self._catalogs.mpc_comets)
+        parser = MpcCometParser(skyfield=skyfield_context, catalog_name=self._catalogs.mpc_comets.name)
+        provider = LocalFileProvider(path=self._catalogs.mpc_comets.save_path, parser=parser)
 
         catalog = provider.load()
         self._scene_controller.add_catalog(catalog)
@@ -176,7 +224,9 @@ class Application:
         self._last_update_time = current_time
 
         self._update_scene_time(delta_time)
+        self._scene_controller.set_dynamic_render_states(self._dynamic_render_cache.calculate(self._scene))
         self._request_satellite_snapshot()
+        self._request_comet_snapshot()
         self._update_dynamic_tracking(delta_time)
         # print(f"Update: {delta_time:.3f} seconds")
 
@@ -188,7 +238,7 @@ class Application:
                 self._scene_controller.set_time_speed(1.0)
             if self._scene.time.is_paused:
                 self._scene_controller.set_time_paused(False)
-            self._scene_controller.set_time(provider.get_snapshot().utc)
+            self._scene_controller.set_time(provider.get_snapshot().utc, is_continuous=True)
             return
 
         self._scene_controller.advance_time(delta_time)
@@ -216,7 +266,16 @@ class Application:
             self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, TrackingState.FAILED)
             return
 
-        self._scene.mount_position = controller.mount_position
+        mount_position = controller.mount_position
+
+        provider = self._tracking_time_provider
+        mapper = self._tracking_replay_mapper
+
+        if provider is not None and provider.mode is TrackingRunMode.TEST_TRACKING and mapper is not None:
+            mount_position = mapper.real_to_simulation(mount_position, datetime.now(timezone.utc))
+
+        self._scene.mount_position = mount_position
+
         self._event_bus.publish(EventType.TRACKING_UPDATED, update)
         if update.state is not previous_state:
             self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, update.state)
@@ -260,7 +319,7 @@ class Application:
     def e_zeus_rate_profile_repository(self) -> EZeusRateProfileRepository:
         return self._e_zeus_rate_profile_repository
 
-    def start_dynamic_tracking(self, *, run_mode: TrackingRunMode, config: TrackingConfig, adjustment: TrackingAdjustment):
+    def start_dynamic_tracking(self, *, run_mode: TrackingRunMode, config: TrackingConfig, adjustment: TrackingAdjustment) -> tuple[TrackingPlan, TrackingSafetyResult]:
         target = self._scene.selection.selected
         mount = self._scene.mount
 
@@ -284,28 +343,57 @@ class Application:
             self._scene_controller.set_time_speed(1.0)
             self._scene_controller.set_time_paused(False)
             self._scene_controller.set_time(time_provider.get_snapshot().utc)
-        else:
-            time_provider = SimulationTimeProvider(lambda: self._scene.time)
+        elif run_mode is TrackingRunMode.TEST_TRACKING:
+            if not isinstance(mount, (EZeus2, SynScanMount)):
+                raise RuntimeError("Test tracking mode is only available for E-ZEUS II or SynScan mount.")
 
-        predictor = TargetPredictor()
+            if not math.isclose(self._scene.time.speed, 1.0, rel_tol=1e-9):
+                raise RuntimeError("Test tracking mode requires Scene time speed to be 1.0.")
+
+            if self._scene.time.is_paused:
+                raise RuntimeError("Test tracking mode requires Scene time to be running (not paused).")
+
+            time_provider = SimulationTimeProvider(lambda: self._scene.time, TrackingRunMode.TEST_TRACKING)
+        else:
+            time_provider = SimulationTimeProvider(lambda: self._scene.time, TrackingRunMode.REHEARSAL)
+
+        source_predictor = TargetPredictor()
         horizontal_calculator = SkyfieldHorizontalPositionCalculator(skyfield_context)
-        planner = TrackingPlanner(predictor, horizontal_calculator)
+        planner = TrackingPlanner(source_predictor, horizontal_calculator)
         plan = planner.create_plan(target, self._scene.observer, time_provider, config)
+
+        tracking_predictor = source_predictor
+        replay_mapper: ReplayCoordinateMapper | None = None
+
+        if run_mode is TrackingRunMode.TEST_TRACKING:
+            simulation_anchor_utc = time_provider.get_snapshot().utc
+            real_anchor_utc = datetime.now(timezone.utc)
+
+            replay_mapper = ReplayCoordinateMapper(skyfield_context, self._scene.object_index, simulation_anchor_utc, real_anchor_utc)
+            tracking_predictor = ReplayedTargetPredictor(replay_mapper, source_predictor)
+
+            mapped_preposition = tracking_predictor.predict(
+                target, self._scene.observer, plan.start_time_utc, config.prediction_horizon
+            ).current_position
+            plan = replace(plan, preposition=mapped_preposition)
+
         backend = self._create_tracking_backend(mount, run_mode, config)
-        controller = TrackingController(predictor, backend, time_provider, TrackingSafetyPolicy())
+        controller = TrackingController(tracking_predictor, backend, time_provider, TrackingSafetyPolicy())
         controller.set_adjustment(adjustment)
+
         safety_result = controller.prepare(
-            target=target, 
-            observer=self._scene.observer, 
-            plan=plan, 
-            config=config, 
-            safety_context=self._create_tracking_safety_context(run_mode)
+            target=target,
+            observer=self._scene.observer,
+            plan=plan,
+            config=config,
+            safety_context=self._create_tracking_safety_context(run_mode),
         )
 
         if safety_result.can_start:
             self._tracking_controller = controller
             self._tracking_time_provider = time_provider
             self._tracking_config = config
+            self._tracking_replay_mapper = replay_mapper
             self._tracking_update_accumulator = 0.0
 
         self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, controller.state)
@@ -318,6 +406,7 @@ class Application:
         if controller is None:
             return 
         controller.stop()
+        self._tracking_replay_mapper = None
         self._event_bus.publish(EventType.TRACKING_STATE_CHANGED, controller.state)
 
 
@@ -345,17 +434,20 @@ class Application:
             collision_risk=False,
             mount_limit_reached=False,
             time_rate=self._scene.time.speed,
+            time_paused=self._scene.time.is_paused
         )
 
 
 
     def _create_tracking_backend(self, mount: Mount, run_mode: TrackingRunMode, config: TrackingConfig) -> MountTrackingBackend:
         if isinstance(mount, SimulatorMount):
+            if run_mode is TrackingRunMode.TEST_TRACKING:
+                raise RuntimeError("Simulator mount does not support test tracking mode.")
             return SimulatorTrackingBackend(mount)
 
         if isinstance(mount, EZeus2):
-            if run_mode is not TrackingRunMode.OBSERVATION:
-                raise RuntimeError("E-ZEUS II実機では観測モードのみ使用できます。")
+            if run_mode not in (TrackingRunMode.OBSERVATION, TrackingRunMode.TEST_TRACKING):
+                raise RuntimeError(f"E-ZEUS II mount does not support run mode: {run_mode}")
 
             profile_id = config.rate_profile_id
             if profile_id is None:
@@ -372,6 +464,12 @@ class Application:
                     config.prediction_interval
                 ),
             )
+
+        if isinstance(mount, SynScanMount):
+            if run_mode not in (TrackingRunMode.OBSERVATION, TrackingRunMode.TEST_TRACKING):
+                raise RuntimeError(f"SynScan mount does not support run mode: {run_mode}")
+
+            return SynScanTrackingBackend(mount)
 
         raise RuntimeError(
             f"{type(mount).__name__} はまだ動的追尾に対応していません。"
@@ -391,3 +489,24 @@ class Application:
     def _on_satellite_snapshot_changed(self, snapshot: SatelliteRenderSnapshot):
         self._scene.satellite_render_snapshot = snapshot
         # self._event_bus.publish(EventType.SCENE_UPDATED, snapshot)
+
+    def _request_comet_snapshot(self):
+        objects = self._scene.object_index.find_dynamic_by_type(ObjectType.COMET)
+        comets = tuple(obj for obj in objects if isinstance(obj, Comet))
+        comet_limit = getattr(
+            self._scene.rendering_settings,
+            "comet_limiting_magnitude",
+            self._scene.rendering_settings.limiting_magnitude,
+        )
+
+        self._comet_render_cache.request_update(
+            time=self._scene.time,
+            observer=self._scene.observer,
+            comets=comets,
+            limiting_magnitude=comet_limit,
+            selected_id=self._scene.selection.selected.id if self._scene.selection.selected is not None else None,
+            focus_id=self._scene.focus.target.id if self._scene.focus.target is not None else None,
+        )
+
+    def _on_comet_snapshot_changed(self, snapshot: CometRenderSnapshot | None):
+        self._scene_controller.set_comet_render_snapshot(snapshot)

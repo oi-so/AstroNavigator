@@ -33,48 +33,37 @@ class ConstellationRenderer:
 
             self._set_pen(painter, scene.rendering_settings.color_settings.constellation_line_color)
 
+            # 線を共有する恒星は、同一フレーム内で一度だけ投影する。
+            projected_endpoints = {}
+
+            def project_endpoint(hip):
+                if hip not in projected_endpoints:
+                    star = scene.object_index.find_by_hip(int(hip))
+                    if star is None:
+                        projected_endpoints[hip] = (None, None)
+                    else:
+                        position = projection.convert_position(
+                            star.get_position(scene.time, scene.observer), context.projection_context
+                        )
+                        visible = projection.project(position, context.projection_context, viewport_size)
+                        projected_endpoints[hip] = (visible, position)
+                return projected_endpoints[hip]
+
             for constellation in scene.constellations:
                 for line in constellation.lines:
-                    start_object = scene.object_index.find_by_hip(int(line.start_id))
-                    end_object = scene.object_index.find_by_hip(int(line.end_id))
-
-                    if start_object is None or end_object is None:
-                        continue
-
-                    start_position = start_object.get_position(scene.time, scene.observer)
-                    end_position = end_object.get_position(scene.time, scene.observer)
-
-                    start_pos_converted = projection.convert_position(
-                        start_position, context.projection_context
-                    )
-
-                    end_pos_converted = projection.convert_position(
-                        end_position, context.projection_context
-                    )
-
-                    start_visible = projection.project(
-                        start_pos_converted, context.projection_context, viewport_size
-                    )
-
-                    end_visible = projection.project(
-                        end_pos_converted, context.projection_context, viewport_size
-                    )
-
+                    start_visible, start_position = project_endpoint(line.start_id)
+                    end_visible, end_position = project_endpoint(line.end_id)
                     if start_visible is None and end_visible is None:
                         continue
 
-                    start_point = start_visible
-                    if start_visible is None:
-                        start_point = projection.project_unclipped(
-                            start_pos_converted, context.projection_context, viewport_size
-                        )
-
-                    end_point = end_visible
-                    if end_visible is None:
-                        end_point = projection.project_unclipped(
-                            end_pos_converted, context.projection_context, viewport_size
-                        )
-
+                    if start_position is None or end_position is None:
+                        continue
+                    start_point = start_visible if start_visible is not None else projection.project_unclipped(
+                        start_position, context.projection_context, viewport_size
+                    )
+                    end_point = end_visible if end_visible is not None else projection.project_unclipped(
+                        end_position, context.projection_context, viewport_size
+                    )
                     if start_point is None or end_point is None:
                         continue
 

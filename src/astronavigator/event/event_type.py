@@ -28,4 +28,5 @@ class EventType(Enum):
     CAMERA_ZOOMED = auto()
     CAMERA_ROTATED = auto()
 
+    COMET_SNAPSHOT_UPDATED = auto()
     SCENE_UPDATED = auto()

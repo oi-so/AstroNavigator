@@ -7,6 +7,7 @@ from astronavigator.application.application import Application
 from astronavigator.event.event_type import EventType
 from astronavigator.gui.dialog.e_zeus_rate_profile_dialog import EZeusRateProfileDialog
 from astronavigator.mount.e_zeus.e_zeus2 import EZeus2
+from astronavigator.mount.synscan.synscan_mount import SynScanMount
 from astronavigator.tracking.tracking_adjustment import TrackingAdjustment
 from astronavigator.tracking.tracking_config import TrackingConfig
 from astronavigator.tracking.tracking_controller import TrackingControllerUpdate
@@ -46,7 +47,8 @@ class TrackingPanel(QWidget):
 
         self._mode = QComboBox()
         self._mode.addItem("観測（実際のUTC）", TrackingRunMode.OBSERVATION)
-        self._mode.addItem("リハーサル（Scene時刻）", TrackingRunMode.REHEARSAL)
+        self._mode.addItem("リハーサル（Scene時刻・Sim）", TrackingRunMode.REHEARSAL)
+        self._mode.addItem("テスト（Scene時刻・実機）", TrackingRunMode.TEST_TRACKING)
 
         self._entry_altitude = QDoubleSpinBox()
         self._entry_altitude.setRange(0.0, 90.0)
@@ -211,6 +213,23 @@ class TrackingPanel(QWidget):
             if result != QMessageBox.StandardButton.Yes:
                 return
 
+        elif isinstance(mount, SynScanMount):
+            # 観測・テストのどちらでも実機へ事前導入と連続駆動命令を送るため、
+            # E-ZEUS IIと同様に開始前の確認を取る。
+            result = QMessageBox.warning(
+                self,
+                "SynScan実機追尾",
+                "実機へ事前導入と連続駆動命令を送信します。\n\n"
+                "・SynScan Proでアライメント（同期）は済んでいますか？\n"
+                "・鏡筒やケーブルは衝突しませんか？\n"
+                "・すぐ停止できる状態ですか？",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Cancel,
+            )
+
+            if result != QMessageBox.StandardButton.Yes:
+                return
+
         try:
             config = TrackingConfig(
                 entry_altitude_deg=self._entry_altitude.value(),
@@ -358,8 +377,7 @@ class TrackingPanel(QWidget):
         self._edit_profile_button.setEnabled(not active and has_profile)
         self._delete_profile_button.setEnabled(not active and has_profile)
 
-        is_e_zeus = isinstance(mount, EZeus2)
-        self._mode.setEnabled(not active and not is_e_zeus)
+        self._mode.setEnabled(not active)
 
         self._auto_profile_button.setEnabled(
             not active

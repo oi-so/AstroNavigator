@@ -1,21 +1,23 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from importlib.resources import files
 
 
 from astronavigator.catalog.converter.converter import CatalogConverter
 
 
-CONSTELLATION_LABELS_PATH = Path(Path.cwd() / "data" / "constellation_label.json")
 
 
 
 class ConstellationConverter(CatalogConverter):
     def convert(self, source: str) -> str:
         constellations = []
-        with open(CONSTELLATION_LABELS_PATH, "r", encoding="utf-8") as f:
-            constellation_labels = json.load(f)
+        constellation_labels = json.loads(
+            files("astronavigator")
+            .joinpath("constellation_label.json")
+            .read_text(encoding="utf-8")
+        )
         
         for line in source.strip().splitlines():
             tokens = line.strip().split()

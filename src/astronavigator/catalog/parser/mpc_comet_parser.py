@@ -19,7 +19,7 @@ COMET_ACTIVE_WINDOW_DAYS = 730.0
 
 
 class MpcCometParser(CatalogParser[Catalog]):
-    def __init__(self, skyfield: SkyfieldContext, catalog_name: str, max_abs_magnitude: float = MAXIMUM_COMET_ABSOLUTE_MAGNITUDE):
+    def __init__(self, skyfield: SkyfieldContext, catalog_name: str, max_abs_magnitude: float | None = None):
         self._skyfield = skyfield
         self._catalog_name = catalog_name
         self._max_abs_magnitude = max_abs_magnitude
@@ -44,7 +44,7 @@ class MpcCometParser(CatalogParser[Catalog]):
                 if not designation or not math.isfinite(magnitude_g) or not math.isfinite(magnitude_k):
                     continue
 
-                if magnitude_g > self._max_abs_magnitude:
+                if self._max_abs_magnitude is not None and magnitude_g > self._max_abs_magnitude:
                     continue
 
                 perihelion_day = float(row["perihelion_day"])

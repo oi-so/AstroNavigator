@@ -28,6 +28,7 @@ class SkyView(QWidget):
         self._event_bus.subscribe(EventType.TIME_CHANGED, self._on_time_changed)
         self._event_bus.subscribe(EventType.LAYER_CHANGED, self._on_layer_changed)
         self._event_bus.subscribe(EventType.SCENE_UPDATED, self._on_scene_updated)
+        self._event_bus.subscribe(EventType.COMET_SNAPSHOT_UPDATED, self._on_scene_updated)
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -48,7 +49,7 @@ class SkyView(QWidget):
 
 
     def wheelEvent(self, event: QWheelEvent) -> None:
-        delta = event.angleDelta().y()
+        delta = event.angleDelta().y() or event.pixelDelta().y()
         self._input_controller.handle_wheel(delta)
         self.update()
 

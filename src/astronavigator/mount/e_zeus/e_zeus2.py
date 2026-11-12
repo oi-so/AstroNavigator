@@ -99,6 +99,10 @@ class EZeus2(Mount):
     @property
     def can_set_pier_side(self) -> bool:
         return True
+
+    @property
+    def supports_goto_pier_side(self) -> bool:
+        return True
     
 
     def connect(self) -> None:

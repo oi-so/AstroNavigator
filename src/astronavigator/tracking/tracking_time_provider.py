@@ -79,12 +79,18 @@ class SystemUtcTimeProvider(TrackingTimeProvider):
 
 
 class SimulationTimeProvider(TrackingTimeProvider):
-    def __init__(self, time_model_getter: TimeModelGetter) -> None:
+    def __init__(self, time_model_getter: TimeModelGetter, mode: TrackingRunMode) -> None:
+        if mode not in (TrackingRunMode.REHEARSAL, TrackingRunMode.TEST_TRACKING):
+            raise ValueError(
+                "mode must be either TrackingRunMode.REHEARSAL or TrackingRunMode.TEST_TRACKING."
+            )
+        
         self._time_model_getter = time_model_getter
+        self._mode = mode
 
     @property
     def mode(self) -> TrackingRunMode:
-        return TrackingRunMode.REHEARSAL
+        return self._mode
 
     def get_snapshot(self) -> TrackingTimeSnapshot:
         time_model = self._time_model_getter()
